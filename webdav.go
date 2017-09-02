@@ -43,8 +43,6 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	status, err := http.StatusBadRequest, errUnsupportedMethod
 	if h.FileSystem == nil {
 		status, err = http.StatusInternalServerError, errNoFileSystem
-	} else if h.LockSystem == nil {
-		status, err = http.StatusInternalServerError, errNoLockSystem
 	} else {
 		switch r.Method {
 		case "OPTIONS":
@@ -175,17 +173,29 @@ func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) (status 
 		return status, err
 	}
 	ctx := getContext(r)
-	allow := "OPTIONS, LOCK, PUT, MKCOL"
+	allow := "OPTIONS, PUT, MKCOL"
+	if h.LockSystem != nil {
+		allow += ", LOCK"
+	}
 	if fi, err := h.FileSystem.Stat(ctx, reqPath); err == nil {
 		if fi.IsDir() {
-			allow = "OPTIONS, LOCK, DELETE, PROPPATCH, COPY, MOVE, UNLOCK, PROPFIND"
+			allow = "OPTIONS, DELETE, PROPPATCH, COPY, MOVE, PROPFIND"
 		} else {
-			allow = "OPTIONS, LOCK, GET, HEAD, POST, DELETE, PROPPATCH, COPY, MOVE, UNLOCK, PROPFIND, PUT"
+			allow = "OPTIONS, GET, HEAD, POST, DELETE, PROPPATCH, COPY, MOVE, PROPFIND, PUT"
+		}
+		if h.LockSystem != nil {
+			allow += ", LOCK, UNLOCK"
 		}
 	}
-	w.Header().Set("Allow", allow)
+	w.Header().Add("Allow", allow)
+
 	// http://www.webdav.org/specs/rfc4918.html#dav.compliance.classes
-	w.Header().Set("DAV", "1, 2")
+	dav := "1"
+	if h.LockSystem != nil {
+		dav += ", 2"
+	}
+	w.Header().Add("DAV", dav)
+
 	// http://msdn.microsoft.com/en-au/library/cc250217.aspx
 	w.Header().Set("MS-Author-Via", "DAV")
 	return 0, nil
@@ -225,11 +235,13 @@ func (h *Handler) handleDelete(w http.ResponseWriter, r *http.Request) (status i
 	if err != nil {
 		return status, err
 	}
-	release, status, err := h.confirmLocks(r, reqPath, "")
-	if err != nil {
-		return status, err
+	if h.LockSystem != nil {
+		release, status, err := h.confirmLocks(r, reqPath, "")
+		if err != nil {
+			return status, err
+		}
+		defer release()
 	}
-	defer release()
 
 	ctx := getContext(r)
 
@@ -255,11 +267,13 @@ func (h *Handler) handlePut(w http.ResponseWriter, r *http.Request) (status int,
 	if err != nil {
 		return status, err
 	}
-	release, status, err := h.confirmLocks(r, reqPath, "")
-	if err != nil {
-		return status, err
+	if h.LockSystem != nil {
+		release, status, err := h.confirmLocks(r, reqPath, "")
+		if err != nil {
+			return status, err
+		}
+		defer release()
 	}
-	defer release()
 	// TODO(rost): Support the If-Match, If-None-Match headers? See bradfitz'
 	// comments in http.checkEtag.
 	ctx := getContext(r)
@@ -294,11 +308,13 @@ func (h *Handler) handleMkcol(w http.ResponseWriter, r *http.Request) (status in
 	if err != nil {
 		return status, err
 	}
-	release, status, err := h.confirmLocks(r, reqPath, "")
-	if err != nil {
-		return status, err
+	if h.LockSystem != nil {
+		release, status, err := h.confirmLocks(r, reqPath, "")
+		if err != nil {
+			return status, err
+		}
+		defer release()
 	}
-	defer release()
 
 	ctx := getContext(r)
 
@@ -352,11 +368,13 @@ func (h *Handler) handleCopyMove(w http.ResponseWriter, r *http.Request) (status
 		// even though a COPY doesn't modify the source, if a concurrent
 		// operation modifies the source. However, the litmus test explicitly
 		// checks that COPYing a locked-by-another source is OK.
-		release, status, err := h.confirmLocks(r, "", dst)
-		if err != nil {
-			return status, err
+		if h.LockSystem != nil {
+			release, status, err := h.confirmLocks(r, "", dst)
+			if err != nil {
+				return status, err
+			}
+			defer release()
 		}
-		defer release()
 
 		// Section 9.8.3 says that "The COPY method on a collection without a Depth
 		// header must act as if a Depth header with value "infinity" was included".
@@ -372,11 +390,13 @@ func (h *Handler) handleCopyMove(w http.ResponseWriter, r *http.Request) (status
 		return copyFiles(ctx, h.FileSystem, src, dst, r.Header.Get("Overwrite") != "F", depth, 0)
 	}
 
-	release, status, err := h.confirmLocks(r, src, dst)
-	if err != nil {
-		return status, err
+	if h.LockSystem != nil {
+		release, status, err := h.confirmLocks(r, src, dst)
+		if err != nil {
+			return status, err
+		}
+		defer release()
 	}
-	defer release()
 
 	// Section 9.9.2 says that "The MOVE method on a collection must act as if
 	// a "Depth: infinity" header was used on it. A client must not submit a
@@ -390,6 +410,10 @@ func (h *Handler) handleCopyMove(w http.ResponseWriter, r *http.Request) (status
 }
 
 func (h *Handler) handleLock(w http.ResponseWriter, r *http.Request) (retStatus int, retErr error) {
+	if h.LockSystem == nil {
+		return http.StatusMethodNotAllowed, errNoLockSystem
+	}
+
 	duration, err := parseTimeout(r.Header.Get("Timeout"))
 	if err != nil {
 		return http.StatusBadRequest, err
@@ -484,6 +508,10 @@ func (h *Handler) handleLock(w http.ResponseWriter, r *http.Request) (retStatus 
 }
 
 func (h *Handler) handleUnlock(w http.ResponseWriter, r *http.Request) (status int, err error) {
+	if h.LockSystem == nil {
+		return http.StatusMethodNotAllowed, errNoLockSystem
+	}
+
 	// http://www.webdav.org/specs/rfc4918.html#HEADER_Lock-Token says that the
 	// Lock-Token value is a Coded-URL. We strip its angle brackets.
 	t := r.Header.Get("Lock-Token")
@@ -575,11 +603,13 @@ func (h *Handler) handleProppatch(w http.ResponseWriter, r *http.Request) (statu
 	if err != nil {
 		return status, err
 	}
-	release, status, err := h.confirmLocks(r, reqPath, "")
-	if err != nil {
-		return status, err
+	if h.LockSystem != nil {
+		release, status, err := h.confirmLocks(r, reqPath, "")
+		if err != nil {
+			return status, err
+		}
+		defer release()
 	}
-	defer release()
 
 	ctx := getContext(r)
 
