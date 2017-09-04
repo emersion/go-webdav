@@ -117,6 +117,11 @@ func (f *file) Readdir(count int) ([]os.FileInfo, error) {
 }
 
 func (f *file) Stat() (os.FileInfo, error) {
+	info, err := f.ao.Stat()
+	if info != nil || err != nil {
+		return info, err
+	}
+
 	return &fileInfo{
 		name: f.name,
 		mode: os.ModePerm,
@@ -158,10 +163,18 @@ func (d *dir) Readdir(count int) ([]os.FileInfo, error) {
 
 		d.files = make([]os.FileInfo, len(aos))
 		for i, ao := range aos {
-			d.files[i] = &fileInfo{
+			f := &file{
+				fs: d.fs,
 				name: ao.ID() + ".vcf",
-				mode: os.ModePerm,
+				ao: ao,
 			}
+
+			info, err := f.Stat()
+			if err != nil {
+				return nil, err
+			}
+
+			d.files[i] = info
 		}
 	}
 

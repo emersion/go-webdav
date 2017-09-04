@@ -4,6 +4,7 @@ package carddav
 
 import (
 	"errors"
+	"os"
 
 	"github.com/emersion/go-vcard"
 )
@@ -15,6 +16,7 @@ var (
 type AddressObject interface {
 	ID() string
 	Card() (vcard.Card, error)
+	Stat() (os.FileInfo, error) // can return nil, nil
 }
 
 type AddressBook interface {
