@@ -284,9 +284,14 @@ func (fs *fileSystem) Stat(ctx context.Context, name string) (os.FileInfo, error
 	}
 
 	id := fs.addressObjectID(name)
-	_, err := fs.ab.GetAddressObject(id)
+	ao, err := fs.ab.GetAddressObject(id)
 	if err != nil {
 		return nil, err
+	}
+
+	info, err := ao.Stat()
+	if info != nil || err != nil {
+		return info, err
 	}
 
 	return &fileInfo{
