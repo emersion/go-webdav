@@ -13,6 +13,12 @@ var (
 	ErrNotFound = errors.New("carddav: not found")
 )
 
+type AddressBookInfo struct {
+	Name string
+	Description string
+	MaxResourceSize int
+}
+
 type AddressObject interface {
 	ID() string
 	Card() (vcard.Card, error)
@@ -20,6 +26,7 @@ type AddressObject interface {
 }
 
 type AddressBook interface {
+	Info() (*AddressBookInfo, error)
 	GetAddressObject(id string) (AddressObject, error)
 	ListAddressObjects() ([]AddressObject, error)
 }

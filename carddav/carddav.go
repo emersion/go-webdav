@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -202,6 +203,11 @@ func (d *dir) Stat() (os.FileInfo, error) {
 }
 
 func (d *dir) DeadProps() (map[xml.Name]webdav.Property, error) {
+	info, err := d.fs.ab.Info()
+	if err != nil {
+		return nil, err
+	}
+
 	return map[xml.Name]webdav.Property{
 		resourcetype: webdav.Property{
 			XMLName: resourcetype,
@@ -209,19 +215,20 @@ func (d *dir) DeadProps() (map[xml.Name]webdav.Property, error) {
 		},
 		displayname: webdav.Property{
 			XMLName: displayname,
-			InnerXML: []byte("Test"),
+			InnerXML: []byte(info.Name),
 		},
 		addressBookDescription: webdav.Property{
 			XMLName: addressBookDescription,
-			InnerXML: []byte("C'est juste un test mdr."),
+			InnerXML: []byte(info.Description),
 		},
 		addressBookSupportedAddressData: webdav.Property{
 			XMLName: addressBookSupportedAddressData,
-			InnerXML: []byte(`<address-data-type xmlns="urn:ietf:params:xml:ns:carddav" content-type="text/vcard" version="3.0"/>`),
+			InnerXML: []byte(`<address-data-type xmlns="urn:ietf:params:xml:ns:carddav" content-type="text/vcard" version="3.0"/>` +
+				`<address-data-type xmlns="urn:ietf:params:xml:ns:carddav" content-type="text/vcard" version="4.0"/>`),
 		},
 		addressBookMaxResourceSize: webdav.Property{
 			XMLName: addressBookMaxResourceSize,
-			InnerXML: []byte("102400"),
+			InnerXML: []byte(strconv.Itoa(info.MaxResourceSize)),
 		},
 		addressBookHomeSet: webdav.Property{
 			XMLName: addressBookHomeSet,
