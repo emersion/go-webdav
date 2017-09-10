@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package webdav provides a WebDAV server implementation.
+// Package webdav provides a WebDAV server implementation, as defined in
+// RFC 4918.
 package webdav
 
 import (

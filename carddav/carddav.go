@@ -1,3 +1,5 @@
+// Package carddav provides a CardDAV server implementation, as defined in
+// RFC 6352.
 package carddav
 
 import (
