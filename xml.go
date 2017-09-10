@@ -206,14 +206,12 @@ type Property struct {
 }
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_error
-// See multistatusWriter for the "D:" namespace prefix.
 type xmlError struct {
 	XMLName  xml.Name `xml:"DAV: error"`
 	InnerXML []byte    `xml:",innerxml"`
 }
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_propstat
-// See multistatusWriter for the "D:" namespace prefix.
 type propstat struct {
 	Prop                []Property `xml:"DAV: prop>_ignored_"`
 	Status              string     `xml:"DAV: status"`
@@ -222,7 +220,6 @@ type propstat struct {
 }
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_response
-// See multistatusWriter for the "D:" namespace prefix.
 type response struct {
 	XMLName             xml.Name  `xml:"DAV: response"`
 	Href                []string   `xml:"DAV: href"`
