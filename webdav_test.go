@@ -245,7 +245,7 @@ func TestEscapeXML(t *testing.T) {
 
 func TestFilenameEscape(t *testing.T) {
 	hrefRe := regexp.MustCompile(`<href xmlns="DAV:">([^<]*)</href>`)
-	displayNameRe := regexp.MustCompile(`<D:displayname>([^<]*)</D:displayname>`)
+	displayNameRe := regexp.MustCompile(`<displayname xmlns="DAV:">([^<]*)</displayname>`)
 	do := func(method, urlStr string) (string, string, error) {
 		req, err := http.NewRequest(method, urlStr, nil)
 		if err != nil {

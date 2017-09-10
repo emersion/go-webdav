@@ -221,35 +221,6 @@ type propstat struct {
 	ResponseDescription string     `xml:"DAV: responsedescription,omitempty"`
 }
 
-// MarshalXML prepends the "D:" namespace prefix on properties in the DAV: namespace
-// before encoding. See multistatusWriter.
-func (ps propstat) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
-	// Convert from a propstat to an propstat.
-	xmlPs := propstat{
-		Prop:                make([]Property, len(ps.Prop)),
-		Status:              ps.Status,
-		Error:               ps.Error,
-		ResponseDescription: ps.ResponseDescription,
-	}
-	for k, prop := range ps.Prop {
-		xmlPs.Prop[k] = Property{
-			XMLName:  xml.Name(prop.XMLName),
-			Lang:     prop.Lang,
-			InnerXML: prop.InnerXML,
-		}
-	}
-
-	for k, prop := range xmlPs.Prop {
-		if prop.XMLName.Space == "DAV:" {
-			prop.XMLName = xml.Name{Space: "", Local: "D:" + prop.XMLName.Local}
-			xmlPs.Prop[k] = prop
-		}
-	}
-	// Distinct type to avoid infinite recursion of MarshalXML.
-	type newpropstat propstat
-	return e.EncodeElement(newpropstat(xmlPs), start)
-}
-
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_response
 // See multistatusWriter for the "D:" namespace prefix.
 type response struct {
