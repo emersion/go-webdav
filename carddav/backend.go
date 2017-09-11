@@ -14,8 +14,8 @@ var (
 )
 
 type AddressBookInfo struct {
-	Name string
-	Description string
+	Name            string
+	Description     string
 	MaxResourceSize int
 }
 

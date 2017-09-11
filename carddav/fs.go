@@ -18,30 +18,30 @@ import (
 
 var (
 	errNotYetImplemented = errors.New("not yet implemented")
-	errUnsupported = errors.New("unsupported")
+	errUnsupported       = errors.New("unsupported")
 )
 
 const nsDAV = "DAV:"
 
 var (
-	resourcetype = xml.Name{Space: nsDAV, Local: "resourcetype"}
-	displayname = xml.Name{Space: nsDAV, Local: "displayname"}
+	resourcetype   = xml.Name{Space: nsDAV, Local: "resourcetype"}
+	displayname    = xml.Name{Space: nsDAV, Local: "displayname"}
 	getcontenttype = xml.Name{Space: nsDAV, Local: "getcontenttype"}
 )
 
 const nsCardDAV = "urn:ietf:params:xml:ns:carddav"
 
 var (
-	addressBookDescription = xml.Name{Space: nsCardDAV, Local: "addressbook-description"}
+	addressBookDescription          = xml.Name{Space: nsCardDAV, Local: "addressbook-description"}
 	addressBookSupportedAddressData = xml.Name{Space: nsCardDAV, Local: "supported-address-data"}
-	addressBookMaxResourceSize = xml.Name{Space: nsCardDAV, Local: "max-resource-size"}
-	addressBookHomeSet = xml.Name{Space: nsCardDAV, Local: "addressbook-home-set"}
+	addressBookMaxResourceSize      = xml.Name{Space: nsCardDAV, Local: "max-resource-size"}
+	addressBookHomeSet              = xml.Name{Space: nsCardDAV, Local: "addressbook-home-set"}
 )
 
 type fileInfo struct {
-	name string
-	size int64
-	mode os.FileMode
+	name    string
+	size    int64
+	mode    os.FileMode
 	modTime time.Time
 }
 
@@ -71,9 +71,9 @@ func (fi *fileInfo) Sys() interface{} {
 
 type file struct {
 	*bytes.Reader
-	fs *fileSystem
+	fs   *fileSystem
 	name string
-	ao AddressObject
+	ao   AddressObject
 }
 
 func (f *file) Close() error {
@@ -131,8 +131,8 @@ func (f *file) Stat() (os.FileInfo, error) {
 // TODO: getcontenttype for file
 
 type dir struct {
-	fs *fileSystem
-	name string
+	fs    *fileSystem
+	name  string
 	files []os.FileInfo
 
 	n int
@@ -164,9 +164,9 @@ func (d *dir) Readdir(count int) ([]os.FileInfo, error) {
 		d.files = make([]os.FileInfo, len(aos))
 		for i, ao := range aos {
 			f := &file{
-				fs: d.fs,
+				fs:   d.fs,
 				name: ao.ID() + ".vcf",
-				ao: ao,
+				ao:   ao,
 			}
 
 			info, err := f.Stat()
@@ -209,15 +209,15 @@ func (d *dir) DeadProps() (map[xml.Name]webdav.Property, error) {
 
 	return map[xml.Name]webdav.Property{
 		resourcetype: webdav.Property{
-			XMLName: resourcetype,
+			XMLName:  resourcetype,
 			InnerXML: []byte(`<collection xmlns="DAV:"/><addressbook xmlns="urn:ietf:params:xml:ns:carddav"/>`),
 		},
 		displayname: webdav.Property{
-			XMLName: displayname,
+			XMLName:  displayname,
 			InnerXML: []byte(info.Name),
 		},
 		addressBookDescription: webdav.Property{
-			XMLName: addressBookDescription,
+			XMLName:  addressBookDescription,
 			InnerXML: []byte(info.Description),
 		},
 		addressBookSupportedAddressData: webdav.Property{
@@ -226,11 +226,11 @@ func (d *dir) DeadProps() (map[xml.Name]webdav.Property, error) {
 				`<address-data-type xmlns="urn:ietf:params:xml:ns:carddav" content-type="text/vcard" version="4.0"/>`),
 		},
 		addressBookMaxResourceSize: webdav.Property{
-			XMLName: addressBookMaxResourceSize,
+			XMLName:  addressBookMaxResourceSize,
 			InnerXML: []byte(strconv.Itoa(info.MaxResourceSize)),
 		},
 		addressBookHomeSet: webdav.Property{
-			XMLName: addressBookHomeSet,
+			XMLName:  addressBookHomeSet,
 			InnerXML: []byte(`<href xmlns="DAV:">/</href>`),
 		},
 	}, nil
@@ -255,7 +255,7 @@ func (fs *fileSystem) addressObjectID(name string) string {
 func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm os.FileMode) (webdav.File, error) {
 	if name == "/" {
 		return &dir{
-			fs: fs,
+			fs:   fs,
 			name: name,
 		}, nil
 	}
@@ -267,9 +267,9 @@ func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm 
 	}
 
 	return &file{
-		fs: fs,
+		fs:   fs,
 		name: name,
-		ao: ao,
+		ao:   ao,
 	}, nil
 }
 

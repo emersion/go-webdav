@@ -28,7 +28,7 @@ func (w responseWriter) Write(b []byte) (int, error) {
 }
 
 type Handler struct {
-	ab AddressBook
+	ab     AddressBook
 	webdav *webdav.Handler
 }
 
@@ -154,7 +154,7 @@ func multiget(ctx context.Context, fs webdav.FileSystem, ls webdav.LockSystem, n
 
 		if !inserted {
 			pstats = append(pstats, webdav.Propstat{
-				Props: []webdav.Property{prop},
+				Props:  []webdav.Property{prop},
 				Status: status,
 			})
 		}
