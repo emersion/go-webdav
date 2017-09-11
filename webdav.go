@@ -577,9 +577,9 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) (status
 			}
 			pstats = append(pstats, pstat)
 		} else if pf.Allprop != nil {
-			pstats, err = allprop(ctx, h.FileSystem, h.LockSystem, reqPath, pf.Prop)
+			pstats, err = Allprop(ctx, h.FileSystem, h.LockSystem, reqPath, pf.Prop)
 		} else {
-			pstats, err = props(ctx, h.FileSystem, h.LockSystem, reqPath, pf.Prop)
+			pstats, err = Props(ctx, h.FileSystem, h.LockSystem, reqPath, pf.Prop)
 		}
 		if err != nil {
 			return err

@@ -160,13 +160,11 @@ var liveProps = map[xml.Name]struct {
 	},
 }
 
-// TODO(nigeltao) merge props and allprop?
-
 // Props returns the status of the properties named pnames for resource name.
 //
 // Each Propstat has a unique status and each property name will only be part
 // of one Propstat element.
-func props(ctx context.Context, fs FileSystem, ls LockSystem, name string, pnames []xml.Name) ([]Propstat, error) {
+func Props(ctx context.Context, fs FileSystem, ls LockSystem, name string, pnames []xml.Name) ([]Propstat, error) {
 	f, err := fs.OpenFile(ctx, name, os.O_RDONLY, 0)
 	if err != nil {
 		return nil, err
@@ -254,7 +252,7 @@ func propnames(ctx context.Context, fs FileSystem, ls LockSystem, name string) (
 // returned if they are named in 'include'.
 //
 // See http://www.webdav.org/specs/rfc4918.html#METHOD_PROPFIND
-func allprop(ctx context.Context, fs FileSystem, ls LockSystem, name string, include []xml.Name) ([]Propstat, error) {
+func Allprop(ctx context.Context, fs FileSystem, ls LockSystem, name string, include []xml.Name) ([]Propstat, error) {
 	pnames, err := propnames(ctx, fs, ls, name)
 	if err != nil {
 		return nil, err
@@ -269,7 +267,7 @@ func allprop(ctx context.Context, fs FileSystem, ls LockSystem, name string, inc
 			pnames = append(pnames, pn)
 		}
 	}
-	return props(ctx, fs, ls, name, pnames)
+	return Props(ctx, fs, ls, name, pnames)
 }
 
 // Patch patches the properties of resource name. The return values are

@@ -534,9 +534,9 @@ func TestMemPS(t *testing.T) {
 				}
 				continue
 			case "allprop":
-				propstats, err = allprop(ctx, fs, ls, op.name, op.pnames)
+				propstats, err = Allprop(ctx, fs, ls, op.name, op.pnames)
 			case "propfind":
-				propstats, err = props(ctx, fs, ls, op.name, op.pnames)
+				propstats, err = Props(ctx, fs, ls, op.name, op.pnames)
 			case "proppatch":
 				propstats, err = patch(ctx, fs, ls, op.name, op.patches)
 			default:

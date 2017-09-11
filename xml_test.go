@@ -175,7 +175,7 @@ func TestReadPropfind(t *testing.T) {
 		wantPF: propfind{
 			XMLName: xml.Name{Space: "DAV:", Local: "propfind"},
 			Allprop: new(struct{}),
-			Include: propfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
+			Include: PropfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
 		},
 	}, {
 		desc: "propfind: include followed by allprop",
@@ -187,7 +187,7 @@ func TestReadPropfind(t *testing.T) {
 		wantPF: propfind{
 			XMLName: xml.Name{Space: "DAV:", Local: "propfind"},
 			Allprop: new(struct{}),
-			Include: propfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
+			Include: PropfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
 		},
 	}, {
 		desc: "propfind: propfind",
@@ -197,7 +197,7 @@ func TestReadPropfind(t *testing.T) {
 			"</A:propfind>",
 		wantPF: propfind{
 			XMLName: xml.Name{Space: "DAV:", Local: "propfind"},
-			Prop:    propfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
+			Prop:    PropfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
 		},
 	}, {
 		desc: "propfind: prop with ignored comments",
@@ -210,7 +210,7 @@ func TestReadPropfind(t *testing.T) {
 			"</A:propfind>",
 		wantPF: propfind{
 			XMLName: xml.Name{Space: "DAV:", Local: "propfind"},
-			Prop:    propfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
+			Prop:    PropfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
 		},
 	}, {
 		desc: "propfind: propfind with ignored whitespace",
@@ -220,7 +220,7 @@ func TestReadPropfind(t *testing.T) {
 			"</A:propfind>",
 		wantPF: propfind{
 			XMLName: xml.Name{Space: "DAV:", Local: "propfind"},
-			Prop:    propfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
+			Prop:    PropfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
 		},
 	}, {
 		desc: "propfind: propfind with ignored mixed-content",
@@ -230,7 +230,7 @@ func TestReadPropfind(t *testing.T) {
 			"</A:propfind>",
 		wantPF: propfind{
 			XMLName: xml.Name{Space: "DAV:", Local: "propfind"},
-			Prop:    propfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
+			Prop:    PropfindProps{xml.Name{Space: "DAV:", Local: "displayname"}},
 		},
 	}, {
 		desc: "propfind: propname with ignored element (section A.4)",
@@ -564,7 +564,7 @@ func TestMultistatusWriter(t *testing.T) {
 loop:
 	for _, tc := range testCases {
 		rec := httptest.NewRecorder()
-		w := MultistatusWriter{w: rec, responseDescription: tc.respdesc}
+		w := MultistatusWriter{w: rec, ResponseDescription: tc.respdesc}
 		if tc.writeHeader {
 			if err := w.writeHeader(); err != nil {
 				t.Errorf("%s: got writeHeader error %v, want nil", tc.desc, err)

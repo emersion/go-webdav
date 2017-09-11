@@ -115,13 +115,13 @@ func next(d *xml.Decoder) (xml.Token, error) {
 }
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_prop (for propfind)
-type propfindProps []xml.Name
+type PropfindProps []xml.Name
 
 // UnmarshalXML appends the property names enclosed within start to pn.
 //
 // It returns an error if start does not contain any properties or if
 // properties contain values. Character data between properties is ignored.
-func (pn *propfindProps) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+func (pn *PropfindProps) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	for {
 		t, err := next(d)
 		if err != nil {
@@ -152,8 +152,8 @@ type propfind struct {
 	XMLName  xml.Name      `xml:"DAV: propfind"`
 	Allprop  *struct{}     `xml:"DAV: allprop"`
 	Propname *struct{}     `xml:"DAV: propname"`
-	Prop     propfindProps `xml:"DAV: prop"`
-	Include  propfindProps `xml:"DAV: include"`
+	Prop     PropfindProps `xml:"DAV: prop"`
+	Include  PropfindProps `xml:"DAV: include"`
 }
 
 func readPropfind(r io.Reader) (pf propfind, status int, err error) {
@@ -246,10 +246,14 @@ type MultistatusWriter struct {
 	// of the multistatus XML element. Only the latest content before
 	// close will be emitted. Empty response descriptions are not
 	// written.
-	responseDescription string
+	ResponseDescription string
 
 	w   http.ResponseWriter
 	enc *xml.Encoder
+}
+
+func NewMultistatusWriter(w http.ResponseWriter) *MultistatusWriter {
+	return &MultistatusWriter{w: w}
 }
 
 // Write validates and emits a DAV response as part of a multistatus response
@@ -337,11 +341,11 @@ func (w *MultistatusWriter) Close() error {
 		return nil
 	}
 	var end []xml.Token
-	if w.responseDescription != "" {
+	if w.ResponseDescription != "" {
 		name := xml.Name{Space: "DAV:", Local: "responsedescription"}
 		end = append(end,
 			xml.StartElement{Name: name},
-			xml.CharData(w.responseDescription),
+			xml.CharData(w.ResponseDescription),
 			xml.EndElement{Name: name},
 		)
 	}
