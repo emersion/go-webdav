@@ -564,7 +564,7 @@ func TestMultistatusWriter(t *testing.T) {
 loop:
 	for _, tc := range testCases {
 		rec := httptest.NewRecorder()
-		w := multistatusWriter{w: rec, responseDescription: tc.respdesc}
+		w := MultistatusWriter{w: rec, responseDescription: tc.respdesc}
 		if tc.writeHeader {
 			if err := w.writeHeader(); err != nil {
 				t.Errorf("%s: got writeHeader error %v, want nil", tc.desc, err)
@@ -580,7 +580,7 @@ loop:
 				continue loop
 			}
 		}
-		if err := w.close(); err != tc.wantErr {
+		if err := w.Close(); err != tc.wantErr {
 			t.Errorf("%s: got close error %v, want %v",
 				tc.desc, err, tc.wantErr)
 			continue

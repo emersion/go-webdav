@@ -8,7 +8,6 @@ package webdav
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -560,7 +559,7 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) (status
 		return status, err
 	}
 
-	mw := multistatusWriter{w: w}
+	mw := MultistatusWriter{w: w}
 
 	walkFn := func(reqPath string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -585,11 +584,11 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) (status
 		if err != nil {
 			return err
 		}
-		return mw.write(makePropstatResponse(path.Join(h.Prefix, reqPath), pstats))
+		return mw.Write(makePropstatResponse(path.Join(h.Prefix, reqPath), pstats))
 	}
 
 	walkErr := walkFS(ctx, h.FileSystem, depth, reqPath, fi, walkFn)
-	closeErr := mw.close()
+	closeErr := mw.Close()
 	if walkErr != nil {
 		return http.StatusInternalServerError, walkErr
 	}
@@ -628,9 +627,9 @@ func (h *Handler) handleProppatch(w http.ResponseWriter, r *http.Request) (statu
 	if err != nil {
 		return http.StatusInternalServerError, err
 	}
-	mw := multistatusWriter{w: w}
-	writeErr := mw.write(makePropstatResponse(r.URL.Path, pstats))
-	closeErr := mw.close()
+	mw := MultistatusWriter{w: w}
+	writeErr := mw.Write(makePropstatResponse(r.URL.Path, pstats))
+	closeErr := mw.Close()
 	if writeErr != nil {
 		return http.StatusInternalServerError, writeErr
 	}
@@ -640,24 +639,11 @@ func (h *Handler) handleProppatch(w http.ResponseWriter, r *http.Request) (statu
 	return 0, nil
 }
 
-func makePropstatResponse(href string, pstats []Propstat) *response {
-	resp := response{
+func makePropstatResponse(href string, pstats []Propstat) *Response {
+	return &Response{
 		Href:     []string{(&url.URL{Path: href}).EscapedPath()},
-		Propstat: make([]propstat, 0, len(pstats)),
+		Propstat: pstats,
 	}
-	for _, p := range pstats {
-		var xmlErr *xmlError
-		if p.XMLError != "" {
-			xmlErr = &xmlError{InnerXML: []byte(p.XMLError)}
-		}
-		resp.Propstat = append(resp.Propstat, propstat{
-			Status:              fmt.Sprintf("HTTP/1.1 %d %s", p.Status, StatusText(p.Status)),
-			Prop:                p.Props,
-			ResponseDescription: p.ResponseDescription,
-			Error:               xmlErr,
-		})
-	}
-	return &resp
 }
 
 const (

@@ -18,7 +18,7 @@ import (
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_lockinfo
 type lockInfo struct {
-	XMLName   xml.Name `xml:"lockinfo"`
+	XMLName   xml.Name  `xml:"lockinfo"`
 	Exclusive *struct{} `xml:"lockscope>exclusive"`
 	Shared    *struct{} `xml:"lockscope>shared"`
 	Write     *struct{} `xml:"locktype>write"`
@@ -149,7 +149,7 @@ func (pn *propfindProps) UnmarshalXML(d *xml.Decoder, start xml.StartElement) er
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_propfind
 type propfind struct {
-	XMLName  xml.Name     `xml:"DAV: propfind"`
+	XMLName  xml.Name      `xml:"DAV: propfind"`
 	Allprop  *struct{}     `xml:"DAV: allprop"`
 	Propname *struct{}     `xml:"DAV: propname"`
 	Prop     propfindProps `xml:"DAV: prop"`
@@ -208,7 +208,7 @@ type Property struct {
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_error
 type xmlError struct {
 	XMLName  xml.Name `xml:"DAV: error"`
-	InnerXML []byte    `xml:",innerxml"`
+	InnerXML []byte   `xml:",innerxml"`
 }
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_propstat
@@ -220,8 +220,17 @@ type propstat struct {
 }
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_response
+type Response struct {
+	Href                []string
+	Propstat            []Propstat
+	Status              int
+	XMLError            string
+	ResponseDescription string
+}
+
+// http://www.webdav.org/specs/rfc4918.html#ELEMENT_response
 type response struct {
-	XMLName             xml.Name  `xml:"DAV: response"`
+	XMLName             xml.Name   `xml:"DAV: response"`
 	Href                []string   `xml:"DAV: href"`
 	Propstat            []propstat `xml:"DAV: propstat"`
 	Status              string     `xml:"DAV: status,omitempty"`
@@ -232,13 +241,7 @@ type response struct {
 // MultistatusWriter marshals one or more Responses into a XML
 // multistatus response.
 // See http://www.webdav.org/specs/rfc4918.html#ELEMENT_multistatus
-// TODO(rsto, mpl): As a workaround, the "D:" namespace prefix, defined as
-// "DAV:" on this element, is prepended on the nested response, as well as on all
-// its nested elements. All property names in the DAV: namespace are prefixed as
-// well. This is because some versions of Mini-Redirector (on windows 7) ignore
-// elements with a default namespace (no prefixed namespace). A less intrusive fix
-// should be possible after golang.org/cl/11074. See https://golang.org/issue/11177
-type multistatusWriter struct {
+type MultistatusWriter struct {
 	// ResponseDescription contains the optional responsedescription
 	// of the multistatus XML element. Only the latest content before
 	// close will be emitted. Empty response descriptions are not
@@ -257,7 +260,29 @@ type multistatusWriter struct {
 // first, valid response to be written, Write prepends the XML representation
 // of r with a multistatus tag. Callers must call close after the last response
 // has been written.
-func (w *multistatusWriter) write(r *response) error {
+func (w *MultistatusWriter) Write(r *Response) error {
+	rr := &response{
+		Href:     r.Href,
+		Propstat: make([]propstat, 0, len(r.Propstat)),
+	}
+
+	for _, p := range r.Propstat {
+		var xmlErr *xmlError
+		if p.XMLError != "" {
+			xmlErr = &xmlError{InnerXML: []byte(p.XMLError)}
+		}
+		rr.Propstat = append(rr.Propstat, propstat{
+			Status:              fmt.Sprintf("HTTP/1.1 %d %s", p.Status, StatusText(p.Status)),
+			Prop:                p.Props,
+			ResponseDescription: p.ResponseDescription,
+			Error:               xmlErr,
+		})
+	}
+
+	return w.write(rr)
+}
+
+func (w *MultistatusWriter) write(r *response) error {
 	switch len(r.Href) {
 	case 0:
 		return errInvalidResponse
@@ -280,7 +305,7 @@ func (w *multistatusWriter) write(r *response) error {
 // writeHeader writes a XML multistatus start element on w's underlying
 // http.ResponseWriter and returns the result of the write operation.
 // After the first write attempt, writeHeader becomes a no-op.
-func (w *multistatusWriter) writeHeader() error {
+func (w *MultistatusWriter) writeHeader() error {
 	if w.enc != nil {
 		return nil
 	}
@@ -307,7 +332,7 @@ func (w *multistatusWriter) writeHeader() error {
 // an error if the multistatus response could not be completed. If both the
 // return value and field enc of w are nil, then no multistatus response has
 // been written.
-func (w *multistatusWriter) close() error {
+func (w *MultistatusWriter) Close() error {
 	if w.enc == nil {
 		return nil
 	}
@@ -420,7 +445,7 @@ type setRemove struct {
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_propertyupdate
 type propertyupdate struct {
-	XMLName   xml.Name   `xml:"DAV: propertyupdate"`
+	XMLName   xml.Name    `xml:"DAV: propertyupdate"`
 	Lang      string      `xml:"xml:lang,attr,omitempty"`
 	SetRemove []setRemove `xml:",any"`
 }
