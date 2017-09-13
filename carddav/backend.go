@@ -21,12 +21,14 @@ type AddressBookInfo struct {
 
 type AddressObject interface {
 	ID() string
-	Card() (vcard.Card, error)
 	Stat() (os.FileInfo, error) // can return nil, nil
+	Card() (vcard.Card, error)
+	SetCard(vcard.Card) error
 }
 
 type AddressBook interface {
 	Info() (*AddressBookInfo, error)
 	GetAddressObject(id string) (AddressObject, error)
 	ListAddressObjects() ([]AddressObject, error)
+	CreateAddressObject(vcard.Card) (AddressObject, error)
 }

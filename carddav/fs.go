@@ -38,11 +38,22 @@ var (
 	addressBookHomeSet              = xml.Name{Space: nsCardDAV, Local: "addressbook-home-set"}
 )
 
+func addressObjectName(ao AddressObject) string {
+	return ao.ID() + ".vcf"
+}
+
 type fileInfo struct {
 	name    string
 	size    int64
 	mode    os.FileMode
 	modTime time.Time
+}
+
+func addressObjectFileInfo(ao AddressObject) *fileInfo {
+	return &fileInfo{
+		name: addressObjectName(ao),
+		mode: os.ModePerm,
+	}
 }
 
 func (fi *fileInfo) Name() string {
@@ -70,18 +81,34 @@ func (fi *fileInfo) Sys() interface{} {
 }
 
 type file struct {
-	*bytes.Reader
+	r *bytes.Reader
+	w *bytes.Buffer
 	fs   *fileSystem
-	name string
 	ao   AddressObject
 }
 
 func (f *file) Close() error {
+	if f.w != nil {
+		defer func() {
+			f.w = nil
+		}()
+
+		card, err := vcard.NewDecoder(f.w).Decode()
+		if err != nil {
+			return err
+		}
+
+		if err := f.ao.SetCard(card); err != nil {
+			return err
+		}
+	}
+
+	f.r = nil
 	return nil
 }
 
 func (f *file) Read(b []byte) (int, error) {
-	if f.Reader == nil {
+	if f.r == nil {
 		card, err := f.ao.Card()
 		if err != nil {
 			return 0, err
@@ -92,24 +119,27 @@ func (f *file) Read(b []byte) (int, error) {
 			return 0, err
 		}
 
-		f.Reader = bytes.NewReader(b.Bytes())
+		f.r = bytes.NewReader(b.Bytes())
 	}
 
-	return f.Reader.Read(b)
+	return f.r.Read(b)
 }
 
 func (f *file) Write(b []byte) (int, error) {
-	return 0, errUnsupported
+	if f.w == nil {
+		f.w = &bytes.Buffer{}
+	}
+	return f.w.Write(b)
 }
 
 func (f *file) Seek(offset int64, whence int) (int64, error) {
-	if f.Reader == nil {
+	if f.r == nil {
 		if _, err := f.Read(nil); err != nil {
 			return 0, err
 		}
 	}
 
-	return f.Reader.Seek(offset, whence)
+	return f.r.Seek(offset, whence)
 }
 
 func (f *file) Readdir(count int) ([]os.FileInfo, error) {
@@ -121,14 +151,70 @@ func (f *file) Stat() (os.FileInfo, error) {
 	if info != nil || err != nil {
 		return info, err
 	}
-
-	return &fileInfo{
-		name: f.name,
-		mode: os.ModePerm,
-	}, nil
+	return addressObjectFileInfo(f.ao), nil
 }
 
 // TODO: getcontenttype for file
+
+type newFile struct {
+	buf bytes.Buffer
+	fs  *fileSystem
+	ao  AddressObject
+}
+
+func (f *newFile) Close() error {
+	if f.ao == nil {
+		defer f.buf.Reset()
+
+		card, err := vcard.NewDecoder(&f.buf).Decode()
+		if err != nil {
+			return err
+		}
+
+		ao, err := f.fs.ab.CreateAddressObject(card)
+		if err != nil {
+			return err
+		}
+
+		f.ao = ao
+	}
+
+	return nil
+}
+
+func (f *newFile) Read(b []byte) (int, error) {
+	return 0, errUnsupported
+}
+
+func (f *newFile) Write(b []byte) (int, error) {
+	// TODO: limit amount of data in f.buf
+	if f.ao != nil {
+		return 0, errUnsupported
+	}
+
+	return f.buf.Write(b)
+}
+
+func (f *newFile) Seek(offset int64, whence int) (int64, error) {
+	return 0, errUnsupported
+}
+
+func (f *newFile) Readdir(count int) ([]os.FileInfo, error) {
+	return nil, errUnsupported
+}
+
+func (f *newFile) Stat() (os.FileInfo, error) {
+	// Only available after a successful call to Close
+	if f.ao == nil {
+		return nil, errUnsupported
+	}
+
+	info, err := f.ao.Stat()
+	if info != nil || err != nil {
+		return info, err
+	}
+	return addressObjectFileInfo(f.ao), nil
+}
 
 type dir struct {
 	fs    *fileSystem
@@ -163,18 +249,7 @@ func (d *dir) Readdir(count int) ([]os.FileInfo, error) {
 
 		d.files = make([]os.FileInfo, len(aos))
 		for i, ao := range aos {
-			f := &file{
-				fs:   d.fs,
-				name: ao.ID() + ".vcf",
-				ao:   ao,
-			}
-
-			info, err := f.Stat()
-			if err != nil {
-				return nil, err
-			}
-
-			d.files[i] = info
+			d.files[i] = addressObjectFileInfo(ao)
 		}
 	}
 
@@ -262,13 +337,14 @@ func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm 
 
 	id := fs.addressObjectID(name)
 	ao, err := fs.ab.GetAddressObject(id)
-	if err != nil {
+	if err == ErrNotFound && flag & os.O_CREATE != 0 {
+		return &newFile{fs: fs}, nil
+	} else if err != nil {
 		return nil, err
 	}
 
 	return &file{
 		fs:   fs,
-		name: name,
 		ao:   ao,
 	}, nil
 }
@@ -300,8 +376,5 @@ func (fs *fileSystem) Stat(ctx context.Context, name string) (os.FileInfo, error
 		return info, err
 	}
 
-	return &fileInfo{
-		name: name,
-		mode: os.ModePerm,
-	}, nil
+	return addressObjectFileInfo(ao), nil
 }
