@@ -39,7 +39,7 @@ var (
 )
 
 func addressObjectName(ao AddressObject) string {
-	return ao.ID() + ".vcf"
+	return ao.ID()
 }
 
 type fileInfo struct {
@@ -154,7 +154,18 @@ func (f *file) Stat() (os.FileInfo, error) {
 	return addressObjectFileInfo(f.ao), nil
 }
 
-// TODO: getcontenttype for file
+func (f *file) DeadProps() (map[xml.Name]webdav.Property, error) {
+	return map[xml.Name]webdav.Property{
+		getcontenttype: webdav.Property{
+			XMLName:  getcontenttype,
+			InnerXML: []byte(vcard.MIMEType),
+		},
+	}, nil
+}
+
+func (f *file) Patch([]webdav.Proppatch) ([]webdav.Propstat, error) {
+	return nil, errUnsupported
+}
 
 type newFile struct {
 	buf bytes.Buffer
@@ -324,7 +335,7 @@ func (fs *fileSystem) Mkdir(ctx context.Context, name string, perm os.FileMode) 
 }
 
 func (fs *fileSystem) addressObjectID(name string) string {
-	return strings.TrimRight(strings.TrimLeft(name, "/"), ".vcf")
+	return strings.TrimLeft(name, "/")
 }
 
 func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm os.FileMode) (webdav.File, error) {
