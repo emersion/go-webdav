@@ -24,6 +24,7 @@ type AddressObject interface {
 	Stat() (os.FileInfo, error) // can return nil, nil
 	Card() (vcard.Card, error)
 	SetCard(vcard.Card) error
+	Remove() error
 }
 
 type AddressBook interface {

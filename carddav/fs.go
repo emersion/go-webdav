@@ -370,7 +370,17 @@ func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm 
 }
 
 func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {
-	return errNotYetImplemented
+	if name == "/" {
+		return errUnsupported
+	}
+
+	id := fs.addressObjectID(name)
+	ao, err := fs.ab.GetAddressObject(id)
+	if err != nil {
+		return err
+	}
+
+	return ao.Remove()
 }
 
 func (fs *fileSystem) Rename(ctx context.Context, oldName, newName string) error {
