@@ -354,10 +354,19 @@ func (fs *fileSystem) OpenFile(ctx context.Context, name string, flag int, perm 
 		return nil, err
 	}
 
-	return &file{
+	f := &file{
 		fs:   fs,
 		ao:   ao,
-	}, nil
+	}
+
+	if flag&os.O_RDONLY != 0 {
+		// This file will be read, cache its contents
+		if _, err := f.Read(nil); err != nil {
+			return f, err
+		}
+	}
+
+	return f, nil
 }
 
 func (fs *fileSystem) RemoveAll(ctx context.Context, name string) error {

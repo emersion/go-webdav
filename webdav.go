@@ -226,6 +226,7 @@ func (h *Handler) handleGetHeadPost(w http.ResponseWriter, r *http.Request) (sta
 	}
 	w.Header().Set("ETag", etag)
 	// Let ServeContent determine the Content-Type header.
+	// TODO: use getcontenttype dead prop if available
 	http.ServeContent(w, r, reqPath, fi.ModTime(), f)
 	return 0, nil
 }
