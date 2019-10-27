@@ -23,7 +23,6 @@ type responseWriter struct {
 }
 
 func (w responseWriter) Write(b []byte) (int, error) {
-	os.Stdout.Write(b)
 	return w.ResponseWriter.Write(b)
 }
 
@@ -47,7 +46,6 @@ func NewHandler(ab AddressBook) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Printf("%+v\n", r)
 	if r.Method == http.MethodOptions {
 		w.Header().Add("DAV", "addressbook")
 	}
@@ -72,7 +70,6 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) (int, err
 	if err := xml.NewDecoder(r.Body).Decode(&mg); err != nil {
 		return http.StatusBadRequest, err
 	}
-	log.Printf("%#v\n", mg)
 
 	mw := webdav.NewMultistatusWriter(w)
 	defer mw.Close()
