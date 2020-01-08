@@ -53,9 +53,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w = responseWriter{w}
 	switch r.Method {
 	case "REPORT":
-		status, _ := h.handleReport(w, r)
-		if status != 0 {
-			w.WriteHeader(status)
+		code, err := h.handleReport(w, r)
+		if err != nil {
+			if code == 0 {
+				code = http.StatusInternalServerError
+			}
+			http.Error(w, err.Error(), code)
 		}
 	case "OPTIONS":
 		w.Header().Add("Allow", "REPORT")
@@ -78,8 +81,10 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) (int, err
 		mg.Href = []string{r.URL.Path}
 	}
 	for _, href := range mg.Href {
-		pstats, status, _ := multiget(r.Context(), h.webdav.FileSystem, h.webdav.LockSystem, href, []xml.Name(mg.Prop), mg.Allprop != nil)
-		// TODO: error handling
+		pstats, status, err := multiget(r.Context(), h.webdav.FileSystem, h.webdav.LockSystem, href, []xml.Name(mg.Prop), mg.Allprop != nil)
+		if err != nil {
+			return status, err
+		}
 
 		resp := &webdav.Response{
 			Href:     []string{(&url.URL{Path: href}).EscapedPath()},
@@ -88,7 +93,7 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) (int, err
 		}
 
 		if err := mw.Write(resp); err != nil {
-			return http.StatusInternalServerError, err
+			return 0, err
 		}
 	}
 
@@ -114,7 +119,7 @@ func multiget(ctx context.Context, fs webdav.FileSystem, ls webdav.LockSystem, n
 		pstats, err = webdav.Props(ctx, fs, ls, name, pnames)
 	}
 	if err != nil {
-		return pstats, http.StatusInternalServerError, err
+		return pstats, 0, err
 	}
 
 	// TODO: locking stuff
@@ -135,7 +140,10 @@ func multiget(ctx context.Context, fs webdav.FileSystem, ls webdav.LockSystem, n
 			return nil, http.StatusNotFound, err
 		}
 
-		prop, status, _ := addressdata(f.(*file).ao)
+		prop, status, err := addressdata(f.(*file).ao)
+		if err != nil {
+			return nil, status, err
+		}
 		if status == 0 {
 			status = http.StatusOK
 		}
@@ -165,19 +173,19 @@ func addressdata(ao AddressObject) (webdav.Property, int, error) {
 
 	card, err := ao.Card()
 	if err != nil {
-		return prop, http.StatusInternalServerError, err
+		return prop, 0, err
 	}
 
 	// TODO: restrict to requested props
 
 	var b bytes.Buffer
 	if err := vcard.NewEncoder(&b).Encode(card); err != nil {
-		return prop, http.StatusInternalServerError, err
+		return prop, 0, err
 	}
 
 	var escaped bytes.Buffer
 	if err := xml.EscapeText(&escaped, b.Bytes()); err != nil {
-		return prop, http.StatusInternalServerError, err
+		return prop, 0, err
 	}
 
 	prop.InnerXML = escaped.Bytes()
