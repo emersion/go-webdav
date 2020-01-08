@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"time"
+	"unicode"
 )
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_lockinfo
@@ -105,14 +106,23 @@ func next(d *xml.Decoder) (xml.Token, error) {
 		if err != nil {
 			return t, err
 		}
-		switch t.(type) {
+		switch t := t.(type) {
 		case xml.Comment, xml.Directive, xml.ProcInst:
 			continue
+		case xml.CharData:
+			for _, c := range t {
+				if !unicode.IsSpace(rune(c)) {
+					return t, fmt.Errorf("unexpected non-empty xml.CharData")
+				}
+			}
 		default:
 			return t, nil
 		}
 	}
 }
+
+// TODO: the xml.Name isn't enough, enclosed elements matter too (e.g.
+// CardDAV's address-data)
 
 // http://www.webdav.org/specs/rfc4918.html#ELEMENT_prop (for propfind)
 type PropfindProps []xml.Name
@@ -135,12 +145,8 @@ func (pn *PropfindProps) UnmarshalXML(d *xml.Decoder, start xml.StartElement) er
 			return nil
 		case xml.StartElement:
 			name := t.(xml.StartElement).Name
-			t, err = next(d)
-			if err != nil {
+			if err := d.Skip(); err != nil {
 				return err
-			}
-			if _, ok := t.(xml.EndElement); !ok {
-				return fmt.Errorf("unexpected token %T", t)
 			}
 			*pn = append(*pn, xml.Name(name))
 		}
