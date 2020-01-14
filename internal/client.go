@@ -40,11 +40,7 @@ func (c *Client) NewRequest(method string, p string, body io.Reader) (*http.Requ
 func (c *Client) NewXMLRequest(method string, p string, v interface{}) (*http.Request, error) {
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
-	enc := xml.NewEncoder(&buf)
-	if err := enc.Encode(v); err != nil {
-		return nil, err
-	}
-	if err := enc.Flush(); err != nil {
+	if err := xml.NewEncoder(&buf).Encode(v); err != nil {
 		return nil, err
 	}
 
