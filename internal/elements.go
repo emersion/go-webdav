@@ -27,3 +27,19 @@ type Propstat struct {
 	Status  string      `xml:"DAV: status"`
 	// TODO: error?, responsedescription?
 }
+
+// https://tools.ietf.org/html/rfc4918#section-14.20
+type Propfind struct {
+	XMLName xml.Name     `xml:"DAV: propfind"`
+	Prop    *RawXMLValue `xml:"DAV: prop,omitempty"`
+	// TODO: propname | (allprop, include?)
+}
+
+func NewPropPropfind(names ...xml.Name) *Propfind {
+	children := make([]RawXMLValue, len(names))
+	for i, name := range names {
+		children[i] = *NewRawXMLElement(name, nil, nil)
+	}
+	prop := NewRawXMLElement(xml.Name{"DAV:", "prop"}, nil, children)
+	return &Propfind{Prop: prop}
+}

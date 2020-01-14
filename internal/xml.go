@@ -13,6 +13,11 @@ type RawXMLValue struct {
 	children []RawXMLValue
 }
 
+// NewRawXMLElement creates a new RawXMLValue for an element.
+func NewRawXMLElement(name xml.Name, attr []xml.Attr, children []RawXMLValue) *RawXMLValue {
+	return &RawXMLValue{tok: xml.StartElement{name, attr}, children: children}
+}
+
 // UnmarshalXML implements xml.Unmarshaler.
 func (val *RawXMLValue) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	val.tok = start

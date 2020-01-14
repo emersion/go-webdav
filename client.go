@@ -1,9 +1,9 @@
 package webdav
 
 import (
+	"encoding/xml"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/emersion/go-webdav/internal"
 )
@@ -21,21 +21,15 @@ func NewClient(c *http.Client, endpoint string) (*Client, error) {
 }
 
 func (c *Client) FindCurrentUserPrincipal() (string, error) {
-	r := strings.NewReader(`<?xml version="1.0" encoding="utf-8"?>
-<D:propfind xmlns:D="DAV:">
-  <D:prop>
-    <D:current-user-principal/>
-  </D:prop>
-</D:propfind>
-`)
+	name := xml.Name{"DAV:", "current-user-principal"}
+	propfind := internal.NewPropPropfind(name)
 
-	req, err := c.c.NewRequest("PROPFIND", "", r)
+	req, err := c.c.NewXMLRequest("PROPFIND", "", propfind)
 	if err != nil {
 		return "", err
 	}
 
 	req.Header.Add("Depth", "0")
-	req.Header.Add("Content-Type", "text/xml; charset=\"utf-8\"")
 
 	resps, err := c.c.DoMultiStatus(req)
 	if err != nil {

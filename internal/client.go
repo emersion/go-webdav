@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -34,6 +35,27 @@ func (c *Client) NewRequest(method string, p string, body io.Reader) (*http.Requ
 		Path:   path.Join(c.endpoint.Path, p),
 	}
 	return http.NewRequest(method, u.String(), body)
+}
+
+func (c *Client) NewXMLRequest(method string, p string, v interface{}) (*http.Request, error) {
+	var buf bytes.Buffer
+	buf.WriteString(xml.Header)
+	enc := xml.NewEncoder(&buf)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	if err := enc.Flush(); err != nil {
+		return nil, err
+	}
+
+	req, err := c.NewRequest(method, p, &buf)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", "text/xml; charset=\"utf-8\"")
+
+	return req, nil
 }
 
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
