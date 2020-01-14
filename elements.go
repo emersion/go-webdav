@@ -5,6 +5,6 @@ import (
 )
 
 type currentUserPrincipal struct {
-	Name xml.Name `xml:"DAV: current-user-principal"`
-	Href string   `xml:"href"`
+	XMLName xml.Name `xml:"DAV: current-user-principal"`
+	Href    string   `xml:"href"`
 }

@@ -42,7 +42,7 @@ type Multistatus struct {
 func (ms *Multistatus) Get(href string) (*Response, error) {
 	for i := range ms.Responses {
 		resp := &ms.Responses[i]
-		for _, h := range resp.Href {
+		for _, h := range resp.Hrefs {
 			if h == href {
 				return resp, nil
 			}
@@ -55,12 +55,22 @@ func (ms *Multistatus) Get(href string) (*Response, error) {
 // https://tools.ietf.org/html/rfc4918#section-14.24
 type Response struct {
 	XMLName             xml.Name     `xml:"DAV: response"`
-	Href                []string     `xml:"href"`
+	Hrefs               []string     `xml:"href"`
 	Propstats           []Propstat   `xml:"propstat,omitempty"`
 	ResponseDescription string       `xml:"responsedescription,omitempty"`
 	Status              Status       `xml:"status,omitempty"`
 	Error               *RawXMLValue `xml:"error,omitempty"`
 	Location            *Location    `xml:"location,omitempty"`
+}
+
+func (resp *Response) Href() (string, error) {
+	if err := resp.Status.Err(); err != nil {
+		return "", err
+	}
+	if len(resp.Hrefs) != 1 {
+		return "", fmt.Errorf("webdav: malformed response: expected exactly one href element, got %v", len(resp.Hrefs))
+	}
+	return resp.Hrefs[0], nil
 }
 
 func (resp *Response) DecodeProp(name xml.Name, v interface{}) error {
@@ -71,13 +81,11 @@ func (resp *Response) DecodeProp(name xml.Name, v interface{}) error {
 		propstat := &resp.Propstats[i]
 		for j := range propstat.Prop.Raw {
 			raw := &propstat.Prop.Raw[j]
-			if start, ok := raw.tok.(xml.StartElement); ok {
-				if name == start.Name {
-					if err := propstat.Status.Err(); err != nil {
-						return err
-					}
-					return raw.Decode(v)
+			if start, ok := raw.tok.(xml.StartElement); ok && name == start.Name {
+				if err := propstat.Status.Err(); err != nil {
+					return err
 				}
+				return raw.Decode(v)
 			}
 		}
 	}
@@ -120,3 +128,20 @@ func NewPropPropfind(names ...xml.Name) *Propfind {
 	}
 	return &Propfind{Prop: &Prop{Raw: children}}
 }
+
+// https://tools.ietf.org/html/rfc4918#section-15.9
+type ResourceType struct {
+	XMLName xml.Name      `xml:"DAV: resourcetype"`
+	Raw     []RawXMLValue `xml:",any"`
+}
+
+func (t *ResourceType) Is(name xml.Name) bool {
+	for _, raw := range t.Raw {
+		if start, ok := raw.tok.(xml.StartElement); ok && name == start.Name {
+			return true
+		}
+	}
+	return false
+}
+
+var CollectionName = xml.Name{"DAV:", "collection"}

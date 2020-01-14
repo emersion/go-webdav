@@ -56,7 +56,7 @@ func (c *Client) NewXMLRequest(method string, href string, v interface{}) (*http
 
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	// TODO: remove this quirk
-	req.SetBasicAuth("simon", "")
+	req.SetBasicAuth("emersion", "")
 	return c.http.Do(req)
 }
 
