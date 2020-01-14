@@ -1,7 +1,6 @@
 package webdav
 
 import (
-	"encoding/xml"
 	"fmt"
 	"net/http"
 	"strings"
@@ -55,7 +54,7 @@ func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	propstat := &resp.Propstats[0]
 
 	var prop currentUserPrincipalProp
-	if err := xml.NewTokenDecoder(propstat.Prop.TokenReader()).Decode(&prop); err != nil {
+	if err := propstat.Prop.Decode(&prop); err != nil {
 		return "", err
 	}
 
