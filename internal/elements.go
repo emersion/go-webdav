@@ -11,6 +11,10 @@ import (
 type Status string
 
 func (s Status) Err() error {
+	if s == "" {
+		return nil
+	}
+
 	parts := strings.SplitN(string(s), " ", 3)
 	if len(parts) != 3 {
 		return fmt.Errorf("webdav: invalid HTTP status %q: expected 3 fields", s)
@@ -60,6 +64,9 @@ type Response struct {
 }
 
 func (resp *Response) DecodeProp(name xml.Name, v interface{}) error {
+	if err := resp.Status.Err(); err != nil {
+		return err
+	}
 	for i := range resp.Propstats {
 		propstat := &resp.Propstats[i]
 		for j := range propstat.Prop.Raw {
