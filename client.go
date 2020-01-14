@@ -23,19 +23,7 @@ func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	name := xml.Name{"DAV:", "current-user-principal"}
 	propfind := internal.NewPropPropfind(name)
 
-	req, err := c.c.NewXMLRequest("PROPFIND", "/", propfind)
-	if err != nil {
-		return "", err
-	}
-
-	req.Header.Add("Depth", "0")
-
-	ms, err := c.c.DoMultiStatus(req)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := ms.Get("/")
+	resp, err := c.c.PropfindFlat("/", propfind)
 	if err != nil {
 		return "", err
 	}

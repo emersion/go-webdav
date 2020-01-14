@@ -27,24 +27,24 @@ func NewClient(c *http.Client, endpoint string) (*Client, error) {
 	return &Client{c, u}, nil
 }
 
-func (c *Client) NewRequest(method string, p string, body io.Reader) (*http.Request, error) {
+func (c *Client) NewRequest(method string, href string, body io.Reader) (*http.Request, error) {
 	u := url.URL{
 		Scheme: c.endpoint.Scheme,
 		User:   c.endpoint.User,
 		Host:   c.endpoint.Host,
-		Path:   path.Join(c.endpoint.Path, p),
+		Path:   path.Join(c.endpoint.Path, href),
 	}
 	return http.NewRequest(method, u.String(), body)
 }
 
-func (c *Client) NewXMLRequest(method string, p string, v interface{}) (*http.Request, error) {
+func (c *Client) NewXMLRequest(method string, href string, v interface{}) (*http.Request, error) {
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
 	if err := xml.NewEncoder(&buf).Encode(v); err != nil {
 		return nil, err
 	}
 
-	req, err := c.NewRequest(method, p, &buf)
+	req, err := c.NewRequest(method, href, &buf)
 	if err != nil {
 		return nil, err
 	}
@@ -78,4 +78,21 @@ func (c *Client) DoMultiStatus(req *http.Request) (*Multistatus, error) {
 	}
 
 	return &ms, nil
+}
+
+// PropfindFlat performs a PROPFIND request with a zero depth.
+func (c *Client) PropfindFlat(href string, propfind *Propfind) (*Response, error) {
+	req, err := c.NewXMLRequest("PROPFIND", href, propfind)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Depth", "0")
+
+	ms, err := c.DoMultiStatus(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return ms.Get(href)
 }
