@@ -2,7 +2,6 @@ package webdav
 
 import (
 	"encoding/xml"
-	"fmt"
 	"net/http"
 
 	"github.com/emersion/go-webdav/internal"
@@ -24,31 +23,25 @@ func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	name := xml.Name{"DAV:", "current-user-principal"}
 	propfind := internal.NewPropPropfind(name)
 
-	req, err := c.c.NewXMLRequest("PROPFIND", "", propfind)
+	req, err := c.c.NewXMLRequest("PROPFIND", "/", propfind)
 	if err != nil {
 		return "", err
 	}
 
 	req.Header.Add("Depth", "0")
 
-	resps, err := c.c.DoMultiStatus(req)
+	ms, err := c.c.DoMultiStatus(req)
 	if err != nil {
 		return "", err
 	}
 
-	if len(resps) != 1 {
-		return "", fmt.Errorf("expected exactly one response in multistatus, got %v", len(resps))
+	resp, err := ms.Get("/")
+	if err != nil {
+		return "", err
 	}
-	resp := &resps[0]
-
-	// TODO: handle propstats with errors
-	if len(resp.Propstats) != 1 {
-		return "", fmt.Errorf("expected exactly one propstat in response")
-	}
-	propstat := &resp.Propstats[0]
 
 	var prop currentUserPrincipalProp
-	if err := propstat.Prop.Decode(&prop); err != nil {
+	if err := resp.DecodeProp(name, &prop); err != nil {
 		return "", err
 	}
 

@@ -1,5 +1,10 @@
 package webdav
 
+import (
+	"encoding/xml"
+)
+
 type currentUserPrincipalProp struct {
-	Href string `xml:"current-user-principal>href"`
+	Name xml.Name `xml:"DAV: current-user-principal"`
+	Href string   `xml:"href"`
 }

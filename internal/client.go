@@ -64,7 +64,7 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	return c.http.Do(req)
 }
 
-func (c *Client) DoMultiStatus(req *http.Request) ([]Response, error) {
+func (c *Client) DoMultiStatus(req *http.Request) (*Multistatus, error) {
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
@@ -76,10 +76,10 @@ func (c *Client) DoMultiStatus(req *http.Request) ([]Response, error) {
 	}
 
 	// TODO: the response can be quite large, support streaming Response elements
-	var ms multistatus
+	var ms Multistatus
 	if err := xml.NewDecoder(resp.Body).Decode(&ms); err != nil {
 		return nil, err
 	}
 
-	return ms.Responses, nil
+	return &ms, nil
 }
