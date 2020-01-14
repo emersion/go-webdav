@@ -6,26 +6,28 @@ import (
 
 // https://tools.ietf.org/html/rfc4918#section-14.16
 type multistatus struct {
-	XMLName   xml.Name   `xml:"DAV: multistatus"`
-	Responses []Response `xml:"DAV: response"`
-	// TODO: responsedescription?
+	XMLName             xml.Name   `xml:"DAV: multistatus"`
+	Responses           []Response `xml:"DAV: response"`
+	ResponseDescription string     `xml:"DAV: responsedescription,omitempty"`
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.24
 type Response struct {
-	XMLName   xml.Name   `xml:"DAV: response"`
-	Href      string     `xml:"DAV: href"`
-	Propstats []Propstat `xml:"DAV: propstat"`
+	XMLName             xml.Name   `xml:"DAV: response"`
+	Href                string     `xml:"DAV: href"`
+	Propstats           []Propstat `xml:"DAV: propstat"`
+	ResponseDescription string     `xml:"DAV: responsedescription,omitempty"`
 	// TODO: (href*, status)
-	// TODO: error?, responsedescription? , location?
+	// TODO: error?, location?
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.22
 type Propstat struct {
-	XMLName xml.Name    `xml:"DAV: propstat"`
-	Prop    RawXMLValue `xml:"DAV: prop"`
-	Status  string      `xml:"DAV: status"`
-	// TODO: error?, responsedescription?
+	XMLName             xml.Name    `xml:"DAV: propstat"`
+	Prop                RawXMLValue `xml:"DAV: prop"`
+	Status              string      `xml:"DAV: status"`
+	ResponseDescription string      `xml:"DAV: responsedescription,omitempty"`
+	// TODO: error?
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.20
