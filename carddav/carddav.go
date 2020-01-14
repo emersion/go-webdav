@@ -2,6 +2,8 @@ package carddav
 
 import (
 	"encoding/xml"
+
+	"github.com/emersion/go-vcard"
 )
 
 const namespace = "urn:ietf:params:xml:ns:carddav"
@@ -14,5 +16,10 @@ type AddressBook struct {
 var addressBookName = xml.Name{namespace, "addressbook"}
 
 type AddressBookQuery struct {
-	AddressDataProps []string
+	Props []string
+}
+
+type Address struct {
+	Href string
+	Card vcard.Card
 }

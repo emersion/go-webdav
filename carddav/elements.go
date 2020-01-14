@@ -2,6 +2,8 @@ package carddav
 
 import (
 	"encoding/xml"
+
+	"github.com/emersion/go-webdav/internal"
 )
 
 type addressbookHomeSet struct {
@@ -20,4 +22,34 @@ type addressbookQuery struct {
 	Prop    *internal.Prop `xml:"DAV: prop,omitempty"`
 	// TODO: DAV:allprop | DAV:propname
 	// TODO: filter, limit?
+}
+
+func newProp(name string, noValue bool) *internal.RawXMLValue {
+	attrs := []xml.Attr{{Name: xml.Name{namespace, "name"}, Value: name}}
+	if noValue {
+		attrs = append(attrs, xml.Attr{Name: xml.Name{namespace, "novalue"}, Value: "yes"})
+	}
+
+	xmlName := xml.Name{namespace, "prop"}
+	return internal.NewRawXMLElement(xmlName, attrs, nil)
+}
+
+// https://tools.ietf.org/html/rfc6352#section-10.4
+type addressDataReq struct {
+	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav address-data"`
+	Props   []prop   `xml:"prop"`
+	// TODO: allprop
+}
+
+// https://tools.ietf.org/html/rfc6352#section-10.4.2
+type prop struct {
+	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav prop"`
+	Name    string   `xml:"name,attr"`
+	// TODO: novalue
+}
+
+// https://tools.ietf.org/html/rfc6352#section-10.4
+type addressDataResp struct {
+	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav address-data"`
+	Data    []byte   `xml:",chardata"`
 }

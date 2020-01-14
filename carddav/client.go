@@ -1,9 +1,11 @@
 package carddav
 
 import (
+	"bytes"
 	"encoding/xml"
 	"net/http"
 
+	"github.com/emersion/go-vcard"
 	"github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/internal"
 )
@@ -61,8 +63,7 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 	}
 
 	l := make([]AddressBook, 0, len(ms.Responses))
-	for i := range ms.Responses {
-		resp := &ms.Responses[i]
+	for _, resp := range ms.Responses {
 		href, err := resp.Href()
 		if err != nil {
 			return nil, err
@@ -88,4 +89,57 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 	}
 
 	return l, nil
+}
+
+func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) ([]Address, error) {
+	// TODO: add a better way to format the request
+	addrProps := make([]internal.RawXMLValue, 0, len(query.Props))
+	for _, name := range query.Props {
+		addrProps = append(addrProps, *newProp(name, false))
+	}
+
+	addrDataName := xml.Name{namespace, "address-data"}
+	addrDataReq := internal.NewRawXMLElement(addrDataName, nil, addrProps)
+
+	addressbookQuery := addressbookQuery{
+		Prop: &internal.Prop{Raw: []internal.RawXMLValue{*addrDataReq}},
+	}
+
+	req, err := c.ic.NewXMLRequest("REPORT", addressBook, &addressbookQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Depth", "1")
+
+	ms, err := c.ic.DoMultiStatus(req)
+	if err != nil {
+		return nil, err
+	}
+
+	addrs := make([]Address, 0, len(ms.Responses))
+	for _, resp := range ms.Responses {
+		href, err := resp.Href()
+		if err != nil {
+			return nil, err
+		}
+
+		var addrData addressDataResp
+		if err := resp.DecodeProp(addrDataName, &addrData); err != nil {
+			return nil, err
+		}
+
+		r := bytes.NewReader(addrData.Data)
+		card, err := vcard.NewDecoder(r).Decode()
+		if err != nil {
+			return nil, err
+		}
+
+		addrs = append(addrs, Address{
+			Href: href,
+			Card: card,
+		})
+	}
+
+	return addrs, nil
 }
