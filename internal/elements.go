@@ -31,8 +31,8 @@ func (s Status) Err() error {
 // https://tools.ietf.org/html/rfc4918#section-14.16
 type Multistatus struct {
 	XMLName             xml.Name   `xml:"DAV: multistatus"`
-	Responses           []Response `xml:"DAV: response"`
-	ResponseDescription string     `xml:"DAV: responsedescription,omitempty"`
+	Responses           []Response `xml:"response"`
+	ResponseDescription string     `xml:"responsedescription,omitempty"`
 }
 
 func (ms *Multistatus) Get(href string) (*Response, error) {
@@ -51,12 +51,12 @@ func (ms *Multistatus) Get(href string) (*Response, error) {
 // https://tools.ietf.org/html/rfc4918#section-14.24
 type Response struct {
 	XMLName             xml.Name     `xml:"DAV: response"`
-	Href                []string     `xml:"DAV: href"`
-	Propstats           []Propstat   `xml:"DAV: propstat,omitempty"`
-	ResponseDescription string       `xml:"DAV: responsedescription,omitempty"`
-	Status              Status       `xml:"DAV: status,omitempty"`
-	Error               *RawXMLValue `xml:"DAV: error,omitempty"`
-	Location            *Location    `xml:"DAV: location,omitempty"`
+	Href                []string     `xml:"href"`
+	Propstats           []Propstat   `xml:"propstat,omitempty"`
+	ResponseDescription string       `xml:"responsedescription,omitempty"`
+	Status              Status       `xml:"status,omitempty"`
+	Error               *RawXMLValue `xml:"error,omitempty"`
+	Location            *Location    `xml:"location,omitempty"`
 }
 
 func (resp *Response) DecodeProp(name xml.Name, v interface{}) error {
@@ -81,16 +81,16 @@ func (resp *Response) DecodeProp(name xml.Name, v interface{}) error {
 // https://tools.ietf.org/html/rfc4918#section-14.9
 type Location struct {
 	XMLName xml.Name `xml:"DAV: location"`
-	Href    string   `xml:"DAV: href"`
+	Href    string   `xml:"href"`
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.22
 type Propstat struct {
 	XMLName             xml.Name     `xml:"DAV: propstat"`
-	Prop                Prop         `xml:"DAV: prop"`
-	Status              Status       `xml:"DAV: status"`
-	ResponseDescription string       `xml:"DAV: responsedescription,omitempty"`
-	Error               *RawXMLValue `xml:"DAV: error,omitempty"`
+	Prop                Prop         `xml:"prop"`
+	Status              Status       `xml:"status"`
+	ResponseDescription string       `xml:"responsedescription,omitempty"`
+	Error               *RawXMLValue `xml:"error,omitempty"`
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.18
@@ -102,7 +102,7 @@ type Prop struct {
 // https://tools.ietf.org/html/rfc4918#section-14.20
 type Propfind struct {
 	XMLName xml.Name `xml:"DAV: propfind"`
-	Prop    *Prop    `xml:"DAV: prop,omitempty"`
+	Prop    *Prop    `xml:"prop,omitempty"`
 	// TODO: propname | (allprop, include?)
 }
 
