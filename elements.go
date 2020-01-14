@@ -4,7 +4,7 @@ import (
 	"encoding/xml"
 )
 
-type currentUserPrincipalProp struct {
+type currentUserPrincipal struct {
 	Name xml.Name `xml:"DAV: current-user-principal"`
 	Href string   `xml:"href"`
 }
