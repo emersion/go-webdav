@@ -19,6 +19,11 @@ type AddressBookQuery struct {
 	Props []string
 }
 
+type AddressBookMultiGet struct {
+	Hrefs []string
+	Props []string
+}
+
 type Address struct {
 	Href string
 	Card vcard.Card

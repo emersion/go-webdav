@@ -91,31 +91,7 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 	return l, nil
 }
 
-func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) ([]Address, error) {
-	var addrDataReq addressDataReq
-	for _, name := range query.Props {
-		addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
-	}
-
-	propReq, err := internal.EncodeProp(&addrDataReq)
-	if err != nil {
-		return nil, err
-	}
-
-	addressbookQuery := addressbookQuery{Prop: propReq}
-
-	req, err := c.ic.NewXMLRequest("REPORT", addressBook, &addressbookQuery)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Depth", "1")
-
-	ms, err := c.ic.DoMultiStatus(req)
-	if err != nil {
-		return nil, err
-	}
-
+func decodeAddressList(ms *internal.Multistatus) ([]Address, error) {
 	addrs := make([]Address, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		href, err := resp.Href()
@@ -141,4 +117,70 @@ func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) (
 	}
 
 	return addrs, nil
+}
+
+func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) ([]Address, error) {
+	var addrDataReq addressDataReq
+	if query != nil {
+		for _, name := range query.Props {
+			addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
+		}
+	}
+
+	propReq, err := internal.EncodeProp(&addrDataReq)
+	if err != nil {
+		return nil, err
+	}
+
+	addressbookQuery := addressbookQuery{Prop: propReq}
+
+	req, err := c.ic.NewXMLRequest("REPORT", addressBook, &addressbookQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Depth", "1")
+
+	ms, err := c.ic.DoMultiStatus(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return decodeAddressList(ms)
+}
+
+func (c *Client) MultiGetAddressBook(href string, multiGet *AddressBookMultiGet) ([]Address, error) {
+	var addrDataReq addressDataReq
+	if multiGet != nil {
+		for _, name := range multiGet.Props {
+			addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
+		}
+	}
+
+	propReq, err := internal.EncodeProp(&addrDataReq)
+	if err != nil {
+		return nil, err
+	}
+
+	addressbookMultiget := addressbookMultiget{Prop: propReq}
+
+	if multiGet == nil || len(multiGet.Hrefs) == 0 {
+		addressbookMultiget.Hrefs = []string{href}
+	} else {
+		addressbookMultiget.Hrefs = multiGet.Hrefs
+	}
+
+	req, err := c.ic.NewXMLRequest("REPORT", href, &addressbookMultiget)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Depth", "1")
+
+	ms, err := c.ic.DoMultiStatus(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return decodeAddressList(ms)
 }

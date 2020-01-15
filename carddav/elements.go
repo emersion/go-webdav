@@ -24,6 +24,14 @@ type addressbookQuery struct {
 	// TODO: filter, limit?
 }
 
+// https://tools.ietf.org/html/rfc6352#section-8.7
+type addressbookMultiget struct {
+	XMLName xml.Name       `xml:"urn:ietf:params:xml:ns:carddav addressbook-multiget"`
+	Hrefs   []string       `xml:"DAV: href"`
+	Prop    *internal.Prop `xml:"DAV: prop,omitempty"`
+	// TODO: DAV:allprop | DAV:propname
+}
+
 func newProp(name string, noValue bool) *internal.RawXMLValue {
 	attrs := []xml.Attr{{Name: xml.Name{namespace, "name"}, Value: name}}
 	if noValue {
