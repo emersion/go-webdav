@@ -52,8 +52,10 @@ func (d Depth) String() string {
 }
 
 type Client struct {
-	http     *http.Client
-	endpoint *url.URL
+	http               *http.Client
+	endpoint           *url.URL
+	username, password string
+	insecure           bool
 }
 
 func NewClient(c *http.Client, endpoint string) (*Client, error) {
@@ -65,7 +67,12 @@ func NewClient(c *http.Client, endpoint string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{c, u}, nil
+	return &Client{http: c, endpoint: u}, nil
+}
+
+func (c *Client) SetBasicAuth(username, password string) {
+	c.username = username
+	c.password = password
 }
 
 func (c *Client) NewRequest(method string, href string, body io.Reader) (*http.Request, error) {
@@ -96,8 +103,9 @@ func (c *Client) NewXMLRequest(method string, href string, v interface{}) (*http
 }
 
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
-	// TODO: remove this quirk
-	req.SetBasicAuth("emersion", "")
+	if c.username != "" || c.password != "" {
+		req.SetBasicAuth(c.username, c.password)
+	}
 	return c.http.Do(req)
 }
 

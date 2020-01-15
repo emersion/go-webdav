@@ -28,6 +28,11 @@ func NewClient(c *http.Client, endpoint string) (*Client, error) {
 	return &Client{wc, ic}, nil
 }
 
+func (c *Client) SetBasicAuth(username, password string) {
+	c.Client.SetBasicAuth(username, password)
+	c.ic.SetBasicAuth(username, password)
+}
+
 func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
 	name := xml.Name{namespace, "addressbook-home-set"}
 	propfind := internal.NewPropNamePropfind(name)

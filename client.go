@@ -19,6 +19,10 @@ func NewClient(c *http.Client, endpoint string) (*Client, error) {
 	return &Client{ic}, nil
 }
 
+func (c *Client) SetBasicAuth(username, password string) {
+	c.c.SetBasicAuth(username, password)
+}
+
 func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	name := xml.Name{"DAV:", "current-user-principal"}
 	propfind := internal.NewPropNamePropfind(name)
