@@ -6,6 +6,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"path"
 
 	"github.com/emersion/go-webdav/internal"
 )
@@ -104,6 +105,8 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
+	// TODO: refuse DepthInfinity, can cause infinite loops with symlinks
+
 	f, err := h.FileSystem.Open(r.URL.Path)
 	if err != nil {
 		return err
@@ -115,21 +118,53 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	if depth != internal.DepthZero {
-		depth = internal.DepthZero // TODO
-	}
-
-	resp, err := h.propfindFile(&propfind, r.URL.Path, fi)
-	if err != nil {
+	var resps []internal.Response
+	if err := h.propfind(&propfind, r.URL.Path, fi, depth, &resps); err != nil {
 		return err
 	}
 
-	ms := internal.NewMultistatus(*resp)
+	ms := internal.NewMultistatus(resps...)
 
 	w.Header().Add("Content-Type", "text/xml; charset=\"utf-8\"")
 	w.WriteHeader(http.StatusMultiStatus)
 	w.Write([]byte(xml.Header))
 	return xml.NewEncoder(w).Encode(&ms)
+}
+
+func (h *Handler) propfind(propfind *internal.Propfind, name string, fi os.FileInfo, depth internal.Depth, resps *[]internal.Response) error {
+	// TODO: use partial error Response on error
+
+	resp, err := h.propfindFile(propfind, name, fi)
+	if err != nil {
+		return err
+	}
+	*resps = append(*resps, *resp)
+
+	if depth != internal.DepthZero && fi.IsDir() {
+		childDepth := depth
+		if depth == internal.DepthOne {
+			childDepth = internal.DepthZero
+		}
+
+		f, err := h.FileSystem.Open(name)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+
+		children, err := f.Readdir(-1)
+		if err != nil {
+			return err
+		}
+
+		for _, child := range children {
+			if err := h.propfind(propfind, path.Join(name, child.Name()), child, childDepth, resps); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (h *Handler) propfindFile(propfind *internal.Propfind, name string, fi os.FileInfo) (*internal.Response, error) {
