@@ -11,6 +11,10 @@ import (
 type RawXMLValue struct {
 	tok      xml.Token // guaranteed not to be xml.EndElement
 	children []RawXMLValue
+
+	// Unfortunately encoding/xml doesn't offer TokenWriter, so we need to
+	// cache outgoing data.
+	out interface{}
 }
 
 // NewRawXMLElement creates a new RawXMLValue for an element.
@@ -18,10 +22,17 @@ func NewRawXMLElement(name xml.Name, attr []xml.Attr, children []RawXMLValue) *R
 	return &RawXMLValue{tok: xml.StartElement{name, attr}, children: children}
 }
 
+// EncodeRawXMLElement encodes a value into a new RawXMLValue. The XML value
+// can only be used for marshalling.
+func EncodeRawXMLElement(v interface{}) (*RawXMLValue, error) {
+	return &RawXMLValue{out: v}, nil
+}
+
 // UnmarshalXML implements xml.Unmarshaler.
 func (val *RawXMLValue) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	val.tok = start
 	val.children = nil
+	val.out = nil
 
 	for {
 		tok, err := d.Token()
@@ -45,6 +56,10 @@ func (val *RawXMLValue) UnmarshalXML(d *xml.Decoder, start xml.StartElement) err
 
 // MarshalXML implements xml.Marshaler.
 func (val *RawXMLValue) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	if val.out != nil {
+		return e.Encode(val.out)
+	}
+
 	switch tok := val.tok.(type) {
 	case xml.StartElement:
 		if err := e.EncodeToken(tok); err != nil {
