@@ -68,7 +68,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) error {
-	w.Header().Add("Allow", "OPTIONS, GET, HEAD")
+	w.Header().Add("Allow", "OPTIONS, GET, HEAD, PROPFIND")
 	w.Header().Add("DAV", "1")
 	w.WriteHeader(http.StatusNoContent)
 	return nil
