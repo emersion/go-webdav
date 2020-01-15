@@ -9,43 +9,46 @@ import (
 	"time"
 )
 
-// TODO: cache parsed value
-type Status string
-
-func NewStatus(code int, msg string) Status {
-	if msg == "" {
-		msg = http.StatusText(code)
-	}
-	return Status(fmt.Sprintf("HTTP/1.1 %v %v", code, msg))
+type Status struct {
+	Code int
+	Text string
 }
 
-func (s Status) parse() (int, string, error) {
-	if s == "" {
-		return http.StatusOK, "", nil
+func (s *Status) MarshalText() ([]byte, error) {
+	text := s.Text
+	if text == "" {
+		text = http.StatusText(s.Code)
+	}
+	return []byte(fmt.Sprintf("HTTP/1.1 %v %v", s.Code, s.Text)), nil
+}
+
+func (s *Status) UnmarshalText(b []byte) error {
+	if len(b) == 0 {
+		return nil
 	}
 
-	parts := strings.SplitN(string(s), " ", 3)
+	parts := strings.SplitN(string(b), " ", 3)
 	if len(parts) != 3 {
-		return 0, "", fmt.Errorf("webdav: invalid HTTP status %q: expected 3 fields", s)
+		return fmt.Errorf("webdav: invalid HTTP status %q: expected 3 fields", s)
 	}
 	code, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return 0, "", fmt.Errorf("webdav: invalid HTTP status %q: failed to parse code: %v", s, err)
+		return fmt.Errorf("webdav: invalid HTTP status %q: failed to parse code: %v", s, err)
 	}
-	msg := parts[2]
 
-	return code, msg, nil
+	s.Code = code
+	s.Text = parts[2]
+	return nil
 }
 
-func (s Status) Err() error {
-	code, msg, err := s.parse()
-	if err != nil {
-		return err
+func (s *Status) Err() error {
+	if s == nil {
+		return nil
 	}
 
 	// TODO: handle 2xx, 3xx
-	if code != http.StatusOK {
-		return fmt.Errorf("webdav: HTTP error: %v %v", code, msg)
+	if s.Code != http.StatusOK {
+		return fmt.Errorf("webdav: HTTP error: %v %v", s.Code, s.Text)
 	}
 	return nil
 }
@@ -80,7 +83,7 @@ type Response struct {
 	Hrefs               []string     `xml:"href"`
 	Propstats           []Propstat   `xml:"propstat,omitempty"`
 	ResponseDescription string       `xml:"responsedescription,omitempty"`
-	Status              Status       `xml:"status,omitempty"`
+	Status              *Status      `xml:"status,omitempty"`
 	Error               *RawXMLValue `xml:"error,omitempty"`
 	Location            *Location    `xml:"location,omitempty"`
 }
@@ -88,7 +91,7 @@ type Response struct {
 func NewOKResponse(href string) *Response {
 	return &Response{
 		Hrefs:  []string{href},
-		Status: NewStatus(http.StatusOK, ""),
+		Status: &Status{Code: http.StatusOK},
 	}
 }
 
@@ -134,15 +137,14 @@ func (resp *Response) EncodeProp(code int, v interface{}) error {
 
 	for i := range resp.Propstats {
 		propstat := &resp.Propstats[i]
-		c, _, _ := propstat.Status.parse()
-		if c == code {
+		if propstat.Status.Code == code {
 			propstat.Prop.Raw = append(propstat.Prop.Raw, *raw)
 			return nil
 		}
 	}
 
 	resp.Propstats = append(resp.Propstats, Propstat{
-		Status: NewStatus(code, ""),
+		Status: Status{Code: code},
 		Prop:   Prop{Raw: []RawXMLValue{*raw}},
 	})
 	return nil
