@@ -131,3 +131,5 @@ func (tr *rawXMLValueReader) Token() (xml.Token, error) {
 	tr.end = true
 	return start.End(), nil
 }
+
+var _ xml.TokenReader = (*rawXMLValueReader)(nil)
