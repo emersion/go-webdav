@@ -50,14 +50,7 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 	descName := xml.Name{namespace, "addressbook-description"}
 	propfind := internal.NewPropNamePropfind(resTypeName, descName)
 
-	req, err := c.ic.NewXMLRequest("PROPFIND", addressBookHomeSet, propfind)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Add("Depth", "1")
-
-	ms, err := c.ic.DoMultiStatus(req)
+	ms, err := c.ic.Propfind(addressBookHomeSet, internal.DepthOne, propfind)
 	if err != nil {
 		return nil, err
 	}

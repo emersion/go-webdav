@@ -10,6 +10,34 @@ import (
 	"path"
 )
 
+// Depth indicates whether a request applies to the resource's members. It's
+// defined in RFC 4918 section 10.2.
+type Depth int
+
+const (
+	// DepthZero indicates that the request applies only to the resource.
+	DepthZero Depth = 0
+	// DepthOne indicates that the request applies to the resource and its
+	// internal members only.
+	DepthOne Depth = 1
+	// DepthInfinity indicates that the request applies to the resource and all
+	// of its members.
+	DepthInfinity Depth = -1
+)
+
+// String formats the depth.
+func (d Depth) String() string {
+	switch d {
+	case DepthZero:
+		return "0"
+	case DepthOne:
+		return "1"
+	case DepthInfinity:
+		return "infinity"
+	}
+	panic("webdav: invalid Depth value")
+}
+
 type Client struct {
 	http     *http.Client
 	endpoint *url.URL
@@ -80,16 +108,20 @@ func (c *Client) DoMultiStatus(req *http.Request) (*Multistatus, error) {
 	return &ms, nil
 }
 
-// PropfindFlat performs a PROPFIND request with a zero depth.
-func (c *Client) PropfindFlat(href string, propfind *Propfind) (*Response, error) {
+func (c *Client) Propfind(href string, depth Depth, propfind *Propfind) (*Multistatus, error) {
 	req, err := c.NewXMLRequest("PROPFIND", href, propfind)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Add("Depth", "0")
+	req.Header.Add("Depth", depth.String())
 
-	ms, err := c.DoMultiStatus(req)
+	return c.DoMultiStatus(req)
+}
+
+// PropfindFlat performs a PROPFIND request with a zero depth.
+func (c *Client) PropfindFlat(href string, propfind *Propfind) (*Response, error) {
+	ms, err := c.Propfind(href, DepthZero, propfind)
 	if err != nil {
 		return nil, err
 	}
