@@ -30,7 +30,7 @@ func NewClient(c *http.Client, endpoint string) (*Client, error) {
 
 func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
 	name := xml.Name{namespace, "addressbook-home-set"}
-	propfind := internal.NewPropPropfind(name)
+	propfind := internal.NewPropNamePropfind(name)
 
 	resp, err := c.ic.PropfindFlat(principal, propfind)
 	if err != nil {
@@ -48,7 +48,7 @@ func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
 func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, error) {
 	resTypeName := xml.Name{"DAV:", "resourcetype"}
 	descName := xml.Name{namespace, "addressbook-description"}
-	propfind := internal.NewPropPropfind(resTypeName, descName)
+	propfind := internal.NewPropNamePropfind(resTypeName, descName)
 
 	req, err := c.ic.NewXMLRequest("PROPFIND", addressBookHomeSet, propfind)
 	if err != nil {
@@ -92,18 +92,19 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 }
 
 func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) ([]Address, error) {
-	// TODO: add a better way to format the request
-	addrProps := make([]internal.RawXMLValue, 0, len(query.Props))
-	for _, name := range query.Props {
-		addrProps = append(addrProps, *newProp(name, false))
-	}
-
 	addrDataName := xml.Name{namespace, "address-data"}
-	addrDataReq := internal.NewRawXMLElement(addrDataName, nil, addrProps)
 
-	addressbookQuery := addressbookQuery{
-		Prop: &internal.Prop{Raw: []internal.RawXMLValue{*addrDataReq}},
+	var addrDataReq addressDataReq
+	for _, name := range query.Props {
+		addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
 	}
+
+	propReq, err := internal.EncodeProp(&addrDataReq)
+	if err != nil {
+		return nil, err
+	}
+
+	addressbookQuery := addressbookQuery{Prop: propReq}
 
 	req, err := c.ic.NewXMLRequest("REPORT", addressBook, &addressbookQuery)
 	if err != nil {

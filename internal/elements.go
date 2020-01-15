@@ -114,6 +114,18 @@ type Prop struct {
 	Raw     []RawXMLValue `xml:",any"`
 }
 
+func EncodeProp(values ...interface{}) (*Prop, error) {
+	l := make([]RawXMLValue, len(values))
+	for i, v := range values {
+		raw, err := EncodeRawXMLElement(v)
+		if err != nil {
+			return nil, err
+		}
+		l[i] = *raw
+	}
+	return &Prop{Raw: l}, nil
+}
+
 // https://tools.ietf.org/html/rfc4918#section-14.20
 type Propfind struct {
 	XMLName xml.Name `xml:"DAV: propfind"`
@@ -121,7 +133,7 @@ type Propfind struct {
 	// TODO: propname | (allprop, include?)
 }
 
-func NewPropPropfind(names ...xml.Name) *Propfind {
+func NewPropNamePropfind(names ...xml.Name) *Propfind {
 	children := make([]RawXMLValue, len(names))
 	for i, name := range names {
 		children[i] = *NewRawXMLElement(name, nil, nil)

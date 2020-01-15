@@ -21,7 +21,7 @@ func NewClient(c *http.Client, endpoint string) (*Client, error) {
 
 func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	name := xml.Name{"DAV:", "current-user-principal"}
-	propfind := internal.NewPropPropfind(name)
+	propfind := internal.NewPropNamePropfind(name)
 
 	resp, err := c.c.PropfindFlat("/", propfind)
 	if err != nil {
