@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // TODO: cache parsed value
@@ -229,3 +230,31 @@ func (t *ResourceType) Is(name xml.Name) bool {
 }
 
 var CollectionName = xml.Name{"DAV:", "collection"}
+
+// https://tools.ietf.org/html/rfc4918#section-15.4
+type GetContentLength struct {
+	XMLName xml.Name `xml:"DAV: getcontentlength"`
+	Length  int64    `xml:",chardata"`
+}
+
+// https://tools.ietf.org/html/rfc4918#section-15.5
+type GetContentType struct {
+	XMLName xml.Name `xml:"DAV: getcontenttype"`
+	Type    string   `xml:",chardata"`
+}
+
+type Date string
+
+func NewDate(t time.Time) Date {
+	return Date(t.Format(time.RFC1123Z))
+}
+
+func (d Date) Time() (time.Time, error) {
+	return http.ParseTime(string(d))
+}
+
+// https://tools.ietf.org/html/rfc4918#section-15.7
+type GetLastModified struct {
+	XMLName      xml.Name `xml:"DAV: getlastmodified"`
+	LastModified Date     `xml:",chardata"`
+}

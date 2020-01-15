@@ -21,7 +21,12 @@ func HTTPErrorf(code int, format string, a ...interface{}) *HTTPError {
 }
 
 func (err *HTTPError) Error() string {
-	return fmt.Sprintf("%v %v: %v", err.Code, http.StatusText(err.Code), err.Err)
+	s := fmt.Sprintf("%v %v", err.Code, http.StatusText(err.Code))
+	if err.Err != nil {
+		return fmt.Sprintf("%v: %v", s, err.Err)
+	} else {
+		return s
+	}
 }
 
 type File interface {
@@ -179,7 +184,12 @@ func (h *Handler) propfindFile(propfind *internal.Propfind, name string, fi os.F
 			f, ok := liveProps[xmlName]
 			if ok {
 				if v, err := f(h, name, fi); err != nil {
-					code = http.StatusInternalServerError // TODO: better error handling
+					// TODO: don't throw away error message here
+					if httpErr, ok := err.(*HTTPError); ok {
+						code = httpErr.Code
+					} else {
+						code = http.StatusInternalServerError
+					}
 				} else {
 					code = http.StatusOK
 					val = v
@@ -207,4 +217,28 @@ var liveProps = map[xml.Name]PropfindFunc{
 		}
 		return internal.NewResourceType(types...), nil
 	},
+	{"DAV:", "getcontentlength"}: func(h *Handler, name string, fi os.FileInfo) (interface{}, error) {
+		if fi.IsDir() {
+			return nil, &HTTPError{Code: http.StatusNotFound}
+		}
+		return &internal.GetContentLength{Length: fi.Size()}, nil
+	},
+	{"DAV:", "getcontenttype"}: func(h *Handler, name string, fi os.FileInfo) (interface{}, error) {
+		if fi.IsDir() {
+			return nil, &HTTPError{Code: http.StatusNotFound}
+		}
+		t := mime.TypeByExtension(path.Ext(name))
+		if t == "" {
+			// TODO: use http.DetectContentType
+			return nil, &HTTPError{Code: http.StatusNotFound}
+		}
+		return &internal.GetContentType{Type: t}, nil
+	},
+	{"DAV:", "getlastmodified"}: func(h *Handler, name string, fi os.FileInfo) (interface{}, error) {
+		if fi.IsDir() {
+			return nil, &HTTPError{Code: http.StatusNotFound}
+		}
+		return &internal.GetLastModified{LastModified: internal.NewDate(fi.ModTime())}, nil
+	},
+	// TODO: getetag
 }
