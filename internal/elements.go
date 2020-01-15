@@ -195,9 +195,11 @@ func (prop *Prop) XMLNames() []xml.Name {
 
 // https://tools.ietf.org/html/rfc4918#section-14.20
 type Propfind struct {
-	XMLName xml.Name `xml:"DAV: propfind"`
-	Prop    *Prop    `xml:"prop,omitempty"`
-	// TODO: propname | (allprop, include?)
+	XMLName  xml.Name  `xml:"DAV: propfind"`
+	Prop     *Prop     `xml:"prop,omitempty"`
+	AllProp  *struct{} `xml:"allprop,omitempty"`
+	Include  *Include  `xml:"include,omitempty"`
+	PropName *struct{} `xml:"propname,omitempty"`
 }
 
 func xmlNamesToRaw(names []xml.Name) []RawXMLValue {
@@ -210,6 +212,12 @@ func xmlNamesToRaw(names []xml.Name) []RawXMLValue {
 
 func NewPropNamePropfind(names ...xml.Name) *Propfind {
 	return &Propfind{Prop: &Prop{Raw: xmlNamesToRaw(names)}}
+}
+
+// https://tools.ietf.org/html/rfc4918#section-14.8
+type Include struct {
+	XMLName xml.Name      `xml:"DAV: include"`
+	Raw     []RawXMLValue `xml:",any"`
 }
 
 // https://tools.ietf.org/html/rfc4918#section-15.9

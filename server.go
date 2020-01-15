@@ -175,7 +175,32 @@ func (h *Handler) propfind(propfind *internal.Propfind, name string, fi os.FileI
 func (h *Handler) propfindFile(propfind *internal.Propfind, name string, fi os.FileInfo) (*internal.Response, error) {
 	resp := internal.NewOKResponse(name)
 
-	if prop := propfind.Prop; prop != nil {
+	if propfind.PropName != nil {
+		for xmlName, f := range liveProps {
+			emptyVal := internal.NewRawXMLElement(xmlName, nil, nil)
+
+			_, err := f(h, name, fi)
+			if err != nil {
+				continue
+			}
+
+			if err := resp.EncodeProp(http.StatusOK, emptyVal); err != nil {
+				return nil, err
+			}
+		}
+	} else if propfind.AllProp != nil {
+		// TODO: add support for propfind.Include
+		for _, f := range liveProps {
+			val, err := f(h, name, fi)
+			if err != nil {
+				continue
+			}
+
+			if err := resp.EncodeProp(http.StatusOK, val); err != nil {
+				return nil, err
+			}
+		}
+	} else if prop := propfind.Prop; prop != nil {
 		for _, xmlName := range prop.XMLNames() {
 			emptyVal := internal.NewRawXMLElement(xmlName, nil, nil)
 
@@ -202,6 +227,8 @@ func (h *Handler) propfindFile(propfind *internal.Propfind, name string, fi os.F
 				return nil, err
 			}
 		}
+	} else {
+		return nil, HTTPErrorf(http.StatusBadRequest, "webdav: propfind request missing propname, allprop or prop element")
 	}
 
 	return resp, nil
