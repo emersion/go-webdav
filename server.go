@@ -238,7 +238,7 @@ var liveProps = map[xml.Name]PropfindFunc{
 		if fi.IsDir() {
 			return nil, &HTTPError{Code: http.StatusNotFound}
 		}
-		return &internal.GetLastModified{LastModified: internal.NewDate(fi.ModTime())}, nil
+		return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime())}, nil
 	},
 	// TODO: getetag
 }
