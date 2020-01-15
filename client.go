@@ -29,7 +29,7 @@ func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	}
 
 	var prop currentUserPrincipal
-	if err := resp.DecodeProp(name, &prop); err != nil {
+	if err := resp.DecodeProp(&prop); err != nil {
 		return "", err
 	}
 

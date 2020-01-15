@@ -2,7 +2,10 @@ package internal
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io"
+	"reflect"
+	"strings"
 )
 
 // RawXMLValue is a raw XML value. It implements xml.Unmarshaler and
@@ -88,6 +91,9 @@ func (val *RawXMLValue) Decode(v interface{}) error {
 
 // TokenReader returns a stream of tokens for the XML value.
 func (val *RawXMLValue) TokenReader() xml.TokenReader {
+	if val.out != nil {
+		panic("webdav: called RawXMLValue.TokenReader on a marshal-only XML value")
+	}
 	return &rawXMLValueReader{val: val}
 }
 
@@ -133,3 +139,30 @@ func (tr *rawXMLValueReader) Token() (xml.Token, error) {
 }
 
 var _ xml.TokenReader = (*rawXMLValueReader)(nil)
+
+func valueXMLName(v interface{}) (xml.Name, error) {
+	t := reflect.TypeOf(v)
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return xml.Name{}, fmt.Errorf("webdav: %T is not a struct", v)
+	}
+	nameField, ok := t.FieldByName("XMLName")
+	if !ok {
+		return xml.Name{}, fmt.Errorf("webdav: %T is missing an XMLName struct field", v)
+	}
+	if nameField.Type != reflect.TypeOf(xml.Name{}) {
+		return xml.Name{}, fmt.Errorf("webdav: %T.XMLName isn't an xml.Name", v)
+	}
+	tag := nameField.Tag.Get("xml")
+	if tag == "" {
+		return xml.Name{}, fmt.Errorf(`webdav: %T.XMLName is missing an "xml" tag`, v)
+	}
+	name := strings.Split(tag, ",")[0]
+	nameParts := strings.Split(name, " ")
+	if len(nameParts) != 2 {
+		return xml.Name{}, fmt.Errorf("webdav: expected a namespace and local name in %T.XMLName's xml tag", v)
+	}
+	return xml.Name{nameParts[0], nameParts[1]}, nil
+}

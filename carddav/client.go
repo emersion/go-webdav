@@ -38,7 +38,7 @@ func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
 	}
 
 	var prop addressbookHomeSet
-	if err := resp.DecodeProp(name, &prop); err != nil {
+	if err := resp.DecodeProp(&prop); err != nil {
 		return "", err
 	}
 
@@ -70,7 +70,7 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 		}
 
 		var resTypeProp internal.ResourceType
-		if err := resp.DecodeProp(resTypeName, &resTypeProp); err != nil {
+		if err := resp.DecodeProp(&resTypeProp); err != nil {
 			return nil, err
 		}
 		if !resTypeProp.Is(addressBookName) {
@@ -78,7 +78,7 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 		}
 
 		var descProp addressbookDescription
-		if err := resp.DecodeProp(descName, &descProp); err != nil {
+		if err := resp.DecodeProp(&descProp); err != nil {
 			return nil, err
 		}
 
@@ -92,8 +92,6 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 }
 
 func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) ([]Address, error) {
-	addrDataName := xml.Name{namespace, "address-data"}
-
 	var addrDataReq addressDataReq
 	for _, name := range query.Props {
 		addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
@@ -126,7 +124,7 @@ func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) (
 		}
 
 		var addrData addressDataResp
-		if err := resp.DecodeProp(addrDataName, &addrData); err != nil {
+		if err := resp.DecodeProp(&addrData); err != nil {
 			return nil, err
 		}
 

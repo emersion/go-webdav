@@ -73,7 +73,11 @@ func (resp *Response) Href() (string, error) {
 	return resp.Hrefs[0], nil
 }
 
-func (resp *Response) DecodeProp(name xml.Name, v interface{}) error {
+func (resp *Response) DecodeProp(v interface{}) error {
+	name, err := valueXMLName(v)
+	if err != nil {
+		return err
+	}
 	if err := resp.Status.Err(); err != nil {
 		return err
 	}
