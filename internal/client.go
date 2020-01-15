@@ -25,6 +25,19 @@ const (
 	DepthInfinity Depth = -1
 )
 
+// ParseDepth parses a Depth header.
+func ParseDepth(s string) (Depth, error) {
+	switch s {
+	case "0":
+		return DepthZero, nil
+	case "1":
+		return DepthOne, nil
+	case "infinity":
+		return DepthInfinity, nil
+	}
+	return 0, fmt.Errorf("webdav: invalid Depth value")
+}
+
 // String formats the depth.
 func (d Depth) String() string {
 	switch d {

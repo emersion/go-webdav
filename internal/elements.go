@@ -8,22 +8,39 @@ import (
 	"strings"
 )
 
+// TODO: cache parsed value
 type Status string
 
-func (s Status) Err() error {
+func NewStatus(code int, msg string) Status {
+	if msg == "" {
+		msg = http.StatusText(code)
+	}
+	return Status(fmt.Sprintf("HTTP/1.1 %v %v", code, msg))
+}
+
+func (s Status) parse() (int, string, error) {
 	if s == "" {
-		return nil
+		return http.StatusOK, "", nil
 	}
 
 	parts := strings.SplitN(string(s), " ", 3)
 	if len(parts) != 3 {
-		return fmt.Errorf("webdav: invalid HTTP status %q: expected 3 fields", s)
+		return 0, "", fmt.Errorf("webdav: invalid HTTP status %q: expected 3 fields", s)
 	}
 	code, err := strconv.Atoi(parts[1])
 	if err != nil {
-		return fmt.Errorf("webdav: invalid HTTP status %q: failed to parse code: %v", s, err)
+		return 0, "", fmt.Errorf("webdav: invalid HTTP status %q: failed to parse code: %v", s, err)
 	}
 	msg := parts[2]
+
+	return code, msg, nil
+}
+
+func (s Status) Err() error {
+	code, msg, err := s.parse()
+	if err != nil {
+		return err
+	}
 
 	// TODO: handle 2xx, 3xx
 	if code != http.StatusOK {
@@ -37,6 +54,10 @@ type Multistatus struct {
 	XMLName             xml.Name   `xml:"DAV: multistatus"`
 	Responses           []Response `xml:"response"`
 	ResponseDescription string     `xml:"responsedescription,omitempty"`
+}
+
+func NewMultistatus(resps ...Response) *Multistatus {
+	return &Multistatus{Responses: resps}
 }
 
 func (ms *Multistatus) Get(href string) (*Response, error) {
@@ -61,6 +82,13 @@ type Response struct {
 	Status              Status       `xml:"status,omitempty"`
 	Error               *RawXMLValue `xml:"error,omitempty"`
 	Location            *Location    `xml:"location,omitempty"`
+}
+
+func NewOKResponse(href string) *Response {
+	return &Response{
+		Hrefs:  []string{href},
+		Status: NewStatus(http.StatusOK, ""),
+	}
 }
 
 func (resp *Response) Href() (string, error) {
@@ -97,6 +125,28 @@ func (resp *Response) DecodeProp(v interface{}) error {
 	return fmt.Errorf("webdav: missing prop %v %v in response", name.Space, name.Local)
 }
 
+func (resp *Response) EncodeProp(code int, v interface{}) error {
+	raw, err := EncodeRawXMLElement(v)
+	if err != nil {
+		return err
+	}
+
+	for i := range resp.Propstats {
+		propstat := &resp.Propstats[i]
+		c, _, _ := propstat.Status.parse()
+		if c == code {
+			propstat.Prop.Raw = append(propstat.Prop.Raw, *raw)
+			return nil
+		}
+	}
+
+	resp.Propstats = append(resp.Propstats, Propstat{
+		Status: NewStatus(code, ""),
+		Prop:   Prop{Raw: []RawXMLValue{*raw}},
+	})
+	return nil
+}
+
 // https://tools.ietf.org/html/rfc4918#section-14.9
 type Location struct {
 	XMLName xml.Name `xml:"DAV: location"`
@@ -130,6 +180,16 @@ func EncodeProp(values ...interface{}) (*Prop, error) {
 	return &Prop{Raw: l}, nil
 }
 
+func (prop *Prop) XMLNames() []xml.Name {
+	l := make([]xml.Name, 0, len(prop.Raw))
+	for _, raw := range prop.Raw {
+		if start, ok := raw.tok.(xml.StartElement); ok {
+			l = append(l, start.Name)
+		}
+	}
+	return l
+}
+
 // https://tools.ietf.org/html/rfc4918#section-14.20
 type Propfind struct {
 	XMLName xml.Name `xml:"DAV: propfind"`
@@ -137,18 +197,26 @@ type Propfind struct {
 	// TODO: propname | (allprop, include?)
 }
 
-func NewPropNamePropfind(names ...xml.Name) *Propfind {
-	children := make([]RawXMLValue, len(names))
+func xmlNamesToRaw(names []xml.Name) []RawXMLValue {
+	l := make([]RawXMLValue, len(names))
 	for i, name := range names {
-		children[i] = *NewRawXMLElement(name, nil, nil)
+		l[i] = *NewRawXMLElement(name, nil, nil)
 	}
-	return &Propfind{Prop: &Prop{Raw: children}}
+	return l
+}
+
+func NewPropNamePropfind(names ...xml.Name) *Propfind {
+	return &Propfind{Prop: &Prop{Raw: xmlNamesToRaw(names)}}
 }
 
 // https://tools.ietf.org/html/rfc4918#section-15.9
 type ResourceType struct {
 	XMLName xml.Name      `xml:"DAV: resourcetype"`
 	Raw     []RawXMLValue `xml:",any"`
+}
+
+func NewResourceType(names ...xml.Name) *ResourceType {
+	return &ResourceType{Raw: xmlNamesToRaw(names)}
 }
 
 func (t *ResourceType) Is(name xml.Name) bool {
