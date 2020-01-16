@@ -7,4 +7,4 @@ A Go library for [WebDAV](https://tools.ietf.org/html/rfc4918) and
 
 ## License
 
-BSD
+MIT
