@@ -55,7 +55,6 @@ type Client struct {
 	http               *http.Client
 	endpoint           *url.URL
 	username, password string
-	insecure           bool
 }
 
 func NewClient(c *http.Client, endpoint string) (*Client, error) {
