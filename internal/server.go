@@ -98,7 +98,6 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 
 	depth := DepthInfinity
 	if s := r.Header.Get("Depth"); s != "" {
-		var err error
 		depth, err = ParseDepth(s)
 		if err != nil {
 			return &HTTPError{http.StatusBadRequest, err}

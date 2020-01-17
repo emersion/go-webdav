@@ -79,13 +79,13 @@ func (ms *Multistatus) Get(href string) (*Response, error) {
 
 // https://tools.ietf.org/html/rfc4918#section-14.24
 type Response struct {
-	XMLName             xml.Name     `xml:"DAV: response"`
-	Hrefs               []string     `xml:"href"`
-	Propstats           []Propstat   `xml:"propstat,omitempty"`
-	ResponseDescription string       `xml:"responsedescription,omitempty"`
-	Status              *Status      `xml:"status,omitempty"`
-	Error               *RawXMLValue `xml:"error,omitempty"`
-	Location            *Location    `xml:"location,omitempty"`
+	XMLName             xml.Name   `xml:"DAV: response"`
+	Hrefs               []string   `xml:"href"`
+	Propstats           []Propstat `xml:"propstat,omitempty"`
+	ResponseDescription string     `xml:"responsedescription,omitempty"`
+	Status              *Status    `xml:"status,omitempty"`
+	Error               *Error     `xml:"error,omitempty"`
+	Location            *Location  `xml:"location,omitempty"`
 }
 
 func NewOKResponse(href string) *Response {
@@ -158,11 +158,11 @@ type Location struct {
 
 // https://tools.ietf.org/html/rfc4918#section-14.22
 type Propstat struct {
-	XMLName             xml.Name     `xml:"DAV: propstat"`
-	Prop                Prop         `xml:"prop"`
-	Status              Status       `xml:"status"`
-	ResponseDescription string       `xml:"responsedescription,omitempty"`
-	Error               *RawXMLValue `xml:"error,omitempty"`
+	XMLName             xml.Name `xml:"DAV: propstat"`
+	Prop                Prop     `xml:"prop"`
+	Status              Status   `xml:"status"`
+	ResponseDescription string   `xml:"responsedescription,omitempty"`
+	Error               *Error   `xml:"error,omitempty"`
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.18
@@ -263,4 +263,10 @@ func (t *Time) MarshalText() ([]byte, error) {
 type GetLastModified struct {
 	XMLName      xml.Name `xml:"DAV: getlastmodified"`
 	LastModified Time     `xml:",chardata"`
+}
+
+// https://tools.ietf.org/html/rfc4918#section-14.5
+type Error struct {
+	XMLName xml.Name      `xml:"DAV: error"`
+	Raw     []RawXMLValue `xml:",any"`
 }
