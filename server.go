@@ -37,6 +37,27 @@ type backend struct {
 	FileSystem FileSystem
 }
 
+func (b *backend) Options(r *http.Request) ([]string, error) {
+	f, err := b.FileSystem.Open(r.URL.Path)
+	if os.IsNotExist(err) {
+		return []string{http.MethodOptions}, nil
+	} else if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	if fi.IsDir() {
+		return []string{http.MethodOptions, "PROPFIND"}, nil
+	} else {
+		return []string{http.MethodOptions, http.MethodHead, http.MethodGet, "PROPFIND"}, nil
+	}
+}
+
 func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	f, err := b.FileSystem.Open(r.URL.Path)
 	if err != nil {

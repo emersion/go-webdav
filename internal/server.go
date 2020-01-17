@@ -1,10 +1,11 @@
 package internal
 
 import (
-	"net/http"
+	"encoding/xml"
 	"fmt"
 	"mime"
-	"encoding/xml"
+	"net/http"
+	"strings"
 )
 
 type HTTPError struct {
@@ -26,6 +27,7 @@ func (err *HTTPError) Error() string {
 }
 
 type Backend interface {
+	Options(r *http.Request) ([]string, error)
 	HeadGet(w http.ResponseWriter, r *http.Request) error
 	Propfind(r *http.Request, pf *Propfind, depth Depth) (*Multistatus, error)
 }
@@ -61,7 +63,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) error {
-	w.Header().Add("Allow", "OPTIONS, GET, HEAD, PROPFIND")
+	methods, err := h.Backend.Options(r)
+	if err != nil {
+		return err
+	}
+
+	w.Header().Add("Allow", strings.Join(methods, ", "))
 	w.Header().Add("DAV", "1, 3")
 	w.WriteHeader(http.StatusNoContent)
 	return nil
