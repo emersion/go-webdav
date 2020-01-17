@@ -89,8 +89,8 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 	return l, nil
 }
 
-func decodeAddressList(ms *internal.Multistatus) ([]Address, error) {
-	addrs := make([]Address, 0, len(ms.Responses))
+func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
+	addrs := make([]AddressObject, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		href, err := resp.Href()
 		if err != nil {
@@ -108,7 +108,7 @@ func decodeAddressList(ms *internal.Multistatus) ([]Address, error) {
 			return nil, err
 		}
 
-		addrs = append(addrs, Address{
+		addrs = append(addrs, AddressObject{
 			Href: href,
 			Card: card,
 		})
@@ -117,7 +117,7 @@ func decodeAddressList(ms *internal.Multistatus) ([]Address, error) {
 	return addrs, nil
 }
 
-func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) ([]Address, error) {
+func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) ([]AddressObject, error) {
 	var addrDataReq addressDataReq
 	if query != nil {
 		for _, name := range query.Props {
@@ -147,7 +147,7 @@ func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) (
 	return decodeAddressList(ms)
 }
 
-func (c *Client) MultiGetAddressBook(href string, multiGet *AddressBookMultiGet) ([]Address, error) {
+func (c *Client) MultiGetAddressBook(href string, multiGet *AddressBookMultiGet) ([]AddressObject, error) {
 	var addrDataReq addressDataReq
 	if multiGet != nil {
 		for _, name := range multiGet.Props {

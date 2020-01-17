@@ -24,7 +24,7 @@ type AddressBookMultiGet struct {
 	Props []string
 }
 
-type Address struct {
+type AddressObject struct {
 	Href string
 	Card vcard.Card
 }
