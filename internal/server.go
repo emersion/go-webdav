@@ -13,6 +13,17 @@ type HTTPError struct {
 	Err  error
 }
 
+func HTTPErrorFromError(err error) *HTTPError {
+	if err == nil {
+		return nil
+	}
+	if httpErr, ok := err.(*HTTPError); ok {
+		return httpErr
+	} else {
+		return &HTTPError{http.StatusInternalServerError, err}
+	}
+}
+
 func HTTPErrorf(code int, format string, a ...interface{}) *HTTPError {
 	return &HTTPError{code, fmt.Errorf(format, a...)}
 }
@@ -103,4 +114,69 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 	w.WriteHeader(http.StatusMultiStatus)
 	w.Write([]byte(xml.Header))
 	return xml.NewEncoder(w).Encode(&ms)
+}
+
+type PropfindFunc func(raw *RawXMLValue) (interface{}, error)
+
+func NewPropfindResponse(href string, propfind *Propfind, props map[xml.Name]PropfindFunc) (*Response, error) {
+	resp := NewOKResponse(href)
+
+	if propfind.PropName != nil {
+		for xmlName, _ := range props {
+			emptyVal := NewRawXMLElement(xmlName, nil, nil)
+			if err := resp.EncodeProp(http.StatusOK, emptyVal); err != nil {
+				return nil, err
+			}
+		}
+	} else if propfind.AllProp != nil {
+		// TODO: add support for propfind.Include
+		for xmlName, f := range props {
+			emptyVal := NewRawXMLElement(xmlName, nil, nil)
+
+			val, err := f(emptyVal)
+
+			code := http.StatusOK
+			if err != nil {
+				// TODO: don't throw away error message here
+				code = HTTPErrorFromError(err).Code
+				val = emptyVal
+			}
+
+			if err := resp.EncodeProp(code, val); err != nil {
+				return nil, err
+			}
+		}
+	} else if prop := propfind.Prop; prop != nil {
+		for _, raw := range prop.Raw {
+			xmlName, ok := raw.XMLName()
+			if !ok {
+				continue
+			}
+
+			emptyVal := NewRawXMLElement(xmlName, nil, nil)
+
+			var code int
+			var val interface{} = emptyVal
+			f, ok := props[xmlName]
+			if ok {
+				if v, err := f(&raw); err != nil {
+					// TODO: don't throw away error message here
+					code = HTTPErrorFromError(err).Code
+				} else {
+					code = http.StatusOK
+					val = v
+				}
+			} else {
+				code = http.StatusNotFound
+			}
+
+			if err := resp.EncodeProp(code, val); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		return nil, HTTPErrorf(http.StatusBadRequest, "webdav: propfind request missing propname, allprop or prop element")
+	}
+
+	return resp, nil
 }

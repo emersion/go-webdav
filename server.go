@@ -135,99 +135,33 @@ func (b *backend) propfind(propfind *internal.Propfind, name string, fi os.FileI
 }
 
 func (b *backend) propfindFile(propfind *internal.Propfind, name string, fi os.FileInfo) (*internal.Response, error) {
-	resp := internal.NewOKResponse(name)
+	props := make(map[xml.Name]internal.PropfindFunc)
 
-	if propfind.PropName != nil {
-		for xmlName, f := range liveProps {
-			emptyVal := internal.NewRawXMLElement(xmlName, nil, nil)
-
-			_, err := f(b, name, fi)
-			if err != nil {
-				continue
-			}
-
-			if err := resp.EncodeProp(http.StatusOK, emptyVal); err != nil {
-				return nil, err
-			}
-		}
-	} else if propfind.AllProp != nil {
-		// TODO: add support for propfind.Include
-		for _, f := range liveProps {
-			val, err := f(b, name, fi)
-			if err != nil {
-				continue
-			}
-
-			if err := resp.EncodeProp(http.StatusOK, val); err != nil {
-				return nil, err
-			}
-		}
-	} else if prop := propfind.Prop; prop != nil {
-		for _, xmlName := range prop.XMLNames() {
-			emptyVal := internal.NewRawXMLElement(xmlName, nil, nil)
-
-			var code int
-			var val interface{} = emptyVal
-			f, ok := liveProps[xmlName]
-			if ok {
-				if v, err := f(b, name, fi); err != nil {
-					// TODO: don't throw away error message here
-					if httpErr, ok := err.(*internal.HTTPError); ok {
-						code = httpErr.Code
-					} else {
-						code = http.StatusInternalServerError
-					}
-				} else {
-					code = http.StatusOK
-					val = v
-				}
-			} else {
-				code = http.StatusNotFound
-			}
-
-			if err := resp.EncodeProp(code, val); err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		return nil, internal.HTTPErrorf(http.StatusBadRequest, "webdav: propfind request missing propname, allprop or prop element")
-	}
-
-	return resp, nil
-}
-
-type PropfindFunc func(b *backend, name string, fi os.FileInfo) (interface{}, error)
-
-var liveProps = map[xml.Name]PropfindFunc{
-	{"DAV:", "resourcetype"}: func(b *backend, name string, fi os.FileInfo) (interface{}, error) {
+	props[xml.Name{"DAV:", "resourcetype"}] = func(*internal.RawXMLValue) (interface{}, error) {
 		var types []xml.Name
 		if fi.IsDir() {
 			types = append(types, internal.CollectionName)
 		}
 		return internal.NewResourceType(types...), nil
-	},
-	{"DAV:", "getcontentlength"}: func(b *backend, name string, fi os.FileInfo) (interface{}, error) {
-		if fi.IsDir() {
-			return nil, &internal.HTTPError{Code: http.StatusNotFound}
+	}
+
+	if !fi.IsDir() {
+		props[xml.Name{"DAV:", "getcontentlength"}] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.GetContentLength{Length: fi.Size()}, nil
 		}
-		return &internal.GetContentLength{Length: fi.Size()}, nil
-	},
-	{"DAV:", "getcontenttype"}: func(b *backend, name string, fi os.FileInfo) (interface{}, error) {
-		if fi.IsDir() {
-			return nil, &internal.HTTPError{Code: http.StatusNotFound}
+		props[xml.Name{"DAV:", "getcontenttype"}] = func(*internal.RawXMLValue) (interface{}, error) {
+			t := mime.TypeByExtension(path.Ext(name))
+			if t == "" {
+				// TODO: use http.DetectContentType
+				return nil, &internal.HTTPError{Code: http.StatusNotFound}
+			}
+			return &internal.GetContentType{Type: t}, nil
 		}
-		t := mime.TypeByExtension(path.Ext(name))
-		if t == "" {
-			// TODO: use http.DetectContentType
-			return nil, &internal.HTTPError{Code: http.StatusNotFound}
+		props[xml.Name{"DAV:", "getlastmodified"}] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime())}, nil
 		}
-		return &internal.GetContentType{Type: t}, nil
-	},
-	{"DAV:", "getlastmodified"}: func(b *backend, name string, fi os.FileInfo) (interface{}, error) {
-		if fi.IsDir() {
-			return nil, &internal.HTTPError{Code: http.StatusNotFound}
-		}
-		return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime())}, nil
-	},
-	// TODO: getetag
+		// TODO: getetag
+	}
+
+	return internal.NewPropfindResponse(name, propfind, props)
 }

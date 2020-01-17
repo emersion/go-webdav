@@ -89,6 +89,13 @@ func (val *RawXMLValue) Decode(v interface{}) error {
 	return xml.NewTokenDecoder(val.TokenReader()).Decode(&v)
 }
 
+func (val *RawXMLValue) XMLName() (name xml.Name, ok bool) {
+	if start, ok := val.tok.(xml.StartElement); ok {
+		return start.Name, true
+	}
+	return xml.Name{}, false
+}
+
 // TokenReader returns a stream of tokens for the XML value.
 func (val *RawXMLValue) TokenReader() xml.TokenReader {
 	if val.out != nil {

@@ -117,7 +117,7 @@ func (resp *Response) DecodeProp(v interface{}) error {
 		propstat := &resp.Propstats[i]
 		for j := range propstat.Prop.Raw {
 			raw := &propstat.Prop.Raw[j]
-			if start, ok := raw.tok.(xml.StartElement); ok && name == start.Name {
+			if n, ok := raw.XMLName(); ok && name == n {
 				if err := propstat.Status.Err(); err != nil {
 					return err
 				}
@@ -183,16 +183,6 @@ func EncodeProp(values ...interface{}) (*Prop, error) {
 	return &Prop{Raw: l}, nil
 }
 
-func (prop *Prop) XMLNames() []xml.Name {
-	l := make([]xml.Name, 0, len(prop.Raw))
-	for _, raw := range prop.Raw {
-		if start, ok := raw.tok.(xml.StartElement); ok {
-			l = append(l, start.Name)
-		}
-	}
-	return l
-}
-
 // https://tools.ietf.org/html/rfc4918#section-14.20
 type Propfind struct {
 	XMLName  xml.Name  `xml:"DAV: propfind"`
@@ -232,7 +222,7 @@ func NewResourceType(names ...xml.Name) *ResourceType {
 
 func (t *ResourceType) Is(name xml.Name) bool {
 	for _, raw := range t.Raw {
-		if start, ok := raw.tok.(xml.StartElement); ok && name == start.Name {
+		if n, ok := raw.XMLName(); ok && name == n {
 			return true
 		}
 	}
