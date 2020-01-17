@@ -6,17 +6,19 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/emersion/go-webdav/internal"
 )
 
 type LocalFileSystem string
 
 func (fs LocalFileSystem) path(name string) (string, error) {
 	if (filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0) || strings.Contains(name, "\x00") {
-		return "", HTTPErrorf(http.StatusBadRequest, "webdav: invalid character in path")
+		return "", internal.HTTPErrorf(http.StatusBadRequest, "webdav: invalid character in path")
 	}
 	name = path.Clean(name)
 	if !path.IsAbs(name) {
-		return "", HTTPErrorf(http.StatusBadRequest, "webdav: expected absolute path")
+		return "", internal.HTTPErrorf(http.StatusBadRequest, "webdav: expected absolute path")
 	}
 	return filepath.Join(string(fs), filepath.FromSlash(name)), nil
 }
