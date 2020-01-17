@@ -49,6 +49,10 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	if fi.IsDir() {
+		return &internal.HTTPError{Code: http.StatusMethodNotAllowed}
+	}
+
 	http.ServeContent(w, r, r.URL.Path, fi.ModTime(), f)
 	return nil
 }
