@@ -120,6 +120,12 @@ type PropfindFunc func(raw *RawXMLValue) (interface{}, error)
 func NewPropfindResponse(href string, propfind *Propfind, props map[xml.Name]PropfindFunc) (*Response, error) {
 	resp := NewOKResponse(href)
 
+	if _, ok := props[ResourceTypeName]; !ok {
+		props[ResourceTypeName] = func(*RawXMLValue) (interface{}, error) {
+			return NewResourceType(), nil
+		}
+	}
+
 	if propfind.PropName != nil {
 		for xmlName, _ := range props {
 			emptyVal := NewRawXMLElement(xmlName, nil, nil)
