@@ -9,6 +9,8 @@ import (
 	"time"
 )
 
+const Namespace = "DAV:"
+
 type Status struct {
 	Code int
 	Text string
@@ -264,6 +266,14 @@ type GetLastModified struct {
 	XMLName      xml.Name `xml:"DAV: getlastmodified"`
 	LastModified Time     `xml:",chardata"`
 }
+
+var (
+	ResourceTypeName     = xml.Name{"DAV:", "resourcetype"}
+	GetContentLengthName = xml.Name{"DAV:", "getcontentlength"}
+	GetContentTypeName   = xml.Name{"DAV:", "getcontenttype"}
+	GetLastModifiedName  = xml.Name{"DAV:", "getlastmodified"}
+	GetETagName          = xml.Name{"DAV:", "getetag"}
+)
 
 // https://tools.ietf.org/html/rfc4918#section-14.5
 type Error struct {

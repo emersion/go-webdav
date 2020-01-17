@@ -137,7 +137,7 @@ func (b *backend) propfind(propfind *internal.Propfind, name string, fi os.FileI
 func (b *backend) propfindFile(propfind *internal.Propfind, name string, fi os.FileInfo) (*internal.Response, error) {
 	props := make(map[xml.Name]internal.PropfindFunc)
 
-	props[xml.Name{"DAV:", "resourcetype"}] = func(*internal.RawXMLValue) (interface{}, error) {
+	props[internal.ResourceTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
 		var types []xml.Name
 		if fi.IsDir() {
 			types = append(types, internal.CollectionName)
@@ -146,10 +146,10 @@ func (b *backend) propfindFile(propfind *internal.Propfind, name string, fi os.F
 	}
 
 	if !fi.IsDir() {
-		props[xml.Name{"DAV:", "getcontentlength"}] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetContentLength{Length: fi.Size()}, nil
 		}
-		props[xml.Name{"DAV:", "getcontenttype"}] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.GetContentTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
 			t := mime.TypeByExtension(path.Ext(name))
 			if t == "" {
 				// TODO: use http.DetectContentType
@@ -157,7 +157,7 @@ func (b *backend) propfindFile(propfind *internal.Propfind, name string, fi os.F
 			}
 			return &internal.GetContentType{Type: t}, nil
 		}
-		props[xml.Name{"DAV:", "getlastmodified"}] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime())}, nil
 		}
 		// TODO: getetag

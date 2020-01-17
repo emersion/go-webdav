@@ -111,7 +111,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 
 func (b *backend) propfindAddressBook(propfind *internal.Propfind) (*internal.Response, error) {
 	props := map[xml.Name]internal.PropfindFunc{
-		{"DAV:", "resourcetype"}: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, addressBookName), nil
 		},
 	}
@@ -121,10 +121,7 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind) (*internal.Re
 
 func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *AddressObject) (*internal.Response, error) {
 	props := map[xml.Name]internal.PropfindFunc{
-		{"DAV:", "resourcetype"}: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(), nil
-		},
-		{"DAV:", "getcontenttype"}: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetContentType{Type: vcard.MIMEType}, nil
 		},
 		// TODO getlastmodified, getetag

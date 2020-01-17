@@ -6,6 +6,10 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
+const namespace = "urn:ietf:params:xml:ns:carddav"
+
+var addressBookName = xml.Name{namespace, "addressbook"}
+
 type addressbookHomeSet struct {
 	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav addressbook-home-set"`
 	Href    string   `xml:"href"`
