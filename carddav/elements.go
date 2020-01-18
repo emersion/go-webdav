@@ -8,7 +8,11 @@ import (
 
 const namespace = "urn:ietf:params:xml:ns:carddav"
 
-var addressBookName = xml.Name{namespace, "addressbook"}
+var (
+	addressBookName            = xml.Name{namespace, "addressbook"}
+	addressBookHomeSetName     = xml.Name{namespace, "addressbook-home-set"}
+	addressBookDescriptionName = xml.Name{namespace, "addressbook-description"}
+)
 
 type addressbookHomeSet struct {
 	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav addressbook-home-set"`

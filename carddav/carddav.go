@@ -1,8 +1,6 @@
 package carddav
 
 import (
-	"encoding/xml"
-
 	"github.com/emersion/go-vcard"
 )
 

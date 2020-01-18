@@ -2,7 +2,6 @@ package carddav
 
 import (
 	"bytes"
-	"encoding/xml"
 	"net/http"
 
 	"github.com/emersion/go-vcard"
@@ -34,9 +33,7 @@ func (c *Client) SetBasicAuth(username, password string) {
 }
 
 func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
-	name := xml.Name{namespace, "addressbook-home-set"}
-	propfind := internal.NewPropNamePropfind(name)
-
+	propfind := internal.NewPropNamePropfind(addressBookHomeSetName)
 	resp, err := c.ic.PropfindFlat(principal, propfind)
 	if err != nil {
 		return "", err
@@ -51,10 +48,7 @@ func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
 }
 
 func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, error) {
-	resTypeName := xml.Name{"DAV:", "resourcetype"}
-	descName := xml.Name{namespace, "addressbook-description"}
-	propfind := internal.NewPropNamePropfind(resTypeName, descName)
-
+	propfind := internal.NewPropNamePropfind(internal.ResourceTypeName, addressBookDescriptionName)
 	ms, err := c.ic.Propfind(addressBookHomeSet, internal.DepthOne, propfind)
 	if err != nil {
 		return nil, err
