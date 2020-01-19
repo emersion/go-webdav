@@ -219,7 +219,10 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 				},
 			}, nil
 		},
-		// TODO: addressbook-home-set
+		// TODO: this is a principal property
+		addressBookHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &addressbookHomeSet{Href: "/"}, nil
+		},
 	}
 
 	if ab.MaxResourceSize > 0 {

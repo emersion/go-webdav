@@ -10,8 +10,9 @@ import (
 const namespace = "urn:ietf:params:xml:ns:carddav"
 
 var (
+	addressBookHomeSetName = xml.Name{namespace, "addressbook-home-set"}
+
 	addressBookName                 = xml.Name{namespace, "addressbook"}
-	addressBookHomeSetName          = xml.Name{namespace, "addressbook-home-set"}
 	addressBookDescriptionName      = xml.Name{namespace, "addressbook-description"}
 	addressBookQueryName            = xml.Name{namespace, "addressbook-query"}
 	addressBookMultigetName         = xml.Name{namespace, "addressbook-multiget"}
@@ -22,6 +23,7 @@ var (
 	maxResourceSizeName = xml.Name{namespace, "max-resource-size"}
 )
 
+// https://tools.ietf.org/html/rfc6352#section-6.2.3
 type addressbookHomeSet struct {
 	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav addressbook-home-set"`
 	Href    string   `xml:"href"`
