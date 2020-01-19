@@ -15,6 +15,8 @@ var (
 	addressBookDescriptionName = xml.Name{namespace, "addressbook-description"}
 	addressBookQueryName       = xml.Name{namespace, "addressbook-query"}
 	addressBookMultigetName    = xml.Name{namespace, "addressbook-multiget"}
+
+	addressDataName = xml.Name{namespace, "address-data"}
 )
 
 type addressbookHomeSet struct {
@@ -74,7 +76,7 @@ type addressDataResp struct {
 }
 
 type reportReq struct {
-	Query *addressbookQuery
+	Query    *addressbookQuery
 	Multiget *addressbookMultiget
 }
 

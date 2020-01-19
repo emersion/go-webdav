@@ -209,8 +209,15 @@ func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *Address
 		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetContentType{Type: vcard.MIMEType}, nil
 		},
+		addressBookDataName: func(*internal.RawXMLValue) (interface{}, error) {
+			var buf bytes.Buffer
+			if err := vcard.NewEncoder(&buf).Encode(ao.Card); err != nil {
+				return nil, err
+			}
+
+			return &addressDataResp{Data: buf.Bytes()}, nil
+		},
 		// TODO: getlastmodified, getetag
-		// TODO: address-data
 	}
 
 	return internal.NewPropfindResponse(ao.Href, propfind, props)
