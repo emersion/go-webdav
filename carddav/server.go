@@ -13,6 +13,7 @@ import (
 type Backend interface {
 	GetAddressObject(href string) (*AddressObject, error)
 	ListAddressObjects() ([]AddressObject, error)
+	QueryAddressObjects(query *AddressBookQuery) ([]AddressObject, error)
 }
 
 type Handler struct {
@@ -55,7 +56,38 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) error {
-	return nil // TODO
+	var q AddressBookQuery
+	if query.Prop != nil {
+		var addressData addressDataReq
+		if err := query.Prop.Decode(&addressData); err != nil && !internal.IsMissingProp(err) {
+			return err
+		}
+		for _, p := range addressData.Props {
+			q.Props = append(q.Props, p.Name)
+		}
+	}
+
+	aos, err := h.Backend.QueryAddressObjects(&q)
+	if err != nil {
+		return err
+	}
+
+	var resps []internal.Response
+	for _, ao := range aos {
+		b := backend{h.Backend}
+		propfind := internal.Propfind{
+			Prop: query.Prop,
+			// TODO: Allprop, Propnames
+		}
+		resp, err := b.propfindAddressObject(&propfind, &ao)
+		if err != nil {
+			return err
+		}
+		resps = append(resps, *resp)
+	}
+
+	ms := internal.NewMultistatus(resps...)
+	return internal.ServeMultistatus(w, ms)
 }
 
 func (h *Handler) handleMultiget(w http.ResponseWriter, multiget *addressbookMultiget) error {
@@ -75,12 +107,10 @@ func (h *Handler) handleMultiget(w http.ResponseWriter, multiget *addressbookMul
 		if err != nil {
 			return err
 		}
-
 		resps = append(resps, *resp)
 	}
 
 	ms := internal.NewMultistatus(resps...)
-
 	return internal.ServeMultistatus(w, ms)
 }
 
@@ -168,6 +198,7 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind) (*internal.Re
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, addressBookName), nil
 		},
+		// TODO: displayname, addressbook-description, addressbook-supported-address-data, addressbook-max-resource-size, addressbook-home-set
 	}
 
 	return internal.NewPropfindResponse("/", propfind, props)
