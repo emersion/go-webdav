@@ -2,7 +2,6 @@ package carddav
 
 import (
 	"encoding/xml"
-	"mime"
 	"net/http"
 
 	"github.com/emersion/go-vcard"
@@ -42,14 +41,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
-	t, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if t != "application/xml" && t != "text/xml" {
-		return internal.HTTPErrorf(http.StatusBadRequest, "webdav: expected application/xml REPORT request")
-	}
-
 	var report reportReq
-	if err := xml.NewDecoder(r.Body).Decode(&report); err != nil {
-		return &internal.HTTPError{http.StatusBadRequest, err}
+	if err := internal.DecodeXMLRequest(r, &report); err != nil {
+		return err
 	}
 
 	if report.Query != nil {
@@ -87,10 +81,7 @@ func (h *Handler) handleMultiget(w http.ResponseWriter, multiget *addressbookMul
 
 	ms := internal.NewMultistatus(resps...)
 
-	w.Header().Add("Content-Type", "text/xml; charset=\"utf-8\"")
-	w.WriteHeader(http.StatusMultiStatus)
-	w.Write([]byte(xml.Header))
-	return xml.NewEncoder(w).Encode(&ms)
+	return internal.ServeMultistatus(w, ms)
 }
 
 type backend struct {

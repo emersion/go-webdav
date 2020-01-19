@@ -45,6 +45,30 @@ func ServeError(w http.ResponseWriter, err error) {
 	http.Error(w, err.Error(), code)
 }
 
+func DecodeXMLRequest(r *http.Request, v interface{}) error {
+	t, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if t != "application/xml" && t != "text/xml" {
+		return HTTPErrorf(http.StatusBadRequest, "webdav: expected application/xml request")
+	}
+
+	if err := xml.NewDecoder(r.Body).Decode(v); err != nil {
+		return &HTTPError{http.StatusBadRequest, err}
+	}
+	return nil
+}
+
+func ServeXML(w http.ResponseWriter) *xml.Encoder {
+	w.Header().Add("Content-Type", "text/xml; charset=\"utf-8\"")
+	w.Write([]byte(xml.Header))
+	return xml.NewEncoder(w)
+}
+
+func ServeMultistatus(w http.ResponseWriter, ms *Multistatus) error {
+	// TODO: streaming
+	w.WriteHeader(http.StatusMultiStatus)
+	return ServeXML(w).Encode(ms)
+}
+
 type Backend interface {
 	Options(r *http.Request) ([]string, error)
 	HeadGet(w http.ResponseWriter, r *http.Request) error
@@ -94,14 +118,9 @@ func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
-	t, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
-	if t != "application/xml" && t != "text/xml" {
-		return HTTPErrorf(http.StatusBadRequest, "webdav: expected application/xml PROPFIND request")
-	}
-
 	var propfind Propfind
-	if err := xml.NewDecoder(r.Body).Decode(&propfind); err != nil {
-		return &HTTPError{http.StatusBadRequest, err}
+	if err := DecodeXMLRequest(r, &propfind); err != nil {
+		return err
 	}
 
 	depth := DepthInfinity
@@ -118,10 +137,7 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	w.Header().Add("Content-Type", "text/xml; charset=\"utf-8\"")
-	w.WriteHeader(http.StatusMultiStatus)
-	w.Write([]byte(xml.Header))
-	return xml.NewEncoder(w).Encode(&ms)
+	return ServeMultistatus(w, ms)
 }
 
 type PropfindFunc func(raw *RawXMLValue) (interface{}, error)
