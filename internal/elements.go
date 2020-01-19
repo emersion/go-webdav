@@ -71,7 +71,7 @@ func (ms *Multistatus) Get(href string) (*Response, error) {
 		resp := &ms.Responses[i]
 		for _, h := range resp.Hrefs {
 			if h == href {
-				return resp, nil
+				return resp, resp.Status.Err()
 			}
 		}
 	}
@@ -121,6 +121,7 @@ func IsMissingProp(err error) bool {
 }
 
 func (resp *Response) DecodeProp(v interface{}) error {
+	// TODO wrap errors with more context (XML name)
 	name, err := valueXMLName(v)
 	if err != nil {
 		return err
