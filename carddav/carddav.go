@@ -5,9 +5,10 @@ import (
 )
 
 type AddressBook struct {
-	Href        string
-	Name        string
-	Description string
+	Href            string
+	Name            string
+	Description     string
+	MaxResourceSize int64
 }
 
 type AddressBookQuery struct {

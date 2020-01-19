@@ -219,7 +219,13 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 				},
 			}, nil
 		},
-		// TODO: addressbook-max-resource-size, addressbook-home-set
+		// TODO: addressbook-home-set
+	}
+
+	if ab.MaxResourceSize > 0 {
+		props[maxResourceSizeName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &maxResourceSize{Size: ab.MaxResourceSize}, nil
+		}
 	}
 
 	return internal.NewPropfindResponse("/", propfind, props)

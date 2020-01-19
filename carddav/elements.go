@@ -18,6 +18,8 @@ var (
 	addressBookSupportedAddressData = xml.Name{namespace, "addressbook-supported-address-data"}
 
 	addressDataName = xml.Name{namespace, "address-data"}
+
+	maxResourceSizeName = xml.Name{namespace, "max-resource-size"}
 )
 
 type addressbookHomeSet struct {
@@ -40,6 +42,12 @@ type addressDataType struct {
 	XMLName     xml.Name `xml:"urn:ietf:params:xml:ns:carddav address-data-type"`
 	ContentType string   `xml:"content-type,attr"`
 	Version     string   `xml:"version,attr"`
+}
+
+// https://tools.ietf.org/html/rfc6352#section-6.2.3
+type maxResourceSize struct {
+	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav max-resource-size"`
+	Size    int64    `xml:",chardata"`
 }
 
 // https://tools.ietf.org/html/rfc6352#section-10.3
