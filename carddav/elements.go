@@ -10,11 +10,12 @@ import (
 const namespace = "urn:ietf:params:xml:ns:carddav"
 
 var (
-	addressBookName            = xml.Name{namespace, "addressbook"}
-	addressBookHomeSetName     = xml.Name{namespace, "addressbook-home-set"}
-	addressBookDescriptionName = xml.Name{namespace, "addressbook-description"}
-	addressBookQueryName       = xml.Name{namespace, "addressbook-query"}
-	addressBookMultigetName    = xml.Name{namespace, "addressbook-multiget"}
+	addressBookName                 = xml.Name{namespace, "addressbook"}
+	addressBookHomeSetName          = xml.Name{namespace, "addressbook-home-set"}
+	addressBookDescriptionName      = xml.Name{namespace, "addressbook-description"}
+	addressBookQueryName            = xml.Name{namespace, "addressbook-query"}
+	addressBookMultigetName         = xml.Name{namespace, "addressbook-multiget"}
+	addressBookSupportedAddressData = xml.Name{namespace, "addressbook-supported-address-data"}
 
 	addressDataName = xml.Name{namespace, "address-data"}
 )
@@ -27,6 +28,18 @@ type addressbookHomeSet struct {
 type addressbookDescription struct {
 	XMLName     xml.Name `xml:"urn:ietf:params:xml:ns:carddav addressbook-description"`
 	Description string   `xml:",chardata"`
+}
+
+// https://tools.ietf.org/html/rfc6352#section-6.2.2
+type addressbookSupportedAddressData struct {
+	XMLName xml.Name          `xml:"urn:ietf:params:xml:ns:carddav addressbook-supported-address-data"`
+	Types   []addressDataType `xml:"address-data-type"`
+}
+
+type addressDataType struct {
+	XMLName     xml.Name `xml:"urn:ietf:params:xml:ns:carddav address-data-type"`
+	ContentType string   `xml:"content-type,attr"`
+	Version     string   `xml:"version,attr"`
 }
 
 // https://tools.ietf.org/html/rfc6352#section-10.3

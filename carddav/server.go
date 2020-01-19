@@ -211,7 +211,15 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 		addressBookDescriptionName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &addressbookDescription{Description: ab.Description}, nil
 		},
-		// TODO: addressbook-supported-address-data, addressbook-max-resource-size, addressbook-home-set
+		addressBookSupportedAddressData: func(*internal.RawXMLValue) (interface{}, error) {
+			return &addressbookSupportedAddressData{
+				Types: []addressDataType{
+					{ContentType: vcard.MIMEType, Version: "3.0"},
+					{ContentType: vcard.MIMEType, Version: "4.0"},
+				},
+			}, nil
+		},
+		// TODO: addressbook-max-resource-size, addressbook-home-set
 	}
 
 	return internal.NewPropfindResponse("/", propfind, props)
