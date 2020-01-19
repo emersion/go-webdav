@@ -107,6 +107,19 @@ func (resp *Response) Href() (string, error) {
 	return resp.Hrefs[0], nil
 }
 
+type missingPropError struct {
+	XMLName xml.Name
+}
+
+func (err *missingPropError) Error() string {
+	return fmt.Sprintf("webdav: missing prop %q %q", err.XMLName.Space, err.XMLName.Local)
+}
+
+func IsMissingProp(err error) bool {
+	_, ok := err.(*missingPropError)
+	return ok
+}
+
 func (resp *Response) DecodeProp(v interface{}) error {
 	name, err := valueXMLName(v)
 	if err != nil {
@@ -115,20 +128,17 @@ func (resp *Response) DecodeProp(v interface{}) error {
 	if err := resp.Status.Err(); err != nil {
 		return err
 	}
-	for i := range resp.Propstats {
-		propstat := &resp.Propstats[i]
-		for j := range propstat.Prop.Raw {
-			raw := &propstat.Prop.Raw[j]
-			if n, ok := raw.XMLName(); ok && name == n {
-				if err := propstat.Status.Err(); err != nil {
-					return err
-				}
-				return raw.Decode(v)
-			}
+	for _, propstat := range resp.Propstats {
+		raw := propstat.Prop.Get(name)
+		if raw == nil {
+			continue
 		}
+		if err := propstat.Status.Err(); err != nil {
+			return err
+		}
+		return raw.Decode(v)
 	}
-
-	return fmt.Errorf("webdav: missing prop %v %v in response", name.Space, name.Local)
+	return &missingPropError{name}
 }
 
 func (resp *Response) EncodeProp(code int, v interface{}) error {
@@ -183,6 +193,30 @@ func EncodeProp(values ...interface{}) (*Prop, error) {
 		l[i] = *raw
 	}
 	return &Prop{Raw: l}, nil
+}
+
+func (p *Prop) Get(name xml.Name) *RawXMLValue {
+	for i := range p.Raw {
+		raw := &p.Raw[i]
+		if n, ok := raw.XMLName(); ok && name == n {
+			return raw
+		}
+	}
+	return nil
+}
+
+func (p *Prop) Decode(v interface{}) error {
+	name, err := valueXMLName(v)
+	if err != nil {
+		return err
+	}
+
+	raw := p.Get(name)
+	if raw == nil {
+		return &missingPropError{name}
+	}
+
+	return raw.Decode(v)
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.20
