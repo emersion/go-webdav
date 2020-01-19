@@ -2,6 +2,7 @@ package carddav
 
 import (
 	"encoding/xml"
+	"fmt"
 
 	"github.com/emersion/go-webdav/internal"
 )
@@ -12,6 +13,8 @@ var (
 	addressBookName            = xml.Name{namespace, "addressbook"}
 	addressBookHomeSetName     = xml.Name{namespace, "addressbook-home-set"}
 	addressBookDescriptionName = xml.Name{namespace, "addressbook-description"}
+	addressBookQueryName       = xml.Name{namespace, "addressbook-query"}
+	addressBookMultigetName    = xml.Name{namespace, "addressbook-multiget"}
 )
 
 type addressbookHomeSet struct {
@@ -68,4 +71,25 @@ type prop struct {
 type addressDataResp struct {
 	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav address-data"`
 	Data    []byte   `xml:",chardata"`
+}
+
+type reportReq struct {
+	Query *addressbookQuery
+	Multiget *addressbookMultiget
+}
+
+func (r *reportReq) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	var v interface{}
+	switch start.Name {
+	case addressBookQueryName:
+		r.Query = &addressbookQuery{}
+		v = r.Query
+	case addressBookMultigetName:
+		r.Multiget = &addressbookMultiget{}
+		v = r.Multiget
+	default:
+		return fmt.Errorf("carddav: unsupported REPORT root %q %q", start.Name.Space, start.Name.Local)
+	}
+
+	return d.DecodeElement(v, &start)
 }

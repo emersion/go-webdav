@@ -37,6 +37,14 @@ func (err *HTTPError) Error() string {
 	}
 }
 
+func ServeError(w http.ResponseWriter, err error) {
+	code := http.StatusInternalServerError
+	if httpErr, ok := err.(*HTTPError); ok {
+		code = httpErr.Code
+	}
+	http.Error(w, err.Error(), code)
+}
+
 type Backend interface {
 	Options(r *http.Request) ([]string, error)
 	HeadGet(w http.ResponseWriter, r *http.Request) error
@@ -86,7 +94,7 @@ func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
-	t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	t, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if t != "application/xml" && t != "text/xml" {
 		return HTTPErrorf(http.StatusBadRequest, "webdav: expected application/xml PROPFIND request")
 	}
@@ -98,6 +106,7 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 
 	depth := DepthInfinity
 	if s := r.Header.Get("Depth"); s != "" {
+		var err error
 		depth, err = ParseDepth(s)
 		if err != nil {
 			return &HTTPError{http.StatusBadRequest, err}
@@ -180,7 +189,7 @@ func NewPropfindResponse(href string, propfind *Propfind, props map[xml.Name]Pro
 			}
 		}
 	} else {
-		return nil, HTTPErrorf(http.StatusBadRequest, "webdav: propfind request missing propname, allprop or prop element")
+		return nil, HTTPErrorf(http.StatusBadRequest, "webdav: request missing propname, allprop or prop element")
 	}
 
 	return resp, nil
