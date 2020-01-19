@@ -6,6 +6,7 @@ import (
 
 type AddressBook struct {
 	Href        string
+	Name        string
 	Description string
 }
 

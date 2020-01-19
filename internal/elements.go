@@ -303,6 +303,7 @@ type GetLastModified struct {
 
 var (
 	ResourceTypeName     = xml.Name{"DAV:", "resourcetype"}
+	DisplayNameName      = xml.Name{"DAV:", "displayname"}
 	GetContentLengthName = xml.Name{"DAV:", "getcontentlength"}
 	GetContentTypeName   = xml.Name{"DAV:", "getcontenttype"}
 	GetLastModifiedName  = xml.Name{"DAV:", "getlastmodified"}
@@ -313,4 +314,10 @@ var (
 type Error struct {
 	XMLName xml.Name      `xml:"DAV: error"`
 	Raw     []RawXMLValue `xml:",any"`
+}
+
+// https://tools.ietf.org/html/rfc4918#section-15.2
+type DisplayName struct {
+	XMLName xml.Name `xml:"DAV: displayname"`
+	Name    string   `xml:",chardata"`
 }

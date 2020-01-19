@@ -76,7 +76,7 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 
 		l = append(l, AddressBook{
 			Href:        href,
-			Description: descProp.Data,
+			Description: descProp.Description,
 		})
 	}
 

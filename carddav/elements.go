@@ -25,8 +25,8 @@ type addressbookHomeSet struct {
 }
 
 type addressbookDescription struct {
-	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav addressbook-description"`
-	Data    string   `xml:",chardata"`
+	XMLName     xml.Name `xml:"urn:ietf:params:xml:ns:carddav addressbook-description"`
+	Description string   `xml:",chardata"`
 }
 
 // https://tools.ietf.org/html/rfc6352#section-10.3

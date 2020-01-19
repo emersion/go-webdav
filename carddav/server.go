@@ -1,6 +1,7 @@
 package carddav
 
 import (
+	"bytes"
 	"encoding/xml"
 	"net/http"
 
@@ -11,6 +12,7 @@ import (
 // TODO: add support for multiple address books
 
 type Backend interface {
+	AddressBook() (*AddressBook, error)
 	GetAddressObject(href string) (*AddressObject, error)
 	ListAddressObjects() ([]AddressObject, error)
 	QueryAddressObjects(query *AddressBookQuery) ([]AddressObject, error)
@@ -157,7 +159,12 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
 	var resps []internal.Response
 	if r.URL.Path == "/" {
-		resp, err := b.propfindAddressBook(propfind)
+		ab, err := b.Backend.AddressBook()
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := b.propfindAddressBook(propfind, ab)
 		if err != nil {
 			return nil, err
 		}
@@ -193,12 +200,18 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 	return internal.NewMultistatus(resps...), nil
 }
 
-func (b *backend) propfindAddressBook(propfind *internal.Propfind) (*internal.Response, error) {
+func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBook) (*internal.Response, error) {
 	props := map[xml.Name]internal.PropfindFunc{
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, addressBookName), nil
 		},
-		// TODO: displayname, addressbook-description, addressbook-supported-address-data, addressbook-max-resource-size, addressbook-home-set
+		internal.DisplayNameName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.DisplayName{Name: ab.Name}, nil
+		},
+		addressBookDescriptionName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &addressbookDescription{Description: ab.Description}, nil
+		},
+		// TODO: addressbook-supported-address-data, addressbook-max-resource-size, addressbook-home-set
 	}
 
 	return internal.NewPropfindResponse("/", propfind, props)
@@ -209,7 +222,7 @@ func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *Address
 		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetContentType{Type: vcard.MIMEType}, nil
 		},
-		addressBookDataName: func(*internal.RawXMLValue) (interface{}, error) {
+		addressDataName: func(*internal.RawXMLValue) (interface{}, error) {
 			var buf bytes.Buffer
 			if err := vcard.NewEncoder(&buf).Encode(ao.Card); err != nil {
 				return nil, err
