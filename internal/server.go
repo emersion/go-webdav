@@ -24,6 +24,10 @@ func HTTPErrorFromError(err error) *HTTPError {
 	}
 }
 
+func IsNotFound(err error) bool {
+	return HTTPErrorFromError(err).Code == http.StatusNotFound
+}
+
 func HTTPErrorf(code int, format string, a ...interface{}) *HTTPError {
 	return &HTTPError{code, fmt.Errorf(format, a...)}
 }

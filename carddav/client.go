@@ -2,6 +2,7 @@ package carddav
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 
 	"github.com/emersion/go-vcard"
@@ -48,7 +49,12 @@ func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
 }
 
 func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, error) {
-	propfind := internal.NewPropNamePropfind(internal.ResourceTypeName, addressBookDescriptionName)
+	propfind := internal.NewPropNamePropfind(
+		internal.ResourceTypeName,
+		internal.DisplayNameName,
+		addressBookDescriptionName,
+		maxResourceSizeName,
+	)
 	ms, err := c.ic.Propfind(addressBookHomeSet, internal.DepthOne, propfind)
 	if err != nil {
 		return nil, err
@@ -70,13 +76,28 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 		}
 
 		var descProp addressbookDescription
-		if err := resp.DecodeProp(&descProp); err != nil {
+		if err := resp.DecodeProp(&descProp); err != nil && !internal.IsNotFound(err) {
 			return nil, err
 		}
 
+		var dispNameProp internal.DisplayName
+		if err := resp.DecodeProp(&dispNameProp); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
+		var maxResSize maxResourceSize
+		if err := resp.DecodeProp(&maxResSize); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+		if maxResSize.Size < 0 {
+			return nil, fmt.Errorf("carddav: max-resource-size must be a positive integer")
+		}
+
 		l = append(l, AddressBook{
-			Href:        href,
-			Description: descProp.Description,
+			Href:            href,
+			Name:            dispNameProp.Name,
+			Description:     descProp.Description,
+			MaxResourceSize: maxResSize.Size,
 		})
 	}
 

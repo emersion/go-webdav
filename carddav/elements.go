@@ -14,13 +14,13 @@ var (
 
 	addressBookName                 = xml.Name{namespace, "addressbook"}
 	addressBookDescriptionName      = xml.Name{namespace, "addressbook-description"}
-	addressBookQueryName            = xml.Name{namespace, "addressbook-query"}
-	addressBookMultigetName         = xml.Name{namespace, "addressbook-multiget"}
 	addressBookSupportedAddressData = xml.Name{namespace, "addressbook-supported-address-data"}
+	maxResourceSizeName             = xml.Name{namespace, "max-resource-size"}
+
+	addressBookQueryName    = xml.Name{namespace, "addressbook-query"}
+	addressBookMultigetName = xml.Name{namespace, "addressbook-multiget"}
 
 	addressDataName = xml.Name{namespace, "address-data"}
-
-	maxResourceSizeName = xml.Name{namespace, "max-resource-size"}
 )
 
 // https://tools.ietf.org/html/rfc6352#section-6.2.3

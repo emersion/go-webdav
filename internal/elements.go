@@ -50,7 +50,7 @@ func (s *Status) Err() error {
 
 	// TODO: handle 2xx, 3xx
 	if s.Code != http.StatusOK {
-		return fmt.Errorf("webdav: HTTP error: %v %v", s.Code, s.Text)
+		return &HTTPError{Code: s.Code}
 	}
 	return nil
 }
