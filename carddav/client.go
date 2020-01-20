@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/emersion/go-vcard"
 	"github.com/emersion/go-webdav"
@@ -30,11 +31,16 @@ func Discover(domain string) (string, error) {
 	}
 	addr := addrs[0]
 
+	target := strings.TrimSuffix(addr.Target, ".")
+	if target == "" {
+		return "", nil
+	}
+
 	u := url.URL{Scheme: "https"}
 	if addr.Port == 443 {
 		u.Host = addr.Target
 	} else {
-		u.Host = fmt.Sprintf("%v:%v", addr.Target, addr.Port)
+		u.Host = fmt.Sprintf("%v:%v", target, addr.Port)
 	}
 	return u.String(), nil
 }

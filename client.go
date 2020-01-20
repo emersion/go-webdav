@@ -1,8 +1,8 @@
 package webdav
 
 import (
-	"net/http"
 	"fmt"
+	"net/http"
 
 	"github.com/emersion/go-webdav/internal"
 )
