@@ -3,12 +3,41 @@ package carddav
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 
 	"github.com/emersion/go-vcard"
 	"github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/internal"
 )
+
+// Discover performs a DNS-based CardDAV service discovery as described in
+// RFC 6352 section 11. It returns the URL to the CardDAV server.
+func Discover(domain string) (string, error) {
+	// Only lookup carddavs (not carddav), plaintext connections are insecure
+	_, addrs, err := net.LookupSRV("carddavs", "tcp", domain)
+	if dnsErr, ok := err.(*net.DNSError); ok {
+		if dnsErr.IsTemporary {
+			return "", err
+		}
+	} else if err != nil {
+		return "", err
+	}
+
+	if len(addrs) == 0 {
+		return "", fmt.Errorf("carddav: domain doesn't have an SRV record")
+	}
+	addr := addrs[0]
+
+	u := url.URL{Scheme: "https"}
+	if addr.Port == 443 {
+		u.Host = addr.Target
+	} else {
+		u.Host = fmt.Sprintf("%v:%v", addr.Target, addr.Port)
+	}
+	return u.String(), nil
+}
 
 type Client struct {
 	*webdav.Client
