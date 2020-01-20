@@ -11,6 +11,17 @@ import (
 
 const Namespace = "DAV:"
 
+var (
+	ResourceTypeName     = xml.Name{"DAV:", "resourcetype"}
+	DisplayNameName      = xml.Name{"DAV:", "displayname"}
+	GetContentLengthName = xml.Name{"DAV:", "getcontentlength"}
+	GetContentTypeName   = xml.Name{"DAV:", "getcontenttype"}
+	GetLastModifiedName  = xml.Name{"DAV:", "getlastmodified"}
+	GetETagName          = xml.Name{"DAV:", "getetag"}
+
+	CurrentUserPrincipalName = xml.Name{"DAV:", "current-user-principal"}
+)
+
 type Status struct {
 	Code int
 	Text string
@@ -302,15 +313,6 @@ type GetLastModified struct {
 	LastModified Time     `xml:",chardata"`
 }
 
-var (
-	ResourceTypeName     = xml.Name{"DAV:", "resourcetype"}
-	DisplayNameName      = xml.Name{"DAV:", "displayname"}
-	GetContentLengthName = xml.Name{"DAV:", "getcontentlength"}
-	GetContentTypeName   = xml.Name{"DAV:", "getcontenttype"}
-	GetLastModifiedName  = xml.Name{"DAV:", "getlastmodified"}
-	GetETagName          = xml.Name{"DAV:", "getetag"}
-)
-
 // https://tools.ietf.org/html/rfc4918#section-14.5
 type Error struct {
 	XMLName xml.Name      `xml:"DAV: error"`
@@ -321,4 +323,11 @@ type Error struct {
 type DisplayName struct {
 	XMLName xml.Name `xml:"DAV: displayname"`
 	Name    string   `xml:",chardata"`
+}
+
+// https://tools.ietf.org/html/rfc5397#section-3
+type CurrentUserPrincipal struct {
+	XMLName         xml.Name  `xml:"DAV: current-user-principal"`
+	Href            string    `xml:"href,omitempty"`
+	Unauthenticated *struct{} `xml:"unauthenticated,omitempty"`
 }

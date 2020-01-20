@@ -1,8 +1,8 @@
 package webdav
 
 import (
-	"encoding/xml"
 	"net/http"
+	"fmt"
 
 	"github.com/emersion/go-webdav/internal"
 )
@@ -24,17 +24,19 @@ func (c *Client) SetBasicAuth(username, password string) {
 }
 
 func (c *Client) FindCurrentUserPrincipal() (string, error) {
-	name := xml.Name{"DAV:", "current-user-principal"}
-	propfind := internal.NewPropNamePropfind(name)
+	propfind := internal.NewPropNamePropfind(internal.CurrentUserPrincipalName)
 
 	resp, err := c.c.PropfindFlat("/", propfind)
 	if err != nil {
 		return "", err
 	}
 
-	var prop currentUserPrincipal
+	var prop internal.CurrentUserPrincipal
 	if err := resp.DecodeProp(&prop); err != nil {
 		return "", err
+	}
+	if prop.Unauthenticated != nil {
+		return "", fmt.Errorf("webdav: unauthenticated")
 	}
 
 	return prop.Href, nil

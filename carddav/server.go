@@ -223,6 +223,10 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 		addressBookHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &addressbookHomeSet{Href: "/"}, nil
 		},
+		// TODO: this should be set on all resources
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrincipal{Href: "/"}, nil
+		},
 	}
 
 	if ab.MaxResourceSize > 0 {
