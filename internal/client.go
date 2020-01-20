@@ -75,11 +75,17 @@ func (c *Client) SetBasicAuth(username, password string) {
 }
 
 func (c *Client) NewRequest(method string, href string, body io.Reader) (*http.Request, error) {
+	hrefURL, err := url.Parse(href)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse request href %q: %v", href, err)
+	}
+
 	u := url.URL{
-		Scheme: c.endpoint.Scheme,
-		User:   c.endpoint.User,
-		Host:   c.endpoint.Host,
-		Path:   path.Join(c.endpoint.Path, href),
+		Scheme:   c.endpoint.Scheme,
+		User:     c.endpoint.User,
+		Host:     c.endpoint.Host,
+		Path:     path.Join(c.endpoint.Path, hrefURL.Path),
+		RawQuery: hrefURL.RawQuery,
 	}
 	return http.NewRequest(method, u.String(), body)
 }
