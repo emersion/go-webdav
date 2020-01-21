@@ -186,14 +186,9 @@ func (b *backend) Put(r *http.Request) error {
 }
 
 func (b *backend) Delete(r *http.Request) error {
-	// WebDAV semantics are that it should return a "404 Not Found" error in
-	// case the resource doesn't exist. We need to Stat before RemoveAll.
-	_, err := b.FileSystem.Stat(r.URL.Path)
+	err := b.FileSystem.RemoveAll(r.URL.Path)
 	if os.IsNotExist(err) {
 		return &internal.HTTPError{Code: http.StatusNotFound, Err: err}
-	} else if err != nil {
-		return err
 	}
-
-	return b.FileSystem.RemoveAll(r.URL.Path)
+	return err
 }

@@ -66,6 +66,13 @@ func (fs LocalFileSystem) RemoveAll(name string) error {
 	if err != nil {
 		return err
 	}
+
+	// WebDAV semantics are that it should return a "404 Not Found" error in
+	// case the resource doesn't exist. We need to Stat before RemoveAll.
+	if _, err = os.Stat(p); err != nil {
+		return err
+	}
+
 	return os.RemoveAll(p)
 }
 
