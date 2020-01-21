@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"net/url"
 
 	"github.com/emersion/go-webdav/internal"
 )
@@ -157,6 +158,6 @@ func (b *backend) propfindFile(propfind *internal.Propfind, name string, fi os.F
 		// TODO: getetag
 	}
 
-	href := url.URL{Path: name}.String()
-	return internal.NewPropfindResponse(href, propfind, props)
+	u := url.URL{Path: name}
+	return internal.NewPropfindResponse(u.String(), propfind, props)
 }
