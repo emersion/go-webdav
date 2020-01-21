@@ -61,8 +61,12 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 		fi.IsDir = true
 	} else {
 		var getLen internal.GetContentLength
-		var getMod internal.GetLastModified
 		if err := resp.DecodeProp(&getLen, &getMod); err != nil {
+			return nil, err
+		}
+
+		var getMod internal.GetLastModified
+		if err := resp.DecodeProp(&getMod); err != nil && !internal.IsNotFound(err) {
 			return nil, err
 		}
 
