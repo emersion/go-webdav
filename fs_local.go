@@ -32,15 +32,28 @@ func (fs LocalFileSystem) Open(name string) (io.ReadCloser, error) {
 	return os.Open(p)
 }
 
-func (fs LocalFileSystem) Stat(name string) (os.FileInfo, error) {
+func fileInfoFromOS(href string, fi os.FileInfo) *FileInfo {
+	return &FileInfo{
+		Href:    href,
+		Size:    fi.Size(),
+		ModTime: fi.ModTime(),
+		IsDir:   fi.IsDir(),
+	}
+}
+
+func (fs LocalFileSystem) Stat(name string) (*FileInfo, error) {
 	p, err := fs.path(name)
 	if err != nil {
 		return nil, err
 	}
-	return os.Stat(p)
+	fi, err := os.Stat(p)
+	if err != nil {
+		return nil, err
+	}
+	return fileInfoFromOS(name, fi), nil
 }
 
-func (fs LocalFileSystem) Readdir(name string) ([]os.FileInfo, error) {
+func (fs LocalFileSystem) Readdir(name string) ([]FileInfo, error) {
 	p, err := fs.path(name)
 	if err != nil {
 		return nil, err
@@ -50,7 +63,17 @@ func (fs LocalFileSystem) Readdir(name string) ([]os.FileInfo, error) {
 		return nil, err
 	}
 	defer f.Close()
-	return f.Readdir(-1)
+
+	fis, err := f.Readdir(-1)
+	if err != nil {
+		return nil, err
+	}
+
+	l := make([]FileInfo, len(fis))
+	for i, fi := range fis {
+		l[i] = *fileInfoFromOS(path.Join(name, fi.Name()), fi)
+	}
+	return l, nil
 }
 
 func (fs LocalFileSystem) Create(name string) (io.WriteCloser, error) {

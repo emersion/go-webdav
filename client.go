@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path"
 	"time"
 
 	"github.com/emersion/go-webdav/internal"
@@ -47,27 +45,20 @@ func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	return prop.Href, nil
 }
 
-type fileInfo struct {
-	filename string
-	size     int64
-	modTime  time.Time
-	isDir    bool
-}
-
-func fileInfoFromResponse(resp *internal.Response) (*fileInfo, error) {
+func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 	href, err := resp.Href()
 	if err != nil {
 		return nil, err
 	}
-	filename, _ := path.Split(href)
-	fi := &fileInfo{filename: filename}
+
+	fi := &FileInfo{Href: href}
 
 	var resType internal.ResourceType
 	if err := resp.DecodeProp(&resType); err != nil {
 		return nil, err
 	}
 	if resType.Is(internal.CollectionName) {
-		fi.isDir = true
+		fi.IsDir = true
 	} else {
 		var getLen internal.GetContentLength
 		var getMod internal.GetLastModified
@@ -75,39 +66,11 @@ func fileInfoFromResponse(resp *internal.Response) (*fileInfo, error) {
 			return nil, err
 		}
 
-		fi.size = getLen.Length
-		fi.modTime = time.Time(getMod.LastModified)
+		fi.Size = getLen.Length
+		fi.ModTime = time.Time(getMod.LastModified)
 	}
 
 	return fi, nil
-}
-
-func (fi *fileInfo) Name() string {
-	return fi.filename
-}
-
-func (fi *fileInfo) Size() int64 {
-	return fi.size
-}
-
-func (fi *fileInfo) Mode() os.FileMode {
-	if fi.isDir {
-		return os.ModePerm | os.ModeDir
-	} else {
-		return os.ModePerm
-	}
-}
-
-func (fi *fileInfo) ModTime() time.Time {
-	return fi.modTime
-}
-
-func (fi *fileInfo) IsDir() bool {
-	return fi.isDir
-}
-
-func (fi *fileInfo) Sys() interface{} {
-	return nil
 }
 
 // TODO: getetag, getcontenttype
@@ -117,7 +80,7 @@ var fileInfoPropfind = internal.NewPropNamePropfind(
 	internal.GetLastModifiedName,
 )
 
-func (c *Client) Stat(name string) (os.FileInfo, error) {
+func (c *Client) Stat(name string) (*FileInfo, error) {
 	resp, err := c.ic.PropfindFlat(name, fileInfoPropfind)
 	if err != nil {
 		return nil, err
@@ -139,7 +102,7 @@ func (c *Client) Open(name string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (c *Client) Readdir(name string) ([]os.FileInfo, error) {
+func (c *Client) Readdir(name string) ([]FileInfo, error) {
 	// TODO: filter out the directory we're listing
 
 	ms, err := c.ic.Propfind(name, internal.DepthOne, fileInfoPropfind)
@@ -147,13 +110,13 @@ func (c *Client) Readdir(name string) ([]os.FileInfo, error) {
 		return nil, err
 	}
 
-	l := make([]os.FileInfo, 0, len(ms.Responses))
+	l := make([]FileInfo, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		fi, err := fileInfoFromResponse(&resp)
 		if err != nil {
 			return l, err
 		}
-		l = append(l, fi)
+		l = append(l, *fi)
 	}
 
 	return l, nil

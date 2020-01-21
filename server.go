@@ -5,7 +5,6 @@ import (
 	"io"
 	"mime"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"strconv"
@@ -16,8 +15,8 @@ import (
 // FileSystem is a WebDAV server backend.
 type FileSystem interface {
 	Open(name string) (io.ReadCloser, error)
-	Stat(name string) (os.FileInfo, error)
-	Readdir(name string) ([]os.FileInfo, error)
+	Stat(name string) (*FileInfo, error)
+	Readdir(name string) ([]FileInfo, error)
 	Create(name string) (io.WriteCloser, error)
 	RemoveAll(name string) error
 	Mkdir(name string) error
@@ -53,7 +52,7 @@ func (b *backend) Options(r *http.Request) ([]string, error) {
 		return nil, err
 	}
 
-	if fi.IsDir() {
+	if fi.IsDir {
 		return []string{
 			http.MethodOptions,
 			http.MethodDelete,
@@ -79,7 +78,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	} else if err != nil {
 		return err
 	}
-	if fi.IsDir() {
+	if fi.IsDir {
 		return &internal.HTTPError{Code: http.StatusMethodNotAllowed}
 	}
 
@@ -91,7 +90,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 
 	if rs, ok := f.(io.ReadSeeker); ok {
 		// If it's an io.Seeker, use http.ServeContent which supports ranges
-		http.ServeContent(w, r, r.URL.Path, fi.ModTime(), rs)
+		http.ServeContent(w, r, r.URL.Path, fi.ModTime, rs)
 	} else {
 		// TODO: fallback to http.DetectContentType
 		t := mime.TypeByExtension(path.Ext(r.URL.Path))
@@ -99,11 +98,11 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 			w.Header().Set("Content-Type", t)
 		}
 
-		if modTime := fi.ModTime(); !modTime.IsZero() {
-			w.Header().Set("Last-Modified", modTime.UTC().Format(http.TimeFormat))
+		if !fi.ModTime.IsZero() {
+			w.Header().Set("Last-Modified", fi.ModTime.UTC().Format(http.TimeFormat))
 		}
 
-		w.Header().Set("Content-Length", strconv.FormatInt(fi.Size(), 10))
+		w.Header().Set("Content-Length", strconv.FormatInt(fi.Size, 10))
 
 		if r.Method != http.MethodHead {
 			io.Copy(w, f)
@@ -121,35 +120,35 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 	}
 
 	var resps []internal.Response
-	if err := b.propfind(propfind, r.URL.Path, fi, depth, &resps); err != nil {
+	if err := b.propfind(propfind, fi, depth, &resps); err != nil {
 		return nil, err
 	}
 
 	return internal.NewMultistatus(resps...), nil
 }
 
-func (b *backend) propfind(propfind *internal.Propfind, name string, fi os.FileInfo, depth internal.Depth, resps *[]internal.Response) error {
+func (b *backend) propfind(propfind *internal.Propfind, fi *FileInfo, depth internal.Depth, resps *[]internal.Response) error {
 	// TODO: use partial error Response on error
 
-	resp, err := b.propfindFile(propfind, name, fi)
+	resp, err := b.propfindFile(propfind, fi)
 	if err != nil {
 		return err
 	}
 	*resps = append(*resps, *resp)
 
-	if depth != internal.DepthZero && fi.IsDir() {
+	if depth != internal.DepthZero && fi.IsDir {
 		childDepth := depth
 		if depth == internal.DepthOne {
 			childDepth = internal.DepthZero
 		}
 
-		children, err := b.FileSystem.Readdir(name)
+		children, err := b.FileSystem.Readdir(fi.Href)
 		if err != nil {
 			return err
 		}
 
 		for _, child := range children {
-			if err := b.propfind(propfind, path.Join(name, child.Name()), child, childDepth, resps); err != nil {
+			if err := b.propfind(propfind, &child, childDepth, resps); err != nil {
 				return err
 			}
 		}
@@ -158,23 +157,23 @@ func (b *backend) propfind(propfind *internal.Propfind, name string, fi os.FileI
 	return nil
 }
 
-func (b *backend) propfindFile(propfind *internal.Propfind, name string, fi os.FileInfo) (*internal.Response, error) {
+func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*internal.Response, error) {
 	props := make(map[xml.Name]internal.PropfindFunc)
 
 	props[internal.ResourceTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
 		var types []xml.Name
-		if fi.IsDir() {
+		if fi.IsDir {
 			types = append(types, internal.CollectionName)
 		}
 		return internal.NewResourceType(types...), nil
 	}
 
-	if !fi.IsDir() {
+	if !fi.IsDir {
 		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetContentLength{Length: fi.Size()}, nil
+			return &internal.GetContentLength{Length: fi.Size}, nil
 		}
 		props[internal.GetContentTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
-			t := mime.TypeByExtension(path.Ext(name))
+			t := mime.TypeByExtension(path.Ext(fi.Href))
 			if t == "" {
 				// TODO: use http.DetectContentType
 				return nil, &internal.HTTPError{Code: http.StatusNotFound}
@@ -182,13 +181,12 @@ func (b *backend) propfindFile(propfind *internal.Propfind, name string, fi os.F
 			return &internal.GetContentType{Type: t}, nil
 		}
 		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime())}, nil
+			return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime)}, nil
 		}
 		// TODO: getetag
 	}
 
-	u := url.URL{Path: name}
-	return internal.NewPropfindResponse(u.String(), propfind, props)
+	return internal.NewPropfindResponse(fi.Href, propfind, props)
 }
 
 func (b *backend) Put(r *http.Request) error {
