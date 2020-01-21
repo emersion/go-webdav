@@ -2,6 +2,7 @@ package webdav
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -113,4 +114,18 @@ func (c *Client) Stat(name string) (os.FileInfo, error) {
 	}
 
 	return fi, nil
+}
+
+func (c *Client) Open(name string) (io.ReadCloser, error) {
+	req, err := c.ic.NewRequest(http.MethodGet, name, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp.Body, nil
 }
