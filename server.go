@@ -5,9 +5,9 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
-	"net/url"
 
 	"github.com/emersion/go-webdav/internal"
 )

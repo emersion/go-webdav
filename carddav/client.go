@@ -103,21 +103,21 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 			return nil, err
 		}
 
-		var resTypeProp internal.ResourceType
-		if err := resp.DecodeProp(&resTypeProp); err != nil {
+		var resType internal.ResourceType
+		if err := resp.DecodeProp(&resType); err != nil {
 			return nil, err
 		}
-		if !resTypeProp.Is(addressBookName) {
+		if !resType.Is(addressBookName) {
 			continue
 		}
 
-		var descProp addressbookDescription
-		if err := resp.DecodeProp(&descProp); err != nil && !internal.IsNotFound(err) {
+		var desc addressbookDescription
+		if err := resp.DecodeProp(&desc); err != nil && !internal.IsNotFound(err) {
 			return nil, err
 		}
 
-		var dispNameProp internal.DisplayName
-		if err := resp.DecodeProp(&dispNameProp); err != nil && !internal.IsNotFound(err) {
+		var dispName internal.DisplayName
+		if err := resp.DecodeProp(&dispName); err != nil && !internal.IsNotFound(err) {
 			return nil, err
 		}
 
@@ -131,8 +131,8 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 
 		l = append(l, AddressBook{
 			Href:            href,
-			Name:            dispNameProp.Name,
-			Description:     descProp.Description,
+			Name:            dispName.Name,
+			Description:     desc.Description,
 			MaxResourceSize: maxResSize.Size,
 		})
 	}
