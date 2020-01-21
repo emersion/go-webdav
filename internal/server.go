@@ -76,8 +76,9 @@ func ServeMultistatus(w http.ResponseWriter, ms *Multistatus) error {
 type Backend interface {
 	Options(r *http.Request) ([]string, error)
 	HeadGet(w http.ResponseWriter, r *http.Request) error
-	Put(r *http.Request) error
 	Propfind(r *http.Request, pf *Propfind, depth Depth) (*Multistatus, error)
+	Put(r *http.Request) error
+	Delete(r *http.Request) error
 }
 
 type Handler struct {
@@ -101,6 +102,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				// been copied verbatim
 				// TODO: Location if the server has mutated the href
 				w.WriteHeader(http.StatusCreated)
+			}
+		case http.MethodDelete:
+			// TODO: send a multistatus in case of partial failure
+			err = h.Backend.Delete(r)
+			if err == nil {
+				w.WriteHeader(http.StatusNoContent)
 			}
 		case "PROPFIND":
 			err = h.handlePropfind(w, r)

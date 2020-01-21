@@ -160,7 +160,7 @@ func (c *Client) Readdir(name string) ([]os.FileInfo, error) {
 }
 
 type fileWriter struct {
-	pw *io.PipeWriter
+	pw   *io.PipeWriter
 	done <-chan error
 }
 

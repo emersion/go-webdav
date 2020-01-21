@@ -61,4 +61,12 @@ func (fs LocalFileSystem) Create(name string) (io.WriteCloser, error) {
 	return os.Create(p)
 }
 
+func (fs LocalFileSystem) RemoveAll(name string) error {
+	p, err := fs.path(name)
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(p)
+}
+
 var _ FileSystem = LocalFileSystem("")

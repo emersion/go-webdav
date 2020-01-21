@@ -24,6 +24,7 @@ type FileSystem interface {
 	Stat(name string) (os.FileInfo, error)
 	Readdir(name string) ([]os.FileInfo, error)
 	Create(name string) (io.WriteCloser, error)
+	RemoveAll(name string) error
 }
 
 // Handler handles WebDAV HTTP requests. It can be used to create a WebDAV
@@ -57,13 +58,14 @@ func (b *backend) Options(r *http.Request) ([]string, error) {
 	}
 
 	if fi.IsDir() {
-		return []string{http.MethodOptions, "PROPFIND"}, nil
+		return []string{http.MethodOptions, http.MethodDelete, "PROPFIND"}, nil
 	} else {
 		return []string{
 			http.MethodOptions,
 			http.MethodHead,
 			http.MethodGet,
 			http.MethodPut,
+			http.MethodDelete,
 			"PROPFIND",
 		}, nil
 	}
@@ -88,20 +90,6 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 
 	http.ServeContent(w, r, r.URL.Path, fi.ModTime(), f)
 	return nil
-}
-
-func (b *backend) Put(r *http.Request) error {
-	wc, err := b.FileSystem.Create(r.URL.Path)
-	if err != nil {
-		return err
-	}
-	defer wc.Close()
-
-	if _, err := io.Copy(wc, r.Body); err != nil {
-		return err
-	}
-
-	return wc.Close()
 }
 
 func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
@@ -181,4 +169,31 @@ func (b *backend) propfindFile(propfind *internal.Propfind, name string, fi os.F
 
 	u := url.URL{Path: name}
 	return internal.NewPropfindResponse(u.String(), propfind, props)
+}
+
+func (b *backend) Put(r *http.Request) error {
+	wc, err := b.FileSystem.Create(r.URL.Path)
+	if err != nil {
+		return err
+	}
+	defer wc.Close()
+
+	if _, err := io.Copy(wc, r.Body); err != nil {
+		return err
+	}
+
+	return wc.Close()
+}
+
+func (b *backend) Delete(r *http.Request) error {
+	// WebDAV semantics are that it should return a "404 Not Found" error in
+	// case the resource doesn't exist. We need to Stat before RemoveAll.
+	_, err := b.FileSystem.Stat(r.URL.Path)
+	if os.IsNotExist(err) {
+		return &internal.HTTPError{Code: http.StatusNotFound, Err: err}
+	} else if err != nil {
+		return err
+	}
+
+	return b.FileSystem.RemoveAll(r.URL.Path)
 }

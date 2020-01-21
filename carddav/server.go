@@ -264,3 +264,7 @@ func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *Address
 func (b *backend) Put(r *http.Request) error {
 	panic("TODO")
 }
+
+func (b *backend) Delete(r *http.Request) error {
+	panic("TODO")
+}
