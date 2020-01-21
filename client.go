@@ -53,6 +53,34 @@ type fileInfo struct {
 	isDir    bool
 }
 
+func fileInfoFromResponse(resp *internal.Response) (*fileInfo, error) {
+	href, err := resp.Href()
+	if err != nil {
+		return nil, err
+	}
+	filename, _ := path.Split(href)
+	fi := &fileInfo{filename: filename}
+
+	var resType internal.ResourceType
+	if err := resp.DecodeProp(&resType); err != nil {
+		return nil, err
+	}
+	if resType.Is(internal.CollectionName) {
+		fi.isDir = true
+	} else {
+		var getLen internal.GetContentLength
+		var getMod internal.GetLastModified
+		if err := resp.DecodeProp(&getLen, &getMod); err != nil {
+			return nil, err
+		}
+
+		fi.size = getLen.Length
+		fi.modTime = time.Time(getMod.LastModified)
+	}
+
+	return fi, nil
+}
+
 func (fi *fileInfo) Name() string {
 	return fi.filename
 }
@@ -81,39 +109,19 @@ func (fi *fileInfo) Sys() interface{} {
 	return nil
 }
 
+// TODO: getetag, getcontenttype
+var fileInfoPropfind = internal.NewPropNamePropfind(
+	internal.ResourceTypeName,
+	internal.GetContentLengthName,
+	internal.GetLastModifiedName,
+)
+
 func (c *Client) Stat(name string) (os.FileInfo, error) {
-	// TODO: getetag, getcontenttype
-	propfind := internal.NewPropNamePropfind(
-		internal.ResourceTypeName,
-		internal.GetContentLengthName,
-		internal.GetLastModifiedName,
-	)
-	resp, err := c.ic.PropfindFlat(name, propfind)
+	resp, err := c.ic.PropfindFlat(name, fileInfoPropfind)
 	if err != nil {
 		return nil, err
 	}
-
-	filename, _ := path.Split(name)
-	fi := &fileInfo{filename: filename}
-
-	var resType internal.ResourceType
-	if err := resp.DecodeProp(&resType); err != nil {
-		return nil, err
-	}
-	if resType.Is(internal.CollectionName) {
-		fi.isDir = true
-	} else {
-		var getLen internal.GetContentLength
-		var getMod internal.GetLastModified
-		if err := resp.DecodeProp(&getLen, &getMod); err != nil {
-			return nil, err
-		}
-
-		fi.size = getLen.Length
-		fi.modTime = time.Time(getMod.LastModified)
-	}
-
-	return fi, nil
+	return fileInfoFromResponse(resp)
 }
 
 func (c *Client) Open(name string) (io.ReadCloser, error) {
@@ -128,4 +136,24 @@ func (c *Client) Open(name string) (io.ReadCloser, error) {
 	}
 
 	return resp.Body, nil
+}
+
+func (c *Client) Readdir(name string) ([]os.FileInfo, error) {
+	// TODO: filter out the directory we're listing
+
+	ms, err := c.ic.Propfind(name, internal.DepthOne, fileInfoPropfind)
+	if err != nil {
+		return nil, err
+	}
+
+	l := make([]os.FileInfo, 0, len(ms.Responses))
+	for _, resp := range ms.Responses {
+		fi, err := fileInfoFromResponse(&resp)
+		if err != nil {
+			return l, err
+		}
+		l = append(l, fi)
+	}
+
+	return l, nil
 }
