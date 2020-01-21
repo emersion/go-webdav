@@ -39,4 +39,17 @@ func (fs LocalFileSystem) Stat(name string) (os.FileInfo, error) {
 	return os.Stat(p)
 }
 
+func (fs LocalFileSystem) Readdir(name string) ([]os.FileInfo, error) {
+	p, err := fs.path(name)
+	if err != nil {
+		return nil, err
+	}
+	f, err := os.Open(p)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return f.Readdir(-1)
+}
+
 var _ FileSystem = LocalFileSystem("")

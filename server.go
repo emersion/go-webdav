@@ -15,12 +15,12 @@ type File interface {
 	io.Closer
 	io.Reader
 	io.Seeker
-	Readdir(count int) ([]os.FileInfo, error)
 }
 
 type FileSystem interface {
 	Open(name string) (File, error)
 	Stat(name string) (os.FileInfo, error)
+	Readdir(name string) ([]os.FileInfo, error)
 }
 
 type Handler struct {
@@ -109,13 +109,7 @@ func (b *backend) propfind(propfind *internal.Propfind, name string, fi os.FileI
 			childDepth = internal.DepthZero
 		}
 
-		f, err := b.FileSystem.Open(name)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-
-		children, err := f.Readdir(-1)
+		children, err := b.FileSystem.Readdir(name)
 		if err != nil {
 			return err
 		}
