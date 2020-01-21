@@ -166,8 +166,11 @@ func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*inte
 		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetContentLength{Length: fi.Size}, nil
 		}
-		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime)}, nil
+
+		if !fi.ModTime.IsZero() {
+			props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
+				return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime)}, nil
+			}
 		}
 
 		if fi.MIMEType != "" {
