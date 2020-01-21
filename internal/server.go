@@ -79,6 +79,7 @@ type Backend interface {
 	Propfind(r *http.Request, pf *Propfind, depth Depth) (*Multistatus, error)
 	Put(r *http.Request) error
 	Delete(r *http.Request) error
+	Mkcol(r *http.Request) error
 }
 
 type Handler struct {
@@ -111,6 +112,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		case "PROPFIND":
 			err = h.handlePropfind(w, r)
+		case "MKCOL":
+			err = h.Backend.Mkcol(r)
+			if err == nil {
+				w.WriteHeader(http.StatusCreated)
+			}
 		default:
 			err = HTTPErrorf(http.StatusMethodNotAllowed, "webdav: unsupported method")
 		}

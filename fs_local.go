@@ -76,4 +76,12 @@ func (fs LocalFileSystem) RemoveAll(name string) error {
 	return os.RemoveAll(p)
 }
 
+func (fs LocalFileSystem) Mkdir(name string) error {
+	p, err := fs.path(name)
+	if err != nil {
+		return err
+	}
+	return os.Mkdir(p, 0755)
+}
+
 var _ FileSystem = LocalFileSystem("")

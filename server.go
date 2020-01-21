@@ -25,6 +25,7 @@ type FileSystem interface {
 	Readdir(name string) ([]os.FileInfo, error)
 	Create(name string) (io.WriteCloser, error)
 	RemoveAll(name string) error
+	Mkdir(name string) error
 }
 
 // Handler handles WebDAV HTTP requests. It can be used to create a WebDAV
@@ -58,7 +59,12 @@ func (b *backend) Options(r *http.Request) ([]string, error) {
 	}
 
 	if fi.IsDir() {
-		return []string{http.MethodOptions, http.MethodDelete, "PROPFIND"}, nil
+		return []string{
+			http.MethodOptions,
+			http.MethodDelete,
+			"PROPFIND",
+			"MKCOL",
+		}, nil
 	} else {
 		return []string{
 			http.MethodOptions,
@@ -189,6 +195,17 @@ func (b *backend) Delete(r *http.Request) error {
 	err := b.FileSystem.RemoveAll(r.URL.Path)
 	if os.IsNotExist(err) {
 		return &internal.HTTPError{Code: http.StatusNotFound, Err: err}
+	}
+	return err
+}
+
+func (b *backend) Mkcol(r *http.Request) error {
+	if r.Header.Get("Content-Type") != "" {
+		return internal.HTTPErrorf(http.StatusUnsupportedMediaType, "webdav: request body not supported in MKCOL request")
+	}
+	err := b.FileSystem.Mkdir(r.URL.Path)
+	if os.IsNotExist(err) {
+		return &internal.HTTPError{Code: http.StatusConflict, Err: err}
 	}
 	return err
 }
