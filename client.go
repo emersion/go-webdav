@@ -202,3 +202,13 @@ func (c *Client) RemoveAll(name string) error {
 	_, err = c.ic.Do(req)
 	return err
 }
+
+func (c *Client) Mkdir(name string) error {
+	req, err := c.ic.NewRequest("MKCOL", name, nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ic.Do(req)
+	return err
+}
