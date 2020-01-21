@@ -77,6 +77,7 @@ type Backend interface {
 	Options(r *http.Request) ([]string, error)
 	HeadGet(w http.ResponseWriter, r *http.Request) error
 	Propfind(r *http.Request, pf *Propfind, depth Depth) (*Multistatus, error)
+	Proppatch(r *http.Request, pu *Propertyupdate) (*Response, error)
 	Put(r *http.Request) error
 	Delete(r *http.Request) error
 	Mkcol(r *http.Request) error
@@ -112,6 +113,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 		case "PROPFIND":
 			err = h.handlePropfind(w, r)
+		case "PROPPATCH":
+			err = h.handleProppatch(w, r)
 		case "MKCOL":
 			err = h.Backend.Mkcol(r)
 			if err == nil {
@@ -235,4 +238,19 @@ func NewPropfindResponse(href string, propfind *Propfind, props map[xml.Name]Pro
 	}
 
 	return resp, nil
+}
+
+func (h *Handler) handleProppatch(w http.ResponseWriter, r *http.Request) error {
+	var update Propertyupdate
+	if err := DecodeXMLRequest(r, &update); err != nil {
+		return err
+	}
+
+	resp, err := h.Backend.Proppatch(r, &update)
+	if err != nil {
+		return err
+	}
+
+	ms := NewMultistatus(*resp)
+	return ServeMultistatus(w, ms)
 }
