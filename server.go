@@ -59,7 +59,13 @@ func (b *backend) Options(r *http.Request) ([]string, error) {
 	if fi.IsDir() {
 		return []string{http.MethodOptions, "PROPFIND"}, nil
 	} else {
-		return []string{http.MethodOptions, http.MethodHead, http.MethodGet, "PROPFIND"}, nil
+		return []string{
+			http.MethodOptions,
+			http.MethodHead,
+			http.MethodGet,
+			http.MethodPut,
+			"PROPFIND",
+		}, nil
 	}
 }
 
