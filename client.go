@@ -192,3 +192,13 @@ func (c *Client) Create(name string) (io.WriteCloser, error) {
 
 	return &fileWriter{pw, done}, nil
 }
+
+func (c *Client) RemoveAll(name string) error {
+	req, err := c.ic.NewRequest(http.MethodDelete, name, nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.ic.Do(req)
+	return err
+}
