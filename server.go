@@ -2,6 +2,7 @@ package webdav
 
 import (
 	"encoding/xml"
+	"io"
 	"mime"
 	"net/http"
 	"os"
@@ -11,11 +12,15 @@ import (
 )
 
 type File interface {
-	http.File
+	io.Closer
+	io.Reader
+	io.Seeker
+	Readdir(count int) ([]os.FileInfo, error)
 }
 
 type FileSystem interface {
 	Open(name string) (File, error)
+	Stat(name string) (os.FileInfo, error)
 }
 
 type Handler struct {
@@ -38,16 +43,10 @@ type backend struct {
 }
 
 func (b *backend) Options(r *http.Request) ([]string, error) {
-	f, err := b.FileSystem.Open(r.URL.Path)
+	fi, err := b.FileSystem.Stat(r.URL.Path)
 	if os.IsNotExist(err) {
 		return []string{http.MethodOptions}, nil
 	} else if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
 		return nil, err
 	}
 
@@ -59,34 +58,31 @@ func (b *backend) Options(r *http.Request) ([]string, error) {
 }
 
 func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
+	fi, err := b.FileSystem.Stat(r.URL.Path)
+	if os.IsNotExist(err) {
+		return &internal.HTTPError{Code: http.StatusNotFound, Err: err}
+	} else if err != nil {
+		return err
+	}
+	if fi.IsDir() {
+		return &internal.HTTPError{Code: http.StatusMethodNotAllowed}
+	}
+
 	f, err := b.FileSystem.Open(r.URL.Path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return err
-	}
-
-	if fi.IsDir() {
-		return &internal.HTTPError{Code: http.StatusMethodNotAllowed}
-	}
 
 	http.ServeContent(w, r, r.URL.Path, fi.ModTime(), f)
 	return nil
 }
 
 func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
-	f, err := b.FileSystem.Open(r.URL.Path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
+	fi, err := b.FileSystem.Stat(r.URL.Path)
+	if os.IsNotExist(err) {
+		return nil, &internal.HTTPError{Code: http.StatusNotFound, Err: err}
+	} else if err != nil {
 		return nil, err
 	}
 

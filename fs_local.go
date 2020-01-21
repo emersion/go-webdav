@@ -31,4 +31,12 @@ func (fs LocalFileSystem) Open(name string) (File, error) {
 	return os.Open(p)
 }
 
+func (fs LocalFileSystem) Stat(name string) (os.FileInfo, error) {
+	p, err := fs.path(name)
+	if err != nil {
+		return nil, err
+	}
+	return os.Stat(p)
+}
+
 var _ FileSystem = LocalFileSystem("")
