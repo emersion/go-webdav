@@ -61,7 +61,7 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 		fi.IsDir = true
 	} else {
 		var getLen internal.GetContentLength
-		if err := resp.DecodeProp(&getLen, &getMod); err != nil {
+		if err := resp.DecodeProp(&getLen); err != nil {
 			return nil, err
 		}
 
