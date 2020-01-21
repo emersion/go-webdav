@@ -17,16 +17,20 @@ type File interface {
 	io.Seeker
 }
 
+// FileSystem is a WebDAV server backend.
 type FileSystem interface {
 	Open(name string) (File, error)
 	Stat(name string) (os.FileInfo, error)
 	Readdir(name string) ([]os.FileInfo, error)
 }
 
+// Handler handles WebDAV HTTP requests. It can be used to create a WebDAV
+// server.
 type Handler struct {
 	FileSystem FileSystem
 }
 
+// ServeHTTP implements http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.FileSystem == nil {
 		http.Error(w, "webdav: no filesystem available", http.StatusInternalServerError)

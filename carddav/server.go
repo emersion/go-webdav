@@ -11,6 +11,7 @@ import (
 
 // TODO: add support for multiple address books
 
+// Backend is a CardDAV server backend.
 type Backend interface {
 	AddressBook() (*AddressBook, error)
 	GetAddressObject(href string) (*AddressObject, error)
@@ -18,10 +19,13 @@ type Backend interface {
 	QueryAddressObjects(query *AddressBookQuery) ([]AddressObject, error)
 }
 
+// Handler handles CardDAV HTTP requests. It can be used to create a CardDAV
+// server.
 type Handler struct {
 	Backend Backend
 }
 
+// ServeHTTP implements http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.Backend == nil {
 		http.Error(w, "carddav: no backend available", http.StatusInternalServerError)

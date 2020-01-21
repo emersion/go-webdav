@@ -11,6 +11,7 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
+// Client provides access to a remote WebDAV filesystem.
 type Client struct {
 	ic *internal.Client
 }

@@ -45,6 +45,7 @@ func Discover(domain string) (string, error) {
 	return u.String(), nil
 }
 
+// Client provides access to a remote CardDAV server.
 type Client struct {
 	*webdav.Client
 
