@@ -260,3 +260,7 @@ func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *Address
 
 	return internal.NewPropfindResponse(ao.Href, propfind, props)
 }
+
+func (b *backend) Put(r *http.Request) error {
+	panic("TODO")
+}

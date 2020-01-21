@@ -23,6 +23,7 @@ type FileSystem interface {
 	Open(name string) (File, error)
 	Stat(name string) (os.FileInfo, error)
 	Readdir(name string) ([]os.FileInfo, error)
+	Create(name string) (io.WriteCloser, error)
 }
 
 // Handler handles WebDAV HTTP requests. It can be used to create a WebDAV
@@ -81,6 +82,20 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 
 	http.ServeContent(w, r, r.URL.Path, fi.ModTime(), f)
 	return nil
+}
+
+func (b *backend) Put(r *http.Request) error {
+	wc, err := b.FileSystem.Create(r.URL.Path)
+	if err != nil {
+		return err
+	}
+	defer wc.Close()
+
+	if _, err := io.Copy(wc, r.Body); err != nil {
+		return err
+	}
+
+	return wc.Close()
 }
 
 func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {

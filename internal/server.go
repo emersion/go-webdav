@@ -76,6 +76,7 @@ func ServeMultistatus(w http.ResponseWriter, ms *Multistatus) error {
 type Backend interface {
 	Options(r *http.Request) ([]string, error)
 	HeadGet(w http.ResponseWriter, r *http.Request) error
+	Put(r *http.Request) error
 	Propfind(r *http.Request, pf *Propfind, depth Depth) (*Multistatus, error)
 }
 
@@ -93,6 +94,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			err = h.handleOptions(w, r)
 		case http.MethodGet, http.MethodHead:
 			err = h.Backend.HeadGet(w, r)
+		case http.MethodPut:
+			err = h.Backend.Put(r)
+			if err == nil {
+				// TODO: Last-Modified, ETag, Content-Type if the request has
+				// been copied verbatim
+				// TODO: Location if the server has mutated the href
+				w.WriteHeader(http.StatusCreated)
+			}
 		case "PROPFIND":
 			err = h.handlePropfind(w, r)
 		default:

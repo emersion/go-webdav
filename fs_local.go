@@ -1,6 +1,7 @@
 package webdav
 
 import (
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -50,6 +51,14 @@ func (fs LocalFileSystem) Readdir(name string) ([]os.FileInfo, error) {
 	}
 	defer f.Close()
 	return f.Readdir(-1)
+}
+
+func (fs LocalFileSystem) Create(name string) (io.WriteCloser, error) {
+	p, err := fs.path(name)
+	if err != nil {
+		return nil, err
+	}
+	return os.Create(p)
 }
 
 var _ FileSystem = LocalFileSystem("")
