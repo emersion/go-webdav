@@ -66,18 +66,25 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 			return nil, err
 		}
 
+		var getType internal.GetContentType
+		if err := resp.DecodeProp(&getType); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
 		fi.Size = getLen.Length
 		fi.ModTime = time.Time(getMod.LastModified)
+		fi.MIMEType = getType.Type
 	}
 
 	return fi, nil
 }
 
-// TODO: getetag, getcontenttype
+// TODO: getetag
 var fileInfoPropfind = internal.NewPropNamePropfind(
 	internal.ResourceTypeName,
 	internal.GetContentLengthName,
 	internal.GetLastModifiedName,
+	internal.GetContentTypeName,
 )
 
 func (c *Client) Stat(name string) (*FileInfo, error) {
