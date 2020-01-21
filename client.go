@@ -158,3 +158,37 @@ func (c *Client) Readdir(name string) ([]os.FileInfo, error) {
 
 	return l, nil
 }
+
+type fileWriter struct {
+	pw *io.PipeWriter
+	done <-chan error
+}
+
+func (fw *fileWriter) Write(b []byte) (int, error) {
+	return fw.pw.Write(b)
+}
+
+func (fw *fileWriter) Close() error {
+	if err := fw.pw.Close(); err != nil {
+		return err
+	}
+	return <-fw.done
+}
+
+func (c *Client) Create(name string) (io.WriteCloser, error) {
+	pr, pw := io.Pipe()
+
+	req, err := c.ic.NewRequest(http.MethodPut, name, pr)
+	if err != nil {
+		pw.Close()
+		return nil, err
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := c.ic.Do(req)
+		done <- err
+	}()
+
+	return &fileWriter{pw, done}, nil
+}
