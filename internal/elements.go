@@ -131,26 +131,30 @@ func IsMissingProp(err error) bool {
 	return ok
 }
 
-func (resp *Response) DecodeProp(v interface{}) error {
-	// TODO wrap errors with more context (XML name)
-	name, err := valueXMLName(v)
-	if err != nil {
-		return err
-	}
-	if err := resp.Status.Err(); err != nil {
-		return err
-	}
-	for _, propstat := range resp.Propstats {
-		raw := propstat.Prop.Get(name)
-		if raw == nil {
-			continue
-		}
-		if err := propstat.Status.Err(); err != nil {
+func (resp *Response) DecodeProp(values ...interface{}) error {
+	for _, v := range values {
+		// TODO wrap errors with more context (XML name)
+		name, err := valueXMLName(v)
+		if err != nil {
 			return err
 		}
-		return raw.Decode(v)
+		if err := resp.Status.Err(); err != nil {
+			return err
+		}
+		for _, propstat := range resp.Propstats {
+			raw := propstat.Prop.Get(name)
+			if raw == nil {
+				continue
+			}
+			if err := propstat.Status.Err(); err != nil {
+				return err
+			}
+			return raw.Decode(v)
+		}
+		return &missingPropError{name}
 	}
-	return &missingPropError{name}
+
+	return nil
 }
 
 func (resp *Response) EncodeProp(code int, v interface{}) error {
