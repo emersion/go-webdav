@@ -24,7 +24,7 @@ func (fs LocalFileSystem) path(name string) (string, error) {
 	return filepath.Join(string(fs), filepath.FromSlash(name)), nil
 }
 
-func (fs LocalFileSystem) Open(name string) (File, error) {
+func (fs LocalFileSystem) Open(name string) (io.ReadCloser, error) {
 	p, err := fs.path(name)
 	if err != nil {
 		return nil, err

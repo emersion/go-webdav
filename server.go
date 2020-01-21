@@ -8,19 +8,14 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 
 	"github.com/emersion/go-webdav/internal"
 )
 
-type File interface {
-	io.Closer
-	io.Reader
-	io.Seeker
-}
-
 // FileSystem is a WebDAV server backend.
 type FileSystem interface {
-	Open(name string) (File, error)
+	Open(name string) (io.ReadCloser, error)
 	Stat(name string) (os.FileInfo, error)
 	Readdir(name string) ([]os.FileInfo, error)
 	Create(name string) (io.WriteCloser, error)
@@ -94,7 +89,26 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	}
 	defer f.Close()
 
-	http.ServeContent(w, r, r.URL.Path, fi.ModTime(), f)
+	if rs, ok := f.(io.ReadSeeker); ok {
+		// If it's an io.Seeker, use http.ServeContent which supports ranges
+		http.ServeContent(w, r, r.URL.Path, fi.ModTime(), rs)
+	} else {
+		// TODO: fallback to http.DetectContentType
+		t := mime.TypeByExtension(path.Ext(r.URL.Path))
+		if t != "" {
+			w.Header().Set("Content-Type", t)
+		}
+
+		if modTime := fi.ModTime(); !modTime.IsZero() {
+			w.Header().Set("Last-Modified", modTime.UTC().Format(http.TimeFormat))
+		}
+
+		w.Header().Set("Content-Length", strconv.FormatInt(fi.Size(), 10))
+
+		if r.Method != http.MethodHead {
+			io.Copy(w, f)
+		}
+	}
 	return nil
 }
 
