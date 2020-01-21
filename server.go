@@ -3,10 +3,8 @@ package webdav
 import (
 	"encoding/xml"
 	"io"
-	"mime"
 	"net/http"
 	"os"
-	"path"
 	"strconv"
 
 	"github.com/emersion/go-webdav/internal"
@@ -88,22 +86,18 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	}
 	defer f.Close()
 
+	if fi.MIMEType != "" {
+		w.Header().Set("Content-Type", fi.MIMEType)
+	}
+	if !fi.ModTime.IsZero() {
+		w.Header().Set("Last-Modified", fi.ModTime.UTC().Format(http.TimeFormat))
+	}
+	w.Header().Set("Content-Length", strconv.FormatInt(fi.Size, 10))
+
 	if rs, ok := f.(io.ReadSeeker); ok {
 		// If it's an io.Seeker, use http.ServeContent which supports ranges
 		http.ServeContent(w, r, r.URL.Path, fi.ModTime, rs)
 	} else {
-		// TODO: fallback to http.DetectContentType
-		t := mime.TypeByExtension(path.Ext(r.URL.Path))
-		if t != "" {
-			w.Header().Set("Content-Type", t)
-		}
-
-		if !fi.ModTime.IsZero() {
-			w.Header().Set("Last-Modified", fi.ModTime.UTC().Format(http.TimeFormat))
-		}
-
-		w.Header().Set("Content-Length", strconv.FormatInt(fi.Size, 10))
-
 		if r.Method != http.MethodHead {
 			io.Copy(w, f)
 		}
@@ -172,17 +166,16 @@ func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*inte
 		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetContentLength{Length: fi.Size}, nil
 		}
-		props[internal.GetContentTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
-			t := mime.TypeByExtension(path.Ext(fi.Href))
-			if t == "" {
-				// TODO: use http.DetectContentType
-				return nil, &internal.HTTPError{Code: http.StatusNotFound}
-			}
-			return &internal.GetContentType{Type: t}, nil
-		}
 		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime)}, nil
 		}
+
+		if fi.MIMEType != "" {
+			props[internal.GetContentTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
+				return &internal.GetContentType{Type: fi.MIMEType}, nil
+			}
+		}
+
 		// TODO: getetag
 	}
 

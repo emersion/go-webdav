@@ -2,6 +2,7 @@ package webdav
 
 import (
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path"
@@ -38,6 +39,8 @@ func fileInfoFromOS(href string, fi os.FileInfo) *FileInfo {
 		Size:    fi.Size(),
 		ModTime: fi.ModTime(),
 		IsDir:   fi.IsDir(),
+		// TODO: fallback to http.DetectContentType?
+		MIMEType: mime.TypeByExtension(path.Ext(href)),
 	}
 }
 

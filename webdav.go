@@ -7,11 +7,12 @@ import (
 	"time"
 )
 
-// TODO: add ETag, MIMEType to FileInfo
+// TODO: add ETag to FileInfo
 
 type FileInfo struct {
-	Href    string
-	Size    int64
-	ModTime time.Time
-	IsDir   bool
+	Href     string
+	Size     int64
+	ModTime  time.Time
+	IsDir    bool
+	MIMEType string
 }
