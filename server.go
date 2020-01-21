@@ -153,5 +153,6 @@ func (b *backend) propfindFile(propfind *internal.Propfind, name string, fi os.F
 		// TODO: getetag
 	}
 
-	return internal.NewPropfindResponse(name, propfind, props)
+	href := url.URL{Path: name}.String()
+	return internal.NewPropfindResponse(href, propfind, props)
 }
