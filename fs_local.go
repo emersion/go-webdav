@@ -122,4 +122,36 @@ func (fs LocalFileSystem) Mkdir(name string) error {
 	return os.Mkdir(p, 0755)
 }
 
+func (fs LocalFileSystem) MoveAll(src, dst string, overwrite bool) (created bool, err error) {
+	srcPath, err := fs.localPath(src)
+	if err != nil {
+		return false, err
+	}
+	dstPath, err := fs.localPath(dst)
+	if err != nil {
+		return false, err
+	}
+
+	if _, err := os.Stat(dstPath); err != nil {
+		if !os.IsNotExist(err) {
+			return false, err
+		}
+		created = true
+	} else {
+		if overwrite {
+			if err := os.RemoveAll(dstPath); err != nil {
+				return false, err
+			}
+		} else {
+			return false, os.ErrExist
+		}
+	}
+
+	if err := os.Rename(srcPath, dstPath); err != nil {
+		return false, err
+	}
+
+	return created, nil
+}
+
 var _ FileSystem = LocalFileSystem("")

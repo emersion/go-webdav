@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"net/url"
 	"strings"
 )
 
@@ -81,6 +82,7 @@ type Backend interface {
 	Put(r *http.Request) error
 	Delete(r *http.Request) error
 	Mkcol(r *http.Request) error
+	Move(r *http.Request, dest *Href, overwrite bool) (created bool, err error)
 }
 
 type Handler struct {
@@ -120,6 +122,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if err == nil {
 				w.WriteHeader(http.StatusCreated)
 			}
+		case "MOVE":
+			err = h.handleMove(w, r)
 		default:
 			err = HTTPErrorf(http.StatusMethodNotAllowed, "webdav: unsupported method")
 		}
@@ -253,4 +257,42 @@ func (h *Handler) handleProppatch(w http.ResponseWriter, r *http.Request) error 
 
 	ms := NewMultistatus(*resp)
 	return ServeMultistatus(w, ms)
+}
+
+func parseDestination(h http.Header) (*Href, error) {
+	destHref := h.Get("Destination")
+	if destHref == "" {
+		return nil, HTTPErrorf(http.StatusBadRequest, "webdav: missing Destination header in MOVE request")
+	}
+	dest, err := url.Parse(destHref)
+	if err != nil {
+		return nil, HTTPErrorf(http.StatusBadRequest, "webdav: marlformed Destination header in MOVE request: %v", err)
+	}
+	return (*Href)(dest), nil
+}
+
+func (h *Handler) handleMove(w http.ResponseWriter, r *http.Request) error {
+	dest, err := parseDestination(r.Header)
+	if err != nil {
+		return err
+	}
+
+	overwrite := true
+	if s := r.Header.Get("Overwrite"); s != "" {
+		overwrite, err = ParseOverwrite(s)
+		if err != nil {
+			return err
+		}
+	}
+
+	created, err := h.Backend.Move(r, dest, overwrite)
+	if err != nil {
+		return err
+	}
+	if created {
+		w.WriteHeader(http.StatusCreated)
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
+	return nil
 }

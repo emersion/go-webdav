@@ -18,6 +18,7 @@ type FileSystem interface {
 	Create(name string) (io.WriteCloser, error)
 	RemoveAll(name string) error
 	Mkdir(name string) error
+	MoveAll(name, dest string, overwrite bool) (created bool, err error)
 }
 
 // Handler handles WebDAV HTTP requests. It can be used to create a WebDAV
@@ -212,4 +213,12 @@ func (b *backend) Mkcol(r *http.Request) error {
 		return &internal.HTTPError{Code: http.StatusConflict, Err: err}
 	}
 	return err
+}
+
+func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (created bool, err error) {
+	created, err = b.FileSystem.MoveAll(r.URL.Path, dest.Path, overwrite)
+	if os.IsExist(err) {
+		return false, &internal.HTTPError{http.StatusPreconditionFailed, err}
+	}
+	return created, err
 }
