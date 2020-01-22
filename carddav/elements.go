@@ -58,7 +58,71 @@ type addressbookQuery struct {
 	Prop     *internal.Prop `xml:"DAV: prop,omitempty"`
 	AllProp  *struct{}      `xml:"DAV: allprop,omitempty"`
 	PropName *struct{}      `xml:"DAV: propname,omitempty"`
-	// TODO: filter, limit?
+	Filter   filter         `xml:"filter"`
+	Limit    *limit         `xml:"limit,omitempty"`
+}
+
+// https://tools.ietf.org/html/rfc6352#section-10.5
+type filter struct {
+	XMLName xml.Name     `xml:"urn:ietf:params:xml:ns:carddav filter"`
+	Test    filterTest   `xml:"test,attr,omitempty"`
+	Props   []propFilter `xml:"prop-filter"`
+}
+
+type filterTest string
+
+const (
+	filterAnyOf filterTest = "anyof"
+	filterAllOf filterTest = "allof"
+)
+
+func (ft filterTest) MarshalText() ([]byte, error) {
+	return []byte(ft), nil
+}
+
+func (ft *filterTest) UnmarshalText(b []byte) error {
+	v := filterTest(string(b))
+	switch v {
+	case filterAnyOf, filterAllOf:
+		*ft = v
+		return nil
+	default:
+		return fmt.Errorf("carddav: invalid filter test value: %q", v)
+	}
+}
+
+// https://tools.ietf.org/html/rfc6352#section-10.5.1
+type propFilter struct {
+	XMLName xml.Name   `xml:"urn:ietf:params:xml:ns:carddav prop-filter"`
+	Name    string     `xml:"name,attr"`
+	Test    filterTest `xml:"test,attr,omitempty"`
+
+	IsNotDefined *struct{}     `xml:"is-not-defined,omitempty"`
+	TextMatch    []textMatch   `xml:"text-match"`
+	ParamFilter  []paramFilter `xml:"param-filter"`
+}
+
+// https://tools.ietf.org/html/rfc6352#section-10.5.4
+type textMatch struct {
+	XMLName         xml.Name `xml:"urn:ietf:params:xml:ns:carddav text-match"`
+	Text            string   `xml:",chardata"`
+	Collation       string   `xml:"collation,attr,omitempty"`
+	NegateCondition string   `xml:"negate-condition,attr,omitempty"`
+	MatchType       string   `xml:"match-type,attr,omitempty"`
+}
+
+// https://tools.ietf.org/html/rfc6352#section-10.5.2
+type paramFilter struct {
+	XMLName      xml.Name   `xml:"urn:ietf:params:xml:ns:carddav param-filter"`
+	Name         string     `xml:"name,attr"`
+	IsNotDefined *struct{}  `xml:"is-not-defined"`
+	TextMatch    *textMatch `xml:"text-match"`
+}
+
+// https://tools.ietf.org/html/rfc6352#section-10.6
+type limit struct {
+	XMLName  xml.Name `xml:"urn:ietf:params:xml:ns:carddav limit"`
+	NResults uint     `xml:"nresults"`
 }
 
 // https://tools.ietf.org/html/rfc6352#section-8.7
