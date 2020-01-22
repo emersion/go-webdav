@@ -3,6 +3,7 @@ package carddav
 import (
 	"bytes"
 	"encoding/xml"
+	"mime"
 	"net/http"
 
 	"github.com/emersion/go-vcard"
@@ -14,9 +15,10 @@ import (
 // Backend is a CardDAV server backend.
 type Backend interface {
 	AddressBook() (*AddressBook, error)
-	GetAddressObject(href string) (*AddressObject, error)
+	GetAddressObject(path string) (*AddressObject, error)
 	ListAddressObjects() ([]AddressObject, error)
 	QueryAddressObjects(query *AddressBookQuery) ([]AddressObject, error)
+	PutAddressObject(path string, card vcard.Card) error
 }
 
 // Handler handles CardDAV HTTP requests. It can be used to create a CardDAV
@@ -269,7 +271,26 @@ func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*
 }
 
 func (b *backend) Put(r *http.Request) error {
-	panic("TODO")
+	// TODO: add support for If-None-Match
+
+	t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return internal.HTTPErrorf(http.StatusBadRequest, "carddav: malformed Content-Type: %v", err)
+	}
+	if t != vcard.MIMEType {
+		// TODO: send CARDDAV:supported-address-data error
+		return internal.HTTPErrorf(http.StatusBadRequest, "carddav: unsupporetd Content-Type %q", t)
+	}
+
+	// TODO: check CARDDAV:max-resource-size precondition
+	card, err := vcard.NewDecoder(r.Body).Decode()
+	if err != nil {
+		// TODO: send CARDDAV:valid-address-data error
+		return internal.HTTPErrorf(http.StatusBadRequest, "carddav: failed to parse vCard: %v", err)
+	}
+
+	// TODO: add support for the CARDDAV:no-uid-conflict error
+	return b.Backend.PutAddressObject(r.URL.Path, card)
 }
 
 func (b *backend) Delete(r *http.Request) error {
