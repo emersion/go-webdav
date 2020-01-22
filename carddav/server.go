@@ -247,6 +247,7 @@ func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *Address
 		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetContentType{Type: vcard.MIMEType}, nil
 		},
+		// TODO: address-data can only be used in REPORT requests
 		addressDataName: func(*internal.RawXMLValue) (interface{}, error) {
 			var buf bytes.Buffer
 			if err := vcard.NewEncoder(&buf).Encode(ao.Card); err != nil {
@@ -262,7 +263,9 @@ func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *Address
 }
 
 func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*internal.Response, error) {
-	panic("TODO")
+	// TODO: return a failed Response instead
+	// TODO: support PROPPATCH for address books
+	return nil, internal.HTTPErrorf(http.StatusForbidden, "carddav: PROPPATCH is unsupported")
 }
 
 func (b *backend) Put(r *http.Request) error {
