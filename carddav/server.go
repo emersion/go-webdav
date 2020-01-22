@@ -19,6 +19,7 @@ type Backend interface {
 	ListAddressObjects() ([]AddressObject, error)
 	QueryAddressObjects(query *AddressBookQuery) ([]AddressObject, error)
 	PutAddressObject(path string, card vcard.Card) error
+	DeleteAddressObject(path string) error
 }
 
 // Handler handles CardDAV HTTP requests. It can be used to create a CardDAV
@@ -294,7 +295,7 @@ func (b *backend) Put(r *http.Request) error {
 }
 
 func (b *backend) Delete(r *http.Request) error {
-	panic("TODO")
+	return b.Backend.DeleteAddressObject(r.URL.Path)
 }
 
 func (b *backend) Mkcol(r *http.Request) error {
