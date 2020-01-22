@@ -14,7 +14,7 @@ import (
 type FileSystem interface {
 	Open(name string) (io.ReadCloser, error)
 	Stat(name string) (*FileInfo, error)
-	Readdir(name string) ([]FileInfo, error)
+	Readdir(name string, recursive bool) ([]FileInfo, error)
 	Create(name string) (io.WriteCloser, error)
 	RemoveAll(name string) error
 	Mkdir(name string) error
@@ -106,6 +106,8 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
+	// TODO: use partial error Response on error
+
 	fi, err := b.FileSystem.Stat(r.URL.Path)
 	if os.IsNotExist(err) {
 		return nil, &internal.HTTPError{Code: http.StatusNotFound, Err: err}
@@ -114,41 +116,30 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 	}
 
 	var resps []internal.Response
-	if err := b.propfind(propfind, fi, depth, &resps); err != nil {
-		return nil, err
+	if depth != internal.DepthZero && fi.IsDir {
+		children, err := b.FileSystem.Readdir(r.URL.Path, depth == internal.DepthInfinity)
+		if err != nil {
+			return nil, err
+		}
+
+		resps = make([]internal.Response, len(children))
+		for i, child := range children {
+			resp, err := b.propfindFile(propfind, &child)
+			if err != nil {
+				return nil, err
+			}
+			resps[i] = *resp
+		}
+	} else {
+		resp, err := b.propfindFile(propfind, fi)
+		if err != nil {
+			return nil, err
+		}
+
+		resps = []internal.Response{*resp}
 	}
 
 	return internal.NewMultistatus(resps...), nil
-}
-
-func (b *backend) propfind(propfind *internal.Propfind, fi *FileInfo, depth internal.Depth, resps *[]internal.Response) error {
-	// TODO: use partial error Response on error
-
-	resp, err := b.propfindFile(propfind, fi)
-	if err != nil {
-		return err
-	}
-	*resps = append(*resps, *resp)
-
-	if depth != internal.DepthZero && fi.IsDir {
-		childDepth := depth
-		if depth == internal.DepthOne {
-			childDepth = internal.DepthZero
-		}
-
-		children, err := b.FileSystem.Readdir(fi.Href)
-		if err != nil {
-			return err
-		}
-
-		for _, child := range children {
-			if err := b.propfind(propfind, &child, childDepth, resps); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*internal.Response, error) {

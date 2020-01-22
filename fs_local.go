@@ -25,6 +25,15 @@ func (fs LocalFileSystem) path(name string) (string, error) {
 	return filepath.Join(string(fs), filepath.FromSlash(name)), nil
 }
 
+func (fs LocalFileSystem) href(path string) (string, error) {
+	rel, err := filepath.Rel(string(fs), path)
+	if err != nil {
+		return "", err
+	}
+	href := "/" + filepath.ToSlash(rel)
+	return href, nil
+}
+
 func (fs LocalFileSystem) Open(name string) (io.ReadCloser, error) {
 	p, err := fs.path(name)
 	if err != nil {
@@ -56,27 +65,31 @@ func (fs LocalFileSystem) Stat(name string) (*FileInfo, error) {
 	return fileInfoFromOS(name, fi), nil
 }
 
-func (fs LocalFileSystem) Readdir(name string) ([]FileInfo, error) {
+func (fs LocalFileSystem) Readdir(name string, recursive bool) ([]FileInfo, error) {
 	p, err := fs.path(name)
 	if err != nil {
 		return nil, err
 	}
-	f, err := os.Open(p)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
 
-	fis, err := f.Readdir(-1)
-	if err != nil {
-		return nil, err
-	}
+	var l []FileInfo
+	err = filepath.Walk(p, func(p string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
 
-	l := make([]FileInfo, len(fis))
-	for i, fi := range fis {
-		l[i] = *fileInfoFromOS(path.Join(name, fi.Name()), fi)
-	}
-	return l, nil
+		href, err := fs.href(p)
+		if err != nil {
+			return err
+		}
+
+		l = append(l, *fileInfoFromOS(href, fi))
+
+		if !recursive && fi.IsDir() {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	return l, err
 }
 
 func (fs LocalFileSystem) Create(name string) (io.WriteCloser, error) {
