@@ -277,6 +277,10 @@ func (b *backend) Mkcol(r *http.Request) error {
 	return internal.HTTPErrorf(http.StatusForbidden, "carddav: address book creation unsupported")
 }
 
+func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {
+	panic("TODO")
+}
+
 func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (created bool, err error) {
 	panic("TODO")
 }

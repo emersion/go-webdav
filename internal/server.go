@@ -82,6 +82,7 @@ type Backend interface {
 	Put(r *http.Request) error
 	Delete(r *http.Request) error
 	Mkcol(r *http.Request) error
+	Copy(r *http.Request, dest *Href, recursive, overwrite bool) (created bool, err error)
 	Move(r *http.Request, dest *Href, overwrite bool) (created bool, err error)
 }
 
@@ -122,8 +123,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if err == nil {
 				w.WriteHeader(http.StatusCreated)
 			}
-		case "MOVE":
-			err = h.handleMove(w, r)
+		case "COPY", "MOVE":
+			err = h.handleCopyMove(w, r)
 		default:
 			err = HTTPErrorf(http.StatusMethodNotAllowed, "webdav: unsupported method")
 		}
@@ -271,7 +272,7 @@ func parseDestination(h http.Header) (*Href, error) {
 	return (*Href)(dest), nil
 }
 
-func (h *Handler) handleMove(w http.ResponseWriter, r *http.Request) error {
+func (h *Handler) handleCopyMove(w http.ResponseWriter, r *http.Request) error {
 	dest, err := parseDestination(r.Header)
 	if err != nil {
 		return err
@@ -285,10 +286,37 @@ func (h *Handler) handleMove(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	created, err := h.Backend.Move(r, dest, overwrite)
+	depth := DepthInfinity
+	if s := r.Header.Get("Depth"); s != "" {
+		depth, err = ParseDepth(s)
+		if err != nil {
+			return err
+		}
+	}
+
+	var created bool
+	if r.Method == "COPY" {
+		var recursive bool
+		switch depth {
+		case DepthZero:
+			recursive = false
+		case DepthOne:
+			return HTTPErrorf(http.StatusBadRequest, `webdav: "Depth: 1" is not supported in COPY request`)
+		case DepthInfinity:
+			recursive = true
+		}
+
+		created, err = h.Backend.Copy(r, dest, recursive, overwrite)
+	} else {
+		if depth != DepthInfinity {
+			return HTTPErrorf(http.StatusBadRequest, `webdav: only "Depth: infinity" is accepted in MOVE request`)
+		}
+		created, err = h.Backend.Move(r, dest, overwrite)
+	}
 	if err != nil {
 		return err
 	}
+
 	if created {
 		w.WriteHeader(http.StatusCreated)
 	} else {

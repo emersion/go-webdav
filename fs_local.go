@@ -21,7 +21,7 @@ func (fs LocalFileSystem) localPath(name string) (string, error) {
 	}
 	name = path.Clean(name)
 	if !path.IsAbs(name) {
-		return "", internal.HTTPErrorf(http.StatusBadRequest, "webdav: expected absolute path")
+		return "", internal.HTTPErrorf(http.StatusBadRequest, "webdav: expected absolute path, got %q", name)
 	}
 	return filepath.Join(string(fs), filepath.FromSlash(name)), nil
 }
@@ -129,6 +129,87 @@ func (fs LocalFileSystem) Mkdir(name string) error {
 	return os.Mkdir(p, 0755)
 }
 
+func copyRegularFile(src, dst string, perm os.FileMode) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+
+	dstFile, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		// TODO: send http.StatusConflict on os.IsNotExist
+		return err
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return err
+	}
+
+	return dstFile.Close()
+}
+
+func (fs LocalFileSystem) Copy(src, dst string, recursive, overwrite bool) (created bool, err error) {
+	srcPath, err := fs.localPath(src)
+	if err != nil {
+		return false, err
+	}
+	dstPath, err := fs.localPath(dst)
+	if err != nil {
+		return false, err
+	}
+
+	// TODO: "Note that an infinite-depth COPY of /A/ into /A/B/ could lead to
+	// infinite recursion if not handled correctly"
+
+	srcInfo, err := os.Stat(srcPath)
+	if err != nil {
+		return false, err
+	}
+	srcPerm := srcInfo.Mode() & os.ModePerm
+
+	if _, err := os.Stat(dstPath); err != nil {
+		if !os.IsNotExist(err) {
+			return false, err
+		}
+		created = true
+	} else {
+		if !overwrite {
+			return false, os.ErrExist
+		}
+		if err := os.RemoveAll(dstPath); err != nil {
+			return false, err
+		}
+	}
+
+	err = filepath.Walk(srcPath, func(p string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if fi.IsDir() {
+			if err := os.Mkdir(dstPath, srcPerm); err != nil {
+				return err
+			}
+		} else {
+			if err := copyRegularFile(srcPath, dstPath, srcPerm); err != nil {
+				return err
+			}
+		}
+
+		if fi.IsDir() && !recursive {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return created, nil
+}
+
 func (fs LocalFileSystem) MoveAll(src, dst string, overwrite bool) (created bool, err error) {
 	srcPath, err := fs.localPath(src)
 	if err != nil {
@@ -145,12 +226,11 @@ func (fs LocalFileSystem) MoveAll(src, dst string, overwrite bool) (created bool
 		}
 		created = true
 	} else {
-		if overwrite {
-			if err := os.RemoveAll(dstPath); err != nil {
-				return false, err
-			}
-		} else {
+		if !overwrite {
 			return false, os.ErrExist
+		}
+		if err := os.RemoveAll(dstPath); err != nil {
+			return false, err
 		}
 	}
 
