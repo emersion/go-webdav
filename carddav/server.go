@@ -86,8 +86,9 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 	for _, ao := range aos {
 		b := backend{h.Backend}
 		propfind := internal.Propfind{
-			Prop: query.Prop,
-			// TODO: Allprop, Propnames
+			Prop:     query.Prop,
+			AllProp:  query.AllProp,
+			PropName: query.PropName,
 		}
 		resp, err := b.propfindAddressObject(&propfind, &ao)
 		if err != nil {
@@ -110,8 +111,9 @@ func (h *Handler) handleMultiget(w http.ResponseWriter, multiget *addressbookMul
 
 		b := backend{h.Backend}
 		propfind := internal.Propfind{
-			Prop: multiget.Prop,
-			// TODO: Allprop, Propnames
+			Prop:     multiget.Prop,
+			AllProp:  multiget.AllProp,
+			PropName: multiget.PropName,
 		}
 		resp, err := b.propfindAddressObject(&propfind, ao)
 		if err != nil {

@@ -54,18 +54,20 @@ type maxResourceSize struct {
 
 // https://tools.ietf.org/html/rfc6352#section-10.3
 type addressbookQuery struct {
-	XMLName xml.Name       `xml:"urn:ietf:params:xml:ns:carddav addressbook-query"`
-	Prop    *internal.Prop `xml:"DAV: prop,omitempty"`
-	// TODO: DAV:allprop | DAV:propname
+	XMLName  xml.Name       `xml:"urn:ietf:params:xml:ns:carddav addressbook-query"`
+	Prop     *internal.Prop `xml:"DAV: prop,omitempty"`
+	AllProp  *struct{}      `xml:"DAV: allprop,omitempty"`
+	PropName *struct{}      `xml:"DAV: propname,omitempty"`
 	// TODO: filter, limit?
 }
 
 // https://tools.ietf.org/html/rfc6352#section-8.7
 type addressbookMultiget struct {
-	XMLName xml.Name        `xml:"urn:ietf:params:xml:ns:carddav addressbook-multiget"`
-	Hrefs   []internal.Href `xml:"DAV: href"`
-	Prop    *internal.Prop  `xml:"DAV: prop,omitempty"`
-	// TODO: DAV:allprop | DAV:propname
+	XMLName  xml.Name        `xml:"urn:ietf:params:xml:ns:carddav addressbook-multiget"`
+	Hrefs    []internal.Href `xml:"DAV: href"`
+	Prop     *internal.Prop  `xml:"DAV: prop,omitempty"`
+	AllProp  *struct{}       `xml:"DAV: allprop,omitempty"`
+	PropName *struct{}       `xml:"DAV: propname,omitempty"`
 }
 
 func newProp(name string, noValue bool) *internal.RawXMLValue {
