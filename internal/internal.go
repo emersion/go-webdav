@@ -45,3 +45,23 @@ func (d Depth) String() string {
 	}
 	panic("webdav: invalid Depth value")
 }
+
+// ParseOverwrite parses an Overwrite header.
+func ParseOverwrite(s string) (bool, error) {
+	switch s {
+	case "T":
+		return true, nil
+	case "F":
+		return false, nil
+	}
+	return false, fmt.Errorf("webdav: invalid Overwrite value")
+}
+
+// FormatOverwrite formats an Overwrite header.
+func FormatOverwrite(overwrite bool) string {
+	if overwrite {
+		return "T"
+	} else {
+		return "F"
+	}
+}
