@@ -67,7 +67,16 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	if c.username != "" || c.password != "" {
 		req.SetBasicAuth(c.username, c.password)
 	}
-	return c.http.Do(req)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode/100 != 2 {
+		// TODO: if body is plaintext, read it and populate the error message
+		resp.Body.Close()
+		return nil, &HTTPError{Code: resp.StatusCode}
+	}
+	return resp, nil
 }
 
 func (c *Client) DoMultiStatus(req *http.Request) (*Multistatus, error) {
