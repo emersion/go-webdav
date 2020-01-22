@@ -142,10 +142,14 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 	return l, nil
 }
 
-func encodeAddressPropReq(props []string) (*internal.Prop, error) {
+func encodeAddressPropReq(props []string, allProp bool) (*internal.Prop, error) {
 	var addrDataReq addressDataReq
-	for _, name := range props {
-		addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
+	if allProp {
+		addrDataReq.Allprop = &struct{}{}
+	} else {
+		for _, name := range props {
+			addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
+		}
 	}
 
 	getLastModReq := internal.NewRawXMLElement(internal.GetLastModifiedName, nil, nil)
@@ -199,11 +203,13 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 
 func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) ([]AddressObject, error) {
 	var props []string
+	var allProp bool
 	if query != nil {
 		props = query.Props
+		allProp = query.AllProp
 	}
 
-	propReq, err := encodeAddressPropReq(props)
+	propReq, err := encodeAddressPropReq(props, allProp)
 	if err != nil {
 		return nil, err
 	}
@@ -227,11 +233,13 @@ func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) (
 
 func (c *Client) MultiGetAddressBook(path string, multiGet *AddressBookMultiGet) ([]AddressObject, error) {
 	var props []string
+	var allProp bool
 	if multiGet != nil {
 		props = multiGet.Props
+		allProp = multiGet.AllProp
 	}
 
-	propReq, err := encodeAddressPropReq(props)
+	propReq, err := encodeAddressPropReq(props, allProp)
 	if err != nil {
 		return nil, err
 	}

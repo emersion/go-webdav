@@ -17,12 +17,14 @@ type AddressBook struct {
 }
 
 type AddressBookQuery struct {
-	Props []string
+	Props   []string
+	AllProp bool
 }
 
 type AddressBookMultiGet struct {
-	Paths []string
-	Props []string
+	Paths   []string
+	Props   []string
+	AllProp bool
 }
 
 type AddressObject struct {

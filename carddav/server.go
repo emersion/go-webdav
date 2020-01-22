@@ -72,6 +72,10 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 		if err := query.Prop.Decode(&addressData); err != nil && !internal.IsMissingProp(err) {
 			return err
 		}
+		if addressData.Allprop != nil && len(addressData.Props) > 0 {
+			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: only one of allprop or prop can be specified in address-data")
+		}
+		q.AllProp = addressData.Allprop != nil
 		for _, p := range addressData.Props {
 			q.Props = append(q.Props, p.Name)
 		}
@@ -104,6 +108,8 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 func (h *Handler) handleMultiget(w http.ResponseWriter, multiget *addressbookMultiget) error {
 	var resps []internal.Response
 	for _, href := range multiget.Hrefs {
+		// TODO: only get a subset of the vCard fields, depending on the
+		// multiget query
 		ao, err := h.Backend.GetAddressObject(href.Path)
 		if err != nil {
 			return err // TODO: create internal.Response with error

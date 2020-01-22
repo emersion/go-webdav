@@ -82,9 +82,9 @@ func newProp(name string, noValue bool) *internal.RawXMLValue {
 
 // https://tools.ietf.org/html/rfc6352#section-10.4
 type addressDataReq struct {
-	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav address-data"`
-	Props   []prop   `xml:"prop"`
-	// TODO: allprop
+	XMLName xml.Name  `xml:"urn:ietf:params:xml:ns:carddav address-data"`
+	Props   []prop    `xml:"prop"`
+	Allprop *struct{} `xml:"allprop"`
 }
 
 // https://tools.ietf.org/html/rfc6352#section-10.4.2
