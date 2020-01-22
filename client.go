@@ -124,10 +124,13 @@ func (c *Client) Open(name string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (c *Client) Readdir(name string) ([]FileInfo, error) {
-	// TODO: filter out the directory we're listing
+func (c *Client) Readdir(name string, recursive bool) ([]FileInfo, error) {
+	depth := internal.DepthOne
+	if recursive {
+		depth = internal.DepthInfinity
+	}
 
-	ms, err := c.ic.Propfind(name, internal.DepthOne, fileInfoPropfind)
+	ms, err := c.ic.Propfind(name, depth, fileInfoPropfind)
 	if err != nil {
 		return nil, err
 	}
