@@ -4,6 +4,8 @@
 package carddav
 
 import (
+	"time"
+
 	"github.com/emersion/go-vcard"
 )
 
@@ -24,6 +26,8 @@ type AddressBookMultiGet struct {
 }
 
 type AddressObject struct {
-	Path string
-	Card vcard.Card
+	Path    string
+	ModTime time.Time
+	ETag    string
+	Card    vcard.Card
 }

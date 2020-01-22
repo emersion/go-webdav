@@ -6,7 +6,9 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/emersion/go-vcard"
 	"github.com/emersion/go-webdav"
@@ -140,6 +142,17 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 	return l, nil
 }
 
+func encodeAddressPropReq(props []string) (*internal.Prop, error) {
+	var addrDataReq addressDataReq
+	for _, name := range props {
+		addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
+	}
+
+	getLastModReq := internal.NewRawXMLElement(internal.GetLastModifiedName, nil, nil)
+	getETagReq := internal.NewRawXMLElement(internal.GetETagName, nil, nil)
+	return internal.EncodeProp(&addrDataReq, getLastModReq, getETagReq)
+}
+
 func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 	addrs := make([]AddressObject, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
@@ -153,6 +166,20 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 			return nil, err
 		}
 
+		var getLastMod internal.GetLastModified
+		if err := resp.DecodeProp(&getLastMod); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
+		var getETag internal.GetETag
+		if err := resp.DecodeProp(&getETag); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+		etag, err := strconv.Unquote(getETag.ETag)
+		if err != nil {
+			return nil, fmt.Errorf("carddav: failed to unquote ETag: %v", err)
+		}
+
 		r := bytes.NewReader(addrData.Data)
 		card, err := vcard.NewDecoder(r).Decode()
 		if err != nil {
@@ -160,8 +187,10 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 		}
 
 		addrs = append(addrs, AddressObject{
-			Path: path,
-			Card: card,
+			Path:    path,
+			ModTime: time.Time(getLastMod.LastModified),
+			ETag:    etag,
+			Card:    card,
 		})
 	}
 
@@ -169,14 +198,12 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 }
 
 func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) ([]AddressObject, error) {
-	var addrDataReq addressDataReq
+	var props []string
 	if query != nil {
-		for _, name := range query.Props {
-			addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
-		}
+		props = query.Props
 	}
 
-	propReq, err := internal.EncodeProp(&addrDataReq)
+	propReq, err := encodeAddressPropReq(props)
 	if err != nil {
 		return nil, err
 	}
@@ -199,14 +226,12 @@ func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) (
 }
 
 func (c *Client) MultiGetAddressBook(path string, multiGet *AddressBookMultiGet) ([]AddressObject, error) {
-	var addrDataReq addressDataReq
+	var props []string
 	if multiGet != nil {
-		for _, name := range multiGet.Props {
-			addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
-		}
+		props = multiGet.Props
 	}
 
-	propReq, err := internal.EncodeProp(&addrDataReq)
+	propReq, err := encodeAddressPropReq(props)
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package carddav
 import (
 	"bytes"
 	"encoding/xml"
+	"fmt"
 	"mime"
 	"net/http"
 
@@ -259,7 +260,18 @@ func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *Address
 
 			return &addressDataResp{Data: buf.Bytes()}, nil
 		},
-		// TODO: getlastmodified, getetag
+	}
+
+	if !ao.ModTime.IsZero() {
+		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.GetLastModified{LastModified: internal.Time(ao.ModTime)}, nil
+		}
+	}
+
+	if ao.ETag != "" {
+		props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.GetETag{ETag: fmt.Sprintf("%q", ao.ETag)}, nil
+		}
 	}
 
 	return internal.NewPropfindResponse(ao.Path, propfind, props)
