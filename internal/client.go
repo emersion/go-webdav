@@ -33,38 +33,27 @@ func (c *Client) SetBasicAuth(username, password string) {
 	c.password = password
 }
 
-func (c *Client) ResolveHref(href string) (string, error) {
-	hrefURL, err := url.Parse(href)
-	if err != nil {
-		return "", fmt.Errorf("webdav: failed to parse href %q: %v", href, err)
+func (c *Client) ResolveHref(p string) *url.URL {
+	return &url.URL{
+		Scheme: c.endpoint.Scheme,
+		User:   c.endpoint.User,
+		Host:   c.endpoint.Host,
+		Path:   path.Join(c.endpoint.Path, p),
 	}
-
-	u := url.URL{
-		Scheme:   c.endpoint.Scheme,
-		User:     c.endpoint.User,
-		Host:     c.endpoint.Host,
-		Path:     path.Join(c.endpoint.Path, hrefURL.Path),
-		RawQuery: hrefURL.RawQuery,
-	}
-	return u.String(), nil
 }
 
-func (c *Client) NewRequest(method string, href string, body io.Reader) (*http.Request, error) {
-	href, err := c.ResolveHref(href)
-	if err != nil {
-		return nil, err
-	}
-	return http.NewRequest(method, href, body)
+func (c *Client) NewRequest(method string, path string, body io.Reader) (*http.Request, error) {
+	return http.NewRequest(method, c.ResolveHref(path).String(), body)
 }
 
-func (c *Client) NewXMLRequest(method string, href string, v interface{}) (*http.Request, error) {
+func (c *Client) NewXMLRequest(method string, path string, v interface{}) (*http.Request, error) {
 	var buf bytes.Buffer
 	buf.WriteString(xml.Header)
 	if err := xml.NewEncoder(&buf).Encode(v); err != nil {
 		return nil, err
 	}
 
-	req, err := c.NewRequest(method, href, &buf)
+	req, err := c.NewRequest(method, path, &buf)
 	if err != nil {
 		return nil, err
 	}
@@ -101,8 +90,8 @@ func (c *Client) DoMultiStatus(req *http.Request) (*Multistatus, error) {
 	return &ms, nil
 }
 
-func (c *Client) Propfind(href string, depth Depth, propfind *Propfind) (*Multistatus, error) {
-	req, err := c.NewXMLRequest("PROPFIND", href, propfind)
+func (c *Client) Propfind(path string, depth Depth, propfind *Propfind) (*Multistatus, error) {
+	req, err := c.NewXMLRequest("PROPFIND", path, propfind)
 	if err != nil {
 		return nil, err
 	}
@@ -113,11 +102,11 @@ func (c *Client) Propfind(href string, depth Depth, propfind *Propfind) (*Multis
 }
 
 // PropfindFlat performs a PROPFIND request with a zero depth.
-func (c *Client) PropfindFlat(href string, propfind *Propfind) (*Response, error) {
-	ms, err := c.Propfind(href, DepthZero, propfind)
+func (c *Client) PropfindFlat(path string, propfind *Propfind) (*Response, error) {
+	ms, err := c.Propfind(path, DepthZero, propfind)
 	if err != nil {
 		return nil, err
 	}
 
-	return ms.Get(href)
+	return ms.Get(path)
 }

@@ -81,7 +81,7 @@ func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
 		return "", err
 	}
 
-	return prop.Href, nil
+	return prop.Href.Path, nil
 }
 
 func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, error) {
@@ -98,7 +98,7 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 
 	l := make([]AddressBook, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
-		href, err := resp.Href()
+		path, err := resp.Path()
 		if err != nil {
 			return nil, err
 		}
@@ -130,7 +130,7 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 		}
 
 		l = append(l, AddressBook{
-			Href:            href,
+			Path:            path,
 			Name:            dispName.Name,
 			Description:     desc.Description,
 			MaxResourceSize: maxResSize.Size,
@@ -143,7 +143,7 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 	addrs := make([]AddressObject, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
-		href, err := resp.Href()
+		path, err := resp.Path()
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +160,7 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 		}
 
 		addrs = append(addrs, AddressObject{
-			Href: href,
+			Path: path,
 			Card: card,
 		})
 	}
@@ -198,7 +198,7 @@ func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) (
 	return decodeAddressList(ms)
 }
 
-func (c *Client) MultiGetAddressBook(href string, multiGet *AddressBookMultiGet) ([]AddressObject, error) {
+func (c *Client) MultiGetAddressBook(path string, multiGet *AddressBookMultiGet) ([]AddressObject, error) {
 	var addrDataReq addressDataReq
 	if multiGet != nil {
 		for _, name := range multiGet.Props {
@@ -213,13 +213,17 @@ func (c *Client) MultiGetAddressBook(href string, multiGet *AddressBookMultiGet)
 
 	addressbookMultiget := addressbookMultiget{Prop: propReq}
 
-	if multiGet == nil || len(multiGet.Hrefs) == 0 {
-		addressbookMultiget.Hrefs = []string{href}
+	if multiGet == nil || len(multiGet.Paths) == 0 {
+		href := internal.Href{Path: path}
+		addressbookMultiget.Hrefs = []internal.Href{href}
 	} else {
-		addressbookMultiget.Hrefs = multiGet.Hrefs
+		addressbookMultiget.Hrefs = make([]internal.Href, len(multiGet.Paths))
+		for i, p := range multiGet.Paths {
+			addressbookMultiget.Hrefs[i] = internal.Href{Path: p}
+		}
 	}
 
-	req, err := c.ic.NewXMLRequest("REPORT", href, &addressbookMultiget)
+	req, err := c.ic.NewXMLRequest("REPORT", path, &addressbookMultiget)
 	if err != nil {
 		return nil, err
 	}

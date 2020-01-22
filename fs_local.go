@@ -14,7 +14,7 @@ import (
 
 type LocalFileSystem string
 
-func (fs LocalFileSystem) path(name string) (string, error) {
+func (fs LocalFileSystem) localPath(name string) (string, error) {
 	if (filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0) || strings.Contains(name, "\x00") {
 		return "", internal.HTTPErrorf(http.StatusBadRequest, "webdav: invalid character in path")
 	}
@@ -25,36 +25,35 @@ func (fs LocalFileSystem) path(name string) (string, error) {
 	return filepath.Join(string(fs), filepath.FromSlash(name)), nil
 }
 
-func (fs LocalFileSystem) href(path string) (string, error) {
-	rel, err := filepath.Rel(string(fs), path)
+func (fs LocalFileSystem) externalPath(name string) (string, error) {
+	rel, err := filepath.Rel(string(fs), name)
 	if err != nil {
 		return "", err
 	}
-	href := "/" + filepath.ToSlash(rel)
-	return href, nil
+	return "/" + filepath.ToSlash(rel), nil
 }
 
 func (fs LocalFileSystem) Open(name string) (io.ReadCloser, error) {
-	p, err := fs.path(name)
+	p, err := fs.localPath(name)
 	if err != nil {
 		return nil, err
 	}
 	return os.Open(p)
 }
 
-func fileInfoFromOS(href string, fi os.FileInfo) *FileInfo {
+func fileInfoFromOS(p string, fi os.FileInfo) *FileInfo {
 	return &FileInfo{
-		Href:    href,
+		Path:    p,
 		Size:    fi.Size(),
 		ModTime: fi.ModTime(),
 		IsDir:   fi.IsDir(),
 		// TODO: fallback to http.DetectContentType?
-		MIMEType: mime.TypeByExtension(path.Ext(href)),
+		MIMEType: mime.TypeByExtension(path.Ext(p)),
 	}
 }
 
 func (fs LocalFileSystem) Stat(name string) (*FileInfo, error) {
-	p, err := fs.path(name)
+	p, err := fs.localPath(name)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +65,7 @@ func (fs LocalFileSystem) Stat(name string) (*FileInfo, error) {
 }
 
 func (fs LocalFileSystem) Readdir(name string, recursive bool) ([]FileInfo, error) {
-	p, err := fs.path(name)
+	p, err := fs.localPath(name)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +76,7 @@ func (fs LocalFileSystem) Readdir(name string, recursive bool) ([]FileInfo, erro
 			return err
 		}
 
-		href, err := fs.href(p)
+		href, err := fs.externalPath(p)
 		if err != nil {
 			return err
 		}
@@ -93,7 +92,7 @@ func (fs LocalFileSystem) Readdir(name string, recursive bool) ([]FileInfo, erro
 }
 
 func (fs LocalFileSystem) Create(name string) (io.WriteCloser, error) {
-	p, err := fs.path(name)
+	p, err := fs.localPath(name)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +100,7 @@ func (fs LocalFileSystem) Create(name string) (io.WriteCloser, error) {
 }
 
 func (fs LocalFileSystem) RemoveAll(name string) error {
-	p, err := fs.path(name)
+	p, err := fs.localPath(name)
 	if err != nil {
 		return err
 	}
@@ -116,7 +115,7 @@ func (fs LocalFileSystem) RemoveAll(name string) error {
 }
 
 func (fs LocalFileSystem) Mkdir(name string) error {
-	p, err := fs.path(name)
+	p, err := fs.localPath(name)
 	if err != nil {
 		return err
 	}

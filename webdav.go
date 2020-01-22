@@ -10,7 +10,7 @@ import (
 // TODO: add ETag to FileInfo
 
 type FileInfo struct {
-	Href     string
+	Path     string
 	Size     int64
 	ModTime  time.Time
 	IsDir    bool

@@ -25,8 +25,8 @@ var (
 
 // https://tools.ietf.org/html/rfc6352#section-6.2.3
 type addressbookHomeSet struct {
-	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:carddav addressbook-home-set"`
-	Href    string   `xml:"href"`
+	XMLName xml.Name      `xml:"urn:ietf:params:xml:ns:carddav addressbook-home-set"`
+	Href    internal.Href `xml:"href"`
 }
 
 type addressbookDescription struct {
@@ -62,9 +62,9 @@ type addressbookQuery struct {
 
 // https://tools.ietf.org/html/rfc6352#section-8.7
 type addressbookMultiget struct {
-	XMLName xml.Name       `xml:"urn:ietf:params:xml:ns:carddav addressbook-multiget"`
-	Hrefs   []string       `xml:"DAV: href"`
-	Prop    *internal.Prop `xml:"DAV: prop,omitempty"`
+	XMLName xml.Name        `xml:"urn:ietf:params:xml:ns:carddav addressbook-multiget"`
+	Hrefs   []internal.Href `xml:"DAV: href"`
+	Prop    *internal.Prop  `xml:"DAV: prop,omitempty"`
 	// TODO: DAV:allprop | DAV:propname
 }
 

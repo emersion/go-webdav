@@ -171,8 +171,8 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 
 type PropfindFunc func(raw *RawXMLValue) (interface{}, error)
 
-func NewPropfindResponse(href string, propfind *Propfind, props map[xml.Name]PropfindFunc) (*Response, error) {
-	resp := NewOKResponse(href)
+func NewPropfindResponse(path string, propfind *Propfind, props map[xml.Name]PropfindFunc) (*Response, error) {
+	resp := NewOKResponse(path)
 
 	if _, ok := props[ResourceTypeName]; !ok {
 		props[ResourceTypeName] = func(*RawXMLValue) (interface{}, error) {

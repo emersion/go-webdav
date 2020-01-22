@@ -173,7 +173,7 @@ func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*inte
 		// TODO: getetag
 	}
 
-	return internal.NewPropfindResponse(fi.Href, propfind, props)
+	return internal.NewPropfindResponse(fi.Path, propfind, props)
 }
 
 func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*internal.Response, error) {

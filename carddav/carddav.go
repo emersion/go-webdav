@@ -8,7 +8,7 @@ import (
 )
 
 type AddressBook struct {
-	Href            string
+	Path            string
 	Name            string
 	Description     string
 	MaxResourceSize int64
@@ -19,11 +19,11 @@ type AddressBookQuery struct {
 }
 
 type AddressBookMultiGet struct {
-	Hrefs []string
+	Paths []string
 	Props []string
 }
 
 type AddressObject struct {
-	Href string
+	Path string
 	Card vcard.Card
 }

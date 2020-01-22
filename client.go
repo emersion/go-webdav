@@ -42,16 +42,16 @@ func (c *Client) FindCurrentUserPrincipal() (string, error) {
 		return "", fmt.Errorf("webdav: unauthenticated")
 	}
 
-	return prop.Href, nil
+	return prop.Href.Path, nil
 }
 
 func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
-	href, err := resp.Href()
+	path, err := resp.Path()
 	if err != nil {
 		return nil, err
 	}
 
-	fi := &FileInfo{Href: href}
+	fi := &FileInfo{Path: path}
 
 	var resType internal.ResourceType
 	if err := resp.DecodeProp(&resType); err != nil {
@@ -193,12 +193,7 @@ func (c *Client) CopyAll(name, dest string, overwrite bool) error {
 		return err
 	}
 
-	dest, err = c.ic.ResolveHref(dest)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Destination", dest)
-
+	req.Header.Set("Destination", c.ic.ResolveHref(dest).String())
 	req.Header.Set("Overwrite", internal.FormatOverwrite(overwrite))
 
 	_, err = c.ic.Do(req)
@@ -211,12 +206,7 @@ func (c *Client) MoveAll(name, dest string, overwrite bool) error {
 		return err
 	}
 
-	dest, err = c.ic.ResolveHref(dest)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Destination", dest)
-
+	req.Header.Set("Destination", c.ic.ResolveHref(dest).String())
 	req.Header.Set("Overwrite", internal.FormatOverwrite(overwrite))
 
 	_, err = c.ic.Do(req)

@@ -99,7 +99,7 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 func (h *Handler) handleMultiget(w http.ResponseWriter, multiget *addressbookMultiget) error {
 	var resps []internal.Response
 	for _, href := range multiget.Hrefs {
-		ao, err := h.Backend.GetAddressObject(href)
+		ao, err := h.Backend.GetAddressObject(href.Path)
 		if err != nil {
 			return err // TODO: create internal.Response with error
 		}
@@ -225,11 +225,11 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 		},
 		// TODO: this is a principal property
 		addressBookHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &addressbookHomeSet{Href: "/"}, nil
+			return &addressbookHomeSet{Href: internal.Href{Path: "/"}}, nil
 		},
 		// TODO: this should be set on all resources
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: "/"}, nil
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: "/"}}, nil
 		},
 	}
 
@@ -258,7 +258,7 @@ func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *Address
 		// TODO: getlastmodified, getetag
 	}
 
-	return internal.NewPropfindResponse(ao.Href, propfind, props)
+	return internal.NewPropfindResponse(ao.Path, propfind, props)
 }
 
 func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*internal.Response, error) {

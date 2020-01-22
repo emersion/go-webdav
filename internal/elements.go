@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -66,6 +67,26 @@ func (s *Status) Err() error {
 	return nil
 }
 
+type Href url.URL
+
+func (h *Href) String() string {
+	u := (*url.URL)(h)
+	return u.String()
+}
+
+func (h *Href) MarshalText() ([]byte, error) {
+	return []byte(h.String()), nil
+}
+
+func (h *Href) UnmarshalText(b []byte) error {
+	u, err := url.Parse(string(b))
+	if err != nil {
+		return err
+	}
+	*h = Href(*u)
+	return nil
+}
+
 // https://tools.ietf.org/html/rfc4918#section-14.16
 type Multistatus struct {
 	XMLName             xml.Name   `xml:"DAV: multistatus"`
@@ -77,23 +98,23 @@ func NewMultistatus(resps ...Response) *Multistatus {
 	return &Multistatus{Responses: resps}
 }
 
-func (ms *Multistatus) Get(href string) (*Response, error) {
+func (ms *Multistatus) Get(path string) (*Response, error) {
 	for i := range ms.Responses {
 		resp := &ms.Responses[i]
 		for _, h := range resp.Hrefs {
-			if h == href {
+			if h.Path == path {
 				return resp, resp.Status.Err()
 			}
 		}
 	}
 
-	return nil, fmt.Errorf("webdav: missing response for href %q", href)
+	return nil, fmt.Errorf("webdav: missing response for path %q", path)
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.24
 type Response struct {
 	XMLName             xml.Name   `xml:"DAV: response"`
-	Hrefs               []string   `xml:"href"`
+	Hrefs               []Href     `xml:"href"`
 	Propstats           []Propstat `xml:"propstat,omitempty"`
 	ResponseDescription string     `xml:"responsedescription,omitempty"`
 	Status              *Status    `xml:"status,omitempty"`
@@ -101,21 +122,22 @@ type Response struct {
 	Location            *Location  `xml:"location,omitempty"`
 }
 
-func NewOKResponse(href string) *Response {
+func NewOKResponse(path string) *Response {
+	href := Href{Path: path}
 	return &Response{
-		Hrefs:  []string{href},
+		Hrefs:  []Href{href},
 		Status: &Status{Code: http.StatusOK},
 	}
 }
 
-func (resp *Response) Href() (string, error) {
+func (resp *Response) Path() (string, error) {
 	if err := resp.Status.Err(); err != nil {
 		return "", err
 	}
 	if len(resp.Hrefs) != 1 {
 		return "", fmt.Errorf("webdav: malformed response: expected exactly one href element, got %v", len(resp.Hrefs))
 	}
-	return resp.Hrefs[0], nil
+	return resp.Hrefs[0].Path, nil
 }
 
 type missingPropError struct {
@@ -181,7 +203,7 @@ func (resp *Response) EncodeProp(code int, v interface{}) error {
 // https://tools.ietf.org/html/rfc4918#section-14.9
 type Location struct {
 	XMLName xml.Name `xml:"DAV: location"`
-	Href    string   `xml:"href"`
+	Href    Href     `xml:"href"`
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.22
@@ -332,7 +354,7 @@ type DisplayName struct {
 // https://tools.ietf.org/html/rfc5397#section-3
 type CurrentUserPrincipal struct {
 	XMLName         xml.Name  `xml:"DAV: current-user-principal"`
-	Href            string    `xml:"href,omitempty"`
+	Href            Href      `xml:"href,omitempty"`
 	Unauthenticated *struct{} `xml:"unauthenticated,omitempty"`
 }
 
