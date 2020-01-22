@@ -339,6 +339,12 @@ type GetLastModified struct {
 	LastModified Time     `xml:",chardata"`
 }
 
+// https://tools.ietf.org/html/rfc4918#section-15.6
+type GetETag struct {
+	XMLName xml.Name `xml:"DAV: getetag"`
+	ETag    string   `xml:",chardata"`
+}
+
 // https://tools.ietf.org/html/rfc4918#section-14.5
 type Error struct {
 	XMLName xml.Name      `xml:"DAV: error"`

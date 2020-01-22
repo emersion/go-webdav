@@ -2,6 +2,7 @@ package webdav
 
 import (
 	"encoding/xml"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -87,13 +88,16 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	}
 	defer f.Close()
 
+	w.Header().Set("Content-Length", strconv.FormatInt(fi.Size, 10))
 	if fi.MIMEType != "" {
 		w.Header().Set("Content-Type", fi.MIMEType)
 	}
 	if !fi.ModTime.IsZero() {
 		w.Header().Set("Last-Modified", fi.ModTime.UTC().Format(http.TimeFormat))
 	}
-	w.Header().Set("Content-Length", strconv.FormatInt(fi.Size, 10))
+	if fi.ETag != "" {
+		w.Header().Set("ETag", fmt.Sprintf("%q", fi.ETag))
+	}
 
 	if rs, ok := f.(io.ReadSeeker); ok {
 		// If it's an io.Seeker, use http.ServeContent which supports ranges
@@ -171,7 +175,11 @@ func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*inte
 			}
 		}
 
-		// TODO: getetag
+		if fi.ETag != "" {
+			props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
+				return &internal.GetETag{ETag: fmt.Sprintf("%q", fi.ETag)}, nil
+			}
+		}
 	}
 
 	return internal.NewPropfindResponse(fi.Path, propfind, props)

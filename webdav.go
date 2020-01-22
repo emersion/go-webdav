@@ -7,12 +7,11 @@ import (
 	"time"
 )
 
-// TODO: add ETag to FileInfo
-
 type FileInfo struct {
 	Path     string
 	Size     int64
 	ModTime  time.Time
 	IsDir    bool
 	MIMEType string
+	ETag     string
 }

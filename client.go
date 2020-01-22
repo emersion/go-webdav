@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/emersion/go-webdav/internal"
@@ -45,6 +46,14 @@ func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	return prop.Href.Path, nil
 }
 
+var fileInfoPropfind = internal.NewPropNamePropfind(
+	internal.ResourceTypeName,
+	internal.GetContentLengthName,
+	internal.GetLastModifiedName,
+	internal.GetContentTypeName,
+	internal.GetETagName,
+)
+
 func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 	path, err := resp.Path()
 	if err != nil {
@@ -75,21 +84,23 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 			return nil, err
 		}
 
+		var getETag internal.GetETag
+		if err := resp.DecodeProp(&getETag); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+		etag, err := strconv.Unquote(getETag.ETag)
+		if err != nil {
+			return nil, fmt.Errorf("webdav: failed to unquote ETag: %v", err)
+		}
+
 		fi.Size = getLen.Length
 		fi.ModTime = time.Time(getMod.LastModified)
 		fi.MIMEType = getType.Type
+		fi.ETag = etag
 	}
 
 	return fi, nil
 }
-
-// TODO: getetag
-var fileInfoPropfind = internal.NewPropNamePropfind(
-	internal.ResourceTypeName,
-	internal.GetContentLengthName,
-	internal.GetLastModifiedName,
-	internal.GetContentTypeName,
-)
 
 func (c *Client) Stat(name string) (*FileInfo, error) {
 	resp, err := c.ic.PropfindFlat(name, fileInfoPropfind)

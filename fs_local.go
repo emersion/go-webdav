@@ -1,6 +1,7 @@
 package webdav
 
 import (
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -49,6 +50,12 @@ func fileInfoFromOS(p string, fi os.FileInfo) *FileInfo {
 		IsDir:   fi.IsDir(),
 		// TODO: fallback to http.DetectContentType?
 		MIMEType: mime.TypeByExtension(path.Ext(p)),
+		// RFC 2616 section 13.3.3 describes strong ETags. Ideally these would
+		// be checksums or sequence numbers, however these are expensive to
+		// compute. The modification time with nanosecond granularity is good
+		// enough, as it's very unlikely for the same file to be modified twice
+		// during a single nanosecond.
+		ETag: fmt.Sprintf("%x%x", fi.ModTime().UnixNano(), fi.Size()),
 	}
 }
 
