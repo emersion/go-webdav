@@ -33,10 +33,10 @@ func (c *Client) SetBasicAuth(username, password string) {
 	c.password = password
 }
 
-func (c *Client) NewRequest(method string, href string, body io.Reader) (*http.Request, error) {
+func (c *Client) ResolveHref(href string) (string, error) {
 	hrefURL, err := url.Parse(href)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse request href %q: %v", href, err)
+		return "", fmt.Errorf("webdav: failed to parse href %q: %v", href, err)
 	}
 
 	u := url.URL{
@@ -46,7 +46,15 @@ func (c *Client) NewRequest(method string, href string, body io.Reader) (*http.R
 		Path:     path.Join(c.endpoint.Path, hrefURL.Path),
 		RawQuery: hrefURL.RawQuery,
 	}
-	return http.NewRequest(method, u.String(), body)
+	return u.String(), nil
+}
+
+func (c *Client) NewRequest(method string, href string, body io.Reader) (*http.Request, error) {
+	href, err := c.ResolveHref(href)
+	if err != nil {
+		return nil, err
+	}
+	return http.NewRequest(method, href, body)
 }
 
 func (c *Client) NewXMLRequest(method string, href string, v interface{}) (*http.Request, error) {

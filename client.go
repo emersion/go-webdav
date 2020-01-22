@@ -186,3 +186,21 @@ func (c *Client) Mkdir(name string) error {
 	_, err = c.ic.Do(req)
 	return err
 }
+
+func (c *Client) MoveAll(name, dest string, overwrite bool) error {
+	req, err := c.ic.NewRequest("MOVE", name, nil)
+	if err != nil {
+		return err
+	}
+
+	dest, err = c.ic.ResolveHref(dest)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Destination", dest)
+
+	req.Header.Set("Overwrite", internal.FormatOverwrite(overwrite))
+
+	_, err = c.ic.Do(req)
+	return err
+}
