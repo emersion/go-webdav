@@ -65,13 +65,13 @@ func (fs LocalFileSystem) Stat(name string) (*FileInfo, error) {
 }
 
 func (fs LocalFileSystem) Readdir(name string, recursive bool) ([]FileInfo, error) {
-	p, err := fs.localPath(name)
+	path, err := fs.localPath(name)
 	if err != nil {
 		return nil, err
 	}
 
 	var l []FileInfo
-	err = filepath.Walk(p, func(p string, fi os.FileInfo, err error) error {
+	err = filepath.Walk(path, func(p string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -83,7 +83,7 @@ func (fs LocalFileSystem) Readdir(name string, recursive bool) ([]FileInfo, erro
 
 		l = append(l, *fileInfoFromOS(href, fi))
 
-		if !recursive && fi.IsDir() {
+		if !recursive && fi.IsDir() && path != p {
 			return filepath.SkipDir
 		}
 		return nil
