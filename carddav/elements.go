@@ -100,11 +100,32 @@ type propFilter struct {
 
 // https://tools.ietf.org/html/rfc6352#section-10.5.4
 type textMatch struct {
-	XMLName         xml.Name  `xml:"urn:ietf:params:xml:ns:carddav text-match"`
-	Text            string    `xml:",chardata"`
-	Collation       string    `xml:"collation,attr,omitempty"`
-	NegateCondition string    `xml:"negate-condition,attr,omitempty"`
-	MatchType       matchType `xml:"match-type,attr,omitempty"`
+	XMLName         xml.Name        `xml:"urn:ietf:params:xml:ns:carddav text-match"`
+	Text            string          `xml:",chardata"`
+	Collation       string          `xml:"collation,attr,omitempty"`
+	NegateCondition negateCondition `xml:"negate-condition,attr,omitempty"`
+	MatchType       matchType       `xml:"match-type,attr,omitempty"`
+}
+
+type negateCondition bool
+
+func (nc *negateCondition) UnmarshalText(b []byte) error {
+	switch s := string(b); s {
+	case "yes":
+		*nc = true
+	case "no":
+		*nc = false
+	default:
+		return fmt.Errorf("carddav: invalid negate-condition value: %q", s)
+	}
+	return nil
+}
+
+func (nc negateCondition) MarshalText() ([]byte, error) {
+	if nc {
+		return []byte("yes"), nil
+	}
+	return nil, nil
 }
 
 type matchType string
