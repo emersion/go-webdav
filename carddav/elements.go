@@ -76,10 +76,6 @@ const (
 	filterAllOf filterTest = "allof"
 )
 
-func (ft filterTest) MarshalText() ([]byte, error) {
-	return []byte(ft), nil
-}
-
 func (ft *filterTest) UnmarshalText(b []byte) error {
 	v := filterTest(string(b))
 	switch v {
