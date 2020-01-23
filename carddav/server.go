@@ -80,6 +80,12 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 			q.Props = append(q.Props, p.Name)
 		}
 	}
+	if query.Limit != nil {
+		q.Limit = int(query.Limit.NResults)
+		if q.Limit <= 0 {
+			return internal.ServeMultistatus(w, internal.NewMultistatus())
+		}
+	}
 
 	aos, err := h.Backend.QueryAddressObjects(&q)
 	if err != nil {

@@ -215,6 +215,9 @@ func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) (
 	}
 
 	addressbookQuery := addressbookQuery{Prop: propReq}
+	if query.Limit > 0 {
+		addressbookQuery.Limit = &limit{NResults: uint(query.Limit)}
+	}
 
 	req, err := c.ic.NewXMLRequest("REPORT", addressBook, &addressbookQuery)
 	if err != nil {

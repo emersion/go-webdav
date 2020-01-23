@@ -19,10 +19,13 @@ type AddressBook struct {
 type AddressBookQuery struct {
 	Props   []string
 	AllProp bool
+
+	Limit int // <= 0 means unlimited
 }
 
 type AddressBookMultiGet struct {
-	Paths   []string
+	Paths []string
+
 	Props   []string
 	AllProp bool
 }
