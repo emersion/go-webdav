@@ -77,7 +77,7 @@ const (
 )
 
 func (ft *filterTest) UnmarshalText(b []byte) error {
-	v := filterTest(string(b))
+	v := filterTest(b)
 	switch v {
 	case filterAnyOf, filterAllOf:
 		*ft = v
@@ -100,11 +100,31 @@ type propFilter struct {
 
 // https://tools.ietf.org/html/rfc6352#section-10.5.4
 type textMatch struct {
-	XMLName         xml.Name `xml:"urn:ietf:params:xml:ns:carddav text-match"`
-	Text            string   `xml:",chardata"`
-	Collation       string   `xml:"collation,attr,omitempty"`
-	NegateCondition string   `xml:"negate-condition,attr,omitempty"`
-	MatchType       string   `xml:"match-type,attr,omitempty"`
+	XMLName         xml.Name  `xml:"urn:ietf:params:xml:ns:carddav text-match"`
+	Text            string    `xml:",chardata"`
+	Collation       string    `xml:"collation,attr,omitempty"`
+	NegateCondition string    `xml:"negate-condition,attr,omitempty"`
+	MatchType       matchType `xml:"match-type,attr,omitempty"`
+}
+
+type matchType string
+
+const (
+	matchEquals     matchType = "equals"
+	matchContains   matchType = "contains"
+	matchStartsWith matchType = "starts-with"
+	matchEndsWith   matchType = "ends-with"
+)
+
+func (mt *matchType) UnmarshalText(b []byte) error {
+	v := matchType(b)
+	switch v {
+	case matchEquals, matchContains, matchStartsWith, matchEndsWith:
+		*mt = v
+		return nil
+	default:
+		return fmt.Errorf("carddav: invalid match type value: %q", v)
+	}
 }
 
 // https://tools.ietf.org/html/rfc6352#section-10.5.2
