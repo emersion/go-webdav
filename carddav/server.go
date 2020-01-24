@@ -62,7 +62,50 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
 	} else if report.Multiget != nil {
 		return h.handleMultiget(w, report.Multiget)
 	}
-	return internal.HTTPErrorf(http.StatusBadRequest, "webdav: expected addressbook-query or addressbook-multiget element in REPORT request")
+	return internal.HTTPErrorf(http.StatusBadRequest, "carddav: expected addressbook-query or addressbook-multiget element in REPORT request")
+}
+
+func decodePropFilter(el *propFilter) (*PropFilter, error) {
+	pf := &PropFilter{Name: el.Name, Test: FilterTest(el.Test)}
+	if el.IsNotDefined != nil {
+		if len(el.TextMatches) > 0 || len(el.Params) > 0 {
+			return nil, fmt.Errorf("carddav: failed to parse prop-filter: if is-not-defined is provided, text-match or param-filter can't be provided")
+		}
+		pf.IsNotDefined = true
+	}
+	for _, tm := range el.TextMatches {
+		pf.TextMatches = append(pf.TextMatches, *decodeTextMatch(&tm))
+	}
+	for _, paramEl := range el.Params {
+		param, err := decodeParamFilter(&paramEl)
+		if err != nil {
+			return nil, err
+		}
+		pf.Params = append(pf.Params, *param)
+	}
+	return pf, nil
+}
+
+func decodeParamFilter(el *paramFilter) (*ParamFilter, error) {
+	pf := &ParamFilter{Name: el.Name}
+	if el.IsNotDefined != nil {
+		if el.TextMatch != nil {
+			return nil, fmt.Errorf("carddav: failed to parse param-filter: if is-not-defined is provided, text-match can't be provided")
+		}
+		pf.IsNotDefined = true
+	}
+	if el.TextMatch != nil {
+		pf.TextMatch = decodeTextMatch(el.TextMatch)
+	}
+	return pf, nil
+}
+
+func decodeTextMatch(tm *textMatch) *TextMatch {
+	return &TextMatch{
+		Text:            tm.Text,
+		NegateCondition: bool(tm.NegateCondition),
+		MatchType:       MatchType(tm.MatchType),
+	}
 }
 
 func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) error {
@@ -79,6 +122,14 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 		for _, p := range addressData.Props {
 			q.Props = append(q.Props, p.Name)
 		}
+	}
+	q.FilterTest = FilterTest(query.Filter.Test)
+	for _, el := range query.Filter.Props {
+		pf, err := decodePropFilter(&el)
+		if err != nil {
+			return &internal.HTTPError{http.StatusBadRequest, err}
+		}
+		q.PropFilters = append(q.PropFilters, *pf)
 	}
 	if query.Limit != nil {
 		q.Limit = int(query.Limit.NResults)
