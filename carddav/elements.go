@@ -71,19 +71,13 @@ type filter struct {
 
 type filterTest string
 
-const (
-	filterAnyOf filterTest = "anyof"
-	filterAllOf filterTest = "allof"
-)
-
 func (ft *filterTest) UnmarshalText(b []byte) error {
-	v := filterTest(b)
-	switch v {
-	case filterAnyOf, filterAllOf:
-		*ft = v
+	switch FilterTest(b) {
+	case FilterAnyOf, FilterAllOf:
+		*ft = filterTest(b)
 		return nil
 	default:
-		return fmt.Errorf("carddav: invalid filter test value: %q", v)
+		return fmt.Errorf("carddav: invalid filter test value: %q", string(b))
 	}
 }
 
@@ -94,8 +88,8 @@ type propFilter struct {
 	Test    filterTest `xml:"test,attr,omitempty"`
 
 	IsNotDefined *struct{}     `xml:"is-not-defined,omitempty"`
-	TextMatch    []textMatch   `xml:"text-match"`
-	ParamFilter  []paramFilter `xml:"param-filter"`
+	TextMatch    []textMatch   `xml:"text-match,omitempty"`
+	ParamFilter  []paramFilter `xml:"param-filter,omitempty"`
 }
 
 // https://tools.ietf.org/html/rfc6352#section-10.5.4
@@ -128,23 +122,15 @@ func (nc negateCondition) MarshalText() ([]byte, error) {
 	return nil, nil
 }
 
-type matchType string
-
-const (
-	matchEquals     matchType = "equals"
-	matchContains   matchType = "contains"
-	matchStartsWith matchType = "starts-with"
-	matchEndsWith   matchType = "ends-with"
-)
+type matchType MatchType
 
 func (mt *matchType) UnmarshalText(b []byte) error {
-	v := matchType(b)
-	switch v {
-	case matchEquals, matchContains, matchStartsWith, matchEndsWith:
-		*mt = v
+	switch MatchType(b) {
+	case MatchEquals, MatchContains, MatchStartsWith, MatchEndsWith:
+		*mt = matchType(b)
 		return nil
 	default:
-		return fmt.Errorf("carddav: invalid match type value: %q", v)
+		return fmt.Errorf("carddav: invalid match type value: %q", string(b))
 	}
 }
 

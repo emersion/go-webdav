@@ -20,8 +20,51 @@ type AddressBookQuery struct {
 	Props   []string
 	AllProp bool
 
+	PropFilters []PropFilter
+	FilterTest  FilterTest // defaults to FilterAnyOf
+
 	Limit int // <= 0 means unlimited
 }
+
+type PropFilter struct {
+	Name string
+
+	// if IsNotDefined is set, TextMatches and Params need to be unset
+	IsNotDefined bool
+	TextMatches  []TextMatch
+	Params       []ParamFilter
+}
+
+type ParamFilter struct {
+	Name string
+	Test FilterTest // defaults to FilterAnyOf
+
+	// if IsNotDefined is set, TextMatch needs to be unset
+	IsNotDefined bool
+	TextMatch    *TextMatch
+}
+
+type TextMatch struct {
+	Text            string
+	NegateCondition bool
+	MatchType       MatchType // defaults to MatchContains
+}
+
+type FilterTest string
+
+const (
+	FilterAnyOf FilterTest = "anyof"
+	FilterAllOf FilterTest = "allof"
+)
+
+type MatchType string
+
+const (
+	MatchEquals     MatchType = "equals"
+	MatchContains   MatchType = "contains"
+	MatchStartsWith MatchType = "starts-with"
+	MatchEndsWith   MatchType = "ends-with"
+)
 
 type AddressBookMultiGet struct {
 	Paths []string
