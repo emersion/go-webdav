@@ -28,6 +28,7 @@ type AddressBookQuery struct {
 
 type PropFilter struct {
 	Name string
+	Test FilterTest // defaults to FilterAnyOf
 
 	// if IsNotDefined is set, TextMatches and Params need to be unset
 	IsNotDefined bool
@@ -37,7 +38,6 @@ type PropFilter struct {
 
 type ParamFilter struct {
 	Name string
-	Test FilterTest // defaults to FilterAnyOf
 
 	// if IsNotDefined is set, TextMatch needs to be unset
 	IsNotDefined bool

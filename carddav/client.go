@@ -157,6 +157,49 @@ func encodeAddressPropReq(props []string, allProp bool) (*internal.Prop, error) 
 	return internal.EncodeProp(&addrDataReq, getLastModReq, getETagReq)
 }
 
+func encodePropFilter(pf *PropFilter) (*propFilter, error) {
+	el := &propFilter{Name: pf.Name, Test: filterTest(pf.Test)}
+	if pf.IsNotDefined {
+		if len(pf.TextMatches) > 0 || len(pf.Params) > 0 {
+			return nil, fmt.Errorf("carddav: failed to encode PropFilter: IsNotDefined cannot be set with TextMatches or Params")
+		}
+		el.IsNotDefined = &struct{}{}
+	}
+	for _, tm := range pf.TextMatches {
+		el.TextMatches = append(el.TextMatches, *encodeTextMatch(&tm))
+	}
+	for _, param := range pf.Params {
+		paramEl, err := encodeParamFilter(&param)
+		if err != nil {
+			return nil, err
+		}
+		el.Params = append(el.Params, *paramEl)
+	}
+	return el, nil
+}
+
+func encodeParamFilter(pf *ParamFilter) (*paramFilter, error) {
+	el := &paramFilter{Name: pf.Name}
+	if pf.IsNotDefined {
+		if pf.TextMatch != nil {
+			return nil, fmt.Errorf("carddav: failed to encode ParamFilter: only one of IsNotDefined or TextMatch can be set")
+		}
+		el.IsNotDefined = &struct{}{}
+	}
+	if pf.TextMatch != nil {
+		el.TextMatch = encodeTextMatch(pf.TextMatch)
+	}
+	return el, nil
+}
+
+func encodeTextMatch(tm *TextMatch) *textMatch {
+	return &textMatch{
+		Text:            tm.Text,
+		NegateCondition: negateCondition(tm.NegateCondition),
+		MatchType:       matchType(tm.MatchType),
+	}
+}
+
 func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 	addrs := make([]AddressObject, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
@@ -215,6 +258,14 @@ func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) (
 	}
 
 	addressbookQuery := addressbookQuery{Prop: propReq}
+	addressbookQuery.Filter.Test = filterTest(query.FilterTest)
+	for _, pf := range query.PropFilters {
+		el, err := encodePropFilter(&pf)
+		if err != nil {
+			return nil, err
+		}
+		addressbookQuery.Filter.Props = append(addressbookQuery.Filter.Props, *el)
+	}
 	if query.Limit > 0 {
 		addressbookQuery.Limit = &limit{NResults: uint(query.Limit)}
 	}

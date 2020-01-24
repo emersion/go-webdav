@@ -88,8 +88,8 @@ type propFilter struct {
 	Test    filterTest `xml:"test,attr,omitempty"`
 
 	IsNotDefined *struct{}     `xml:"is-not-defined,omitempty"`
-	TextMatch    []textMatch   `xml:"text-match,omitempty"`
-	ParamFilter  []paramFilter `xml:"param-filter,omitempty"`
+	TextMatches  []textMatch   `xml:"text-match,omitempty"`
+	Params       []paramFilter `xml:"param-filter,omitempty"`
 }
 
 // https://tools.ietf.org/html/rfc6352#section-10.5.4
