@@ -142,12 +142,12 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 	return l, nil
 }
 
-func encodeAddressPropReq(props []string, allProp bool) (*internal.Prop, error) {
+func encodeAddressPropReq(req *AddressDataRequest) (*internal.Prop, error) {
 	var addrDataReq addressDataReq
-	if allProp {
+	if req.AllProp {
 		addrDataReq.Allprop = &struct{}{}
 	} else {
-		for _, name := range props {
+		for _, name := range req.Props {
 			addrDataReq.Props = append(addrDataReq.Props, prop{Name: name})
 		}
 	}
@@ -245,14 +245,7 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 }
 
 func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) ([]AddressObject, error) {
-	var props []string
-	var allProp bool
-	if query != nil {
-		props = query.Props
-		allProp = query.AllProp
-	}
-
-	propReq, err := encodeAddressPropReq(props, allProp)
+	propReq, err := encodeAddressPropReq(&query.DataRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -286,14 +279,7 @@ func (c *Client) QueryAddressBook(addressBook string, query *AddressBookQuery) (
 }
 
 func (c *Client) MultiGetAddressBook(path string, multiGet *AddressBookMultiGet) ([]AddressObject, error) {
-	var props []string
-	var allProp bool
-	if multiGet != nil {
-		props = multiGet.Props
-		allProp = multiGet.AllProp
-	}
-
-	propReq, err := encodeAddressPropReq(props, allProp)
+	propReq, err := encodeAddressPropReq(&multiGet.DataRequest)
 	if err != nil {
 		return nil, err
 	}

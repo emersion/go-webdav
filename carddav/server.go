@@ -16,8 +16,8 @@ import (
 // Backend is a CardDAV server backend.
 type Backend interface {
 	AddressBook() (*AddressBook, error)
-	GetAddressObject(path string) (*AddressObject, error)
-	ListAddressObjects() ([]AddressObject, error)
+	GetAddressObject(path string, req *AddressDataRequest) (*AddressObject, error)
+	ListAddressObjects(req *AddressDataRequest) ([]AddressObject, error)
 	QueryAddressObjects(query *AddressBookQuery) ([]AddressObject, error)
 	PutAddressObject(path string, card vcard.Card) error
 	DeleteAddressObject(path string) error
@@ -108,6 +108,18 @@ func decodeTextMatch(tm *textMatch) *TextMatch {
 	}
 }
 
+func decodeAddressDataReq(addressData *addressDataReq) (*AddressDataRequest, error) {
+	if addressData.Allprop != nil && len(addressData.Props) > 0 {
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "carddav: only one of allprop or prop can be specified in address-data")
+	}
+
+	req := &AddressDataRequest{AllProp: addressData.Allprop != nil}
+	for _, p := range addressData.Props {
+		req.Props = append(req.Props, p.Name)
+	}
+	return req, nil
+}
+
 func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) error {
 	var q AddressBookQuery
 	if query.Prop != nil {
@@ -115,13 +127,11 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 		if err := query.Prop.Decode(&addressData); err != nil && !internal.IsMissingProp(err) {
 			return err
 		}
-		if addressData.Allprop != nil && len(addressData.Props) > 0 {
-			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: only one of allprop or prop can be specified in address-data")
+		req, err := decodeAddressDataReq(&addressData)
+		if err != nil {
+			return err
 		}
-		q.AllProp = addressData.Allprop != nil
-		for _, p := range addressData.Props {
-			q.Props = append(q.Props, p.Name)
-		}
+		q.DataRequest = *req
 	}
 	q.FilterTest = FilterTest(query.Filter.Test)
 	for _, el := range query.Filter.Props {
@@ -163,11 +173,22 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 }
 
 func (h *Handler) handleMultiget(w http.ResponseWriter, multiget *addressbookMultiget) error {
+	var dataReq AddressDataRequest
+	if multiget.Prop != nil {
+		var addressData addressDataReq
+		if err := multiget.Prop.Decode(&addressData); err != nil && !internal.IsMissingProp(err) {
+			return err
+		}
+		decoded, err := decodeAddressDataReq(&addressData)
+		if err != nil {
+			return err
+		}
+		dataReq = *decoded
+	}
+
 	var resps []internal.Response
 	for _, href := range multiget.Hrefs {
-		// TODO: only get a subset of the vCard fields, depending on the
-		// multiget query
-		ao, err := h.Backend.GetAddressObject(href.Path)
+		ao, err := h.Backend.GetAddressObject(href.Path, &dataReq)
 		if err != nil {
 			return err // TODO: create internal.Response with error
 		}
@@ -200,7 +221,8 @@ func (b *backend) Options(r *http.Request) ([]string, error) {
 		return []string{http.MethodOptions, "PROPFIND"}, nil
 	}
 
-	_, err := b.Backend.GetAddressObject(r.URL.Path)
+	var dataReq AddressDataRequest
+	_, err := b.Backend.GetAddressObject(r.URL.Path, &dataReq)
 	if httpErr, ok := err.(*internal.HTTPError); ok && httpErr.Code == http.StatusNotFound {
 		return []string{http.MethodOptions}, nil
 	} else if err != nil {
@@ -215,7 +237,11 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 		return &internal.HTTPError{Code: http.StatusMethodNotAllowed}
 	}
 
-	ao, err := b.Backend.GetAddressObject(r.URL.Path)
+	var dataReq AddressDataRequest
+	if r.Method != http.MethodHead {
+		dataReq.AllProp = true
+	}
+	ao, err := b.Backend.GetAddressObject(r.URL.Path, &dataReq)
 	if err != nil {
 		return err
 	}
@@ -230,6 +256,8 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
+	var dataReq AddressDataRequest
+
 	var resps []internal.Response
 	if r.URL.Path == "/" {
 		ab, err := b.Backend.AddressBook()
@@ -244,7 +272,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		resps = append(resps, *resp)
 
 		if depth != internal.DepthZero {
-			aos, err := b.Backend.ListAddressObjects()
+			aos, err := b.Backend.ListAddressObjects(&dataReq)
 			if err != nil {
 				return nil, err
 			}
@@ -258,7 +286,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			}
 		}
 	} else {
-		ao, err := b.Backend.GetAddressObject(r.URL.Path)
+		ao, err := b.Backend.GetAddressObject(r.URL.Path, &dataReq)
 		if err != nil {
 			return nil, err
 		}

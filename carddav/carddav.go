@@ -17,13 +17,17 @@ type AddressBook struct {
 }
 
 type AddressBookQuery struct {
-	Props   []string
-	AllProp bool
+	DataRequest AddressDataRequest
 
 	PropFilters []PropFilter
 	FilterTest  FilterTest // defaults to FilterAnyOf
 
 	Limit int // <= 0 means unlimited
+}
+
+type AddressDataRequest struct {
+	Props   []string
+	AllProp bool
 }
 
 type PropFilter struct {
@@ -68,9 +72,7 @@ const (
 
 type AddressBookMultiGet struct {
 	Paths []string
-
-	Props   []string
-	AllProp bool
+	DataRequest AddressDataRequest
 }
 
 type AddressObject struct {
