@@ -75,7 +75,7 @@ func ServeMultistatus(w http.ResponseWriter, ms *Multistatus) error {
 }
 
 type Backend interface {
-	Options(r *http.Request) ([]string, error)
+	Options(r *http.Request) (caps []string, allow []string, err error)
 	HeadGet(w http.ResponseWriter, r *http.Request) error
 	Propfind(r *http.Request, pf *Propfind, depth Depth) (*Multistatus, error)
 	Proppatch(r *http.Request, pu *Propertyupdate) (*Response, error)
@@ -140,13 +140,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) error {
-	methods, err := h.Backend.Options(r)
+	caps, allow, err := h.Backend.Options(r)
 	if err != nil {
 		return err
 	}
+	caps = append([]string{"1", "3"}, caps...)
 
-	w.Header().Add("Allow", strings.Join(methods, ", "))
-	w.Header().Add("DAV", "1, 3")
+	w.Header().Add("DAV", strings.Join(caps, ", "))
+	w.Header().Add("Allow", strings.Join(allow, ", "))
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }

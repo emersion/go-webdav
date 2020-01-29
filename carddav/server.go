@@ -214,22 +214,29 @@ type backend struct {
 	Backend Backend
 }
 
-func (b *backend) Options(r *http.Request) ([]string, error) {
-	// TODO: add DAV: addressbook
+func (b *backend) Options(r *http.Request) (caps []string, allow []string, err error) {
+	caps = []string{"addressbook"}
 
 	if r.URL.Path == "/" {
-		return []string{http.MethodOptions, "PROPFIND"}, nil
+		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT"}, nil
 	}
 
 	var dataReq AddressDataRequest
-	_, err := b.Backend.GetAddressObject(r.URL.Path, &dataReq)
+	_, err = b.Backend.GetAddressObject(r.URL.Path, &dataReq)
 	if httpErr, ok := err.(*internal.HTTPError); ok && httpErr.Code == http.StatusNotFound {
-		return []string{http.MethodOptions}, nil
+		return caps, []string{http.MethodOptions, http.MethodPut}, nil
 	} else if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return []string{http.MethodOptions, http.MethodHead, http.MethodGet, "PROPFIND"}, nil
+	return caps, []string{
+		http.MethodOptions,
+		http.MethodHead,
+		http.MethodGet,
+		http.MethodPut,
+		http.MethodDelete,
+		"PROPFIND",
+	}, nil
 }
 
 func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {

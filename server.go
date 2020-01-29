@@ -45,31 +45,27 @@ type backend struct {
 	FileSystem FileSystem
 }
 
-func (b *backend) Options(r *http.Request) ([]string, error) {
+func (b *backend) Options(r *http.Request) (caps []string, allow []string, err error) {
 	fi, err := b.FileSystem.Stat(r.URL.Path)
 	if os.IsNotExist(err) {
-		return []string{http.MethodOptions}, nil
+		return nil, []string{http.MethodOptions, http.MethodPut, "MKCOL"}, nil
 	} else if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if fi.IsDir {
-		return []string{
-			http.MethodOptions,
-			http.MethodDelete,
-			"PROPFIND",
-			"MKCOL",
-		}, nil
-	} else {
-		return []string{
-			http.MethodOptions,
-			http.MethodHead,
-			http.MethodGet,
-			http.MethodPut,
-			http.MethodDelete,
-			"PROPFIND",
-		}, nil
+	allow = []string{
+		http.MethodOptions,
+		http.MethodDelete,
+		"PROPFIND",
+		"COPY",
+		"MOVE",
 	}
+
+	if !fi.IsDir {
+		allow = append(allow, http.MethodHead, http.MethodGet, http.MethodPut)
+	}
+
+	return nil, allow, nil
 }
 
 func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
