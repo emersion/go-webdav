@@ -218,7 +218,9 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 	caps = []string{"addressbook"}
 
 	if r.URL.Path == "/" {
-		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT"}, nil
+		// Note: some clients assume the address book is read-only when
+		// DELETE/MKCOL are missing
+		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT", "DELETE", "MKCOL"}, nil
 	}
 
 	var dataReq AddressDataRequest
