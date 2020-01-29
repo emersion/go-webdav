@@ -26,7 +26,7 @@ var (
 // https://tools.ietf.org/html/rfc6352#section-6.2.3
 type addressbookHomeSet struct {
 	XMLName xml.Name      `xml:"urn:ietf:params:xml:ns:carddav addressbook-home-set"`
-	Href    internal.Href `xml:"href"`
+	Href    internal.Href `xml:"DAV: href"`
 }
 
 type addressbookDescription struct {
