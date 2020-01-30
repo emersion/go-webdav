@@ -79,7 +79,7 @@ type Backend interface {
 	HeadGet(w http.ResponseWriter, r *http.Request) error
 	Propfind(r *http.Request, pf *Propfind, depth Depth) (*Multistatus, error)
 	Proppatch(r *http.Request, pu *Propertyupdate) (*Response, error)
-	Put(r *http.Request) error
+	Put(r *http.Request) (*Href, error)
 	Delete(r *http.Request) error
 	Mkcol(r *http.Request) error
 	Copy(r *http.Request, dest *Href, recursive, overwrite bool) (created bool, err error)
@@ -101,11 +101,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case http.MethodGet, http.MethodHead:
 			err = h.Backend.HeadGet(w, r)
 		case http.MethodPut:
-			err = h.Backend.Put(r)
+			var href *Href
+			href, err = h.Backend.Put(r)
 			if err == nil {
 				// TODO: Last-Modified, ETag, Content-Type if the request has
 				// been copied verbatim
-				// TODO: Location if the server has mutated the href
+				if href != nil {
+					w.Header().Set("Location", (*url.URL)(href).String())
+				}
 				w.WriteHeader(http.StatusCreated)
 			}
 		case http.MethodDelete:

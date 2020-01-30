@@ -19,7 +19,7 @@ type Backend interface {
 	GetAddressObject(path string, req *AddressDataRequest) (*AddressObject, error)
 	ListAddressObjects(req *AddressDataRequest) ([]AddressObject, error)
 	QueryAddressObjects(query *AddressBookQuery) ([]AddressObject, error)
-	PutAddressObject(path string, card vcard.Card) error
+	PutAddressObject(path string, card vcard.Card) (loc string, err error)
 	DeleteAddressObject(path string) error
 }
 
@@ -385,27 +385,32 @@ func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*
 	return nil, internal.HTTPErrorf(http.StatusForbidden, "carddav: PROPPATCH is unsupported")
 }
 
-func (b *backend) Put(r *http.Request) error {
+func (b *backend) Put(r *http.Request) (*internal.Href, error) {
 	// TODO: add support for If-None-Match
 
 	t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
-		return internal.HTTPErrorf(http.StatusBadRequest, "carddav: malformed Content-Type: %v", err)
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "carddav: malformed Content-Type: %v", err)
 	}
 	if t != vcard.MIMEType {
 		// TODO: send CARDDAV:supported-address-data error
-		return internal.HTTPErrorf(http.StatusBadRequest, "carddav: unsupporetd Content-Type %q", t)
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "carddav: unsupporetd Content-Type %q", t)
 	}
 
 	// TODO: check CARDDAV:max-resource-size precondition
 	card, err := vcard.NewDecoder(r.Body).Decode()
 	if err != nil {
 		// TODO: send CARDDAV:valid-address-data error
-		return internal.HTTPErrorf(http.StatusBadRequest, "carddav: failed to parse vCard: %v", err)
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "carddav: failed to parse vCard: %v", err)
 	}
 
 	// TODO: add support for the CARDDAV:no-uid-conflict error
-	return b.Backend.PutAddressObject(r.URL.Path, card)
+	loc, err := b.Backend.PutAddressObject(r.URL.Path, card)
+	if err != nil {
+		return nil, err
+	}
+
+	return &internal.Href{Path: loc}, nil
 }
 
 func (b *backend) Delete(r *http.Request) error {

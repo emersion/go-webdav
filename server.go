@@ -187,18 +187,18 @@ func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*
 	return nil, internal.HTTPErrorf(http.StatusForbidden, "webdav: PROPPATCH is unsupported")
 }
 
-func (b *backend) Put(r *http.Request) error {
+func (b *backend) Put(r *http.Request) (*internal.Href, error) {
 	wc, err := b.FileSystem.Create(r.URL.Path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer wc.Close()
 
 	if _, err := io.Copy(wc, r.Body); err != nil {
-		return err
+		return nil, err
 	}
 
-	return wc.Close()
+	return nil, wc.Close()
 }
 
 func (b *backend) Delete(r *http.Request) error {
