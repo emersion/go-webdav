@@ -1,6 +1,7 @@
 package caldav
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/emersion/go-webdav"
@@ -44,4 +45,60 @@ func (c *Client) FindCalendarHomeSet(principal string) (string, error) {
 	}
 
 	return prop.Href.Path, nil
+}
+
+func (c *Client) FindCalendars(calendarHomeSet string) ([]Calendar, error) {
+	propfind := internal.NewPropNamePropfind(
+		internal.ResourceTypeName,
+		internal.DisplayNameName,
+		calendarDescriptionName,
+		maxResourceSizeName,
+	)
+	ms, err := c.ic.Propfind(calendarHomeSet, internal.DepthOne, propfind)
+	if err != nil {
+		return nil, err
+	}
+
+	l := make([]Calendar, 0, len(ms.Responses))
+	for _, resp := range ms.Responses {
+		path, err := resp.Path()
+		if err != nil {
+			return nil, err
+		}
+
+		var resType internal.ResourceType
+		if err := resp.DecodeProp(&resType); err != nil {
+			return nil, err
+		}
+		if !resType.Is(calendarName) {
+			continue
+		}
+
+		var desc calendarDescription
+		if err := resp.DecodeProp(&desc); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
+		var dispName internal.DisplayName
+		if err := resp.DecodeProp(&dispName); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
+		var maxResSize maxResourceSize
+		if err := resp.DecodeProp(&maxResSize); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+		if maxResSize.Size < 0 {
+			return nil, fmt.Errorf("carddav: max-resource-size must be a positive integer")
+		}
+
+		l = append(l, Calendar{
+			Path:            path,
+			Name:            dispName.Name,
+			Description:     desc.Description,
+			MaxResourceSize: maxResSize.Size,
+		})
+	}
+
+	return l, nil
 }

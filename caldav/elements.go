@@ -14,6 +14,8 @@ var (
 	calendarDescriptionName   = xml.Name{namespace, "calendar-description"}
 	supportedCalendarDataName = xml.Name{namespace, "supported-calendar-data"}
 	maxResourceSizeName       = xml.Name{namespace, "max-resource-size"}
+
+	calendarName = xml.Name{namespace, "calendar"}
 )
 
 // https://tools.ietf.org/html/rfc4791#section-6.2.1
