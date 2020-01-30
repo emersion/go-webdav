@@ -71,7 +71,7 @@ const (
 )
 
 type AddressBookMultiGet struct {
-	Paths []string
+	Paths       []string
 	DataRequest AddressDataRequest
 }
 
