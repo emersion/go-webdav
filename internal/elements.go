@@ -356,12 +356,12 @@ func (etag *ETag) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func (etag *ETag) MarshalText() ([]byte, error) {
-	return []byte(fmt.Sprintf("%q", *etag)), nil
+func (etag ETag) MarshalText() ([]byte, error) {
+	return []byte(etag.String()), nil
 }
 
 func (etag ETag) String() string {
-	return string(etag)
+	return fmt.Sprintf("%q", string(etag))
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.5
