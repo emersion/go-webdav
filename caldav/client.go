@@ -3,6 +3,8 @@ package caldav
 import (
 	"fmt"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/internal"
@@ -101,4 +103,99 @@ func (c *Client) FindCalendars(calendarHomeSet string) ([]Calendar, error) {
 	}
 
 	return l, nil
+}
+
+func encodeCalendarCompReq(c *CalendarCompRequest) (*comp, error) {
+	encoded := comp{Name: c.Name}
+
+	if c.AllProps {
+		encoded.Allprop = &struct{}{}
+	}
+	for _, name := range c.Props {
+		encoded.Prop = append(encoded.Prop, prop{Name: name})
+	}
+
+	if c.AllComps {
+		encoded.Allcomp = &struct{}{}
+	}
+	for _, child := range c.Comps {
+		encodedChild, err := encodeCalendarCompReq(&child)
+		if err != nil {
+			return nil, err
+		}
+		encoded.Comp = append(encoded.Comp, *encodedChild)
+	}
+
+	return &encoded, nil
+}
+
+func encodeCalendarReq(c *CalendarCompRequest) (*internal.Prop, error) {
+	compReq, err := encodeCalendarCompReq(c)
+	if err != nil {
+		return nil, err
+	}
+
+	calDataReq := calendarDataReq{Comp: compReq}
+
+	getLastModReq := internal.NewRawXMLElement(internal.GetLastModifiedName, nil, nil)
+	getETagReq := internal.NewRawXMLElement(internal.GetETagName, nil, nil)
+	return internal.EncodeProp(&calDataReq, getLastModReq, getETagReq)
+}
+
+func decodeCalendarObjectList(ms *internal.Multistatus) ([]CalendarObject, error) {
+	addrs := make([]CalendarObject, 0, len(ms.Responses))
+	for _, resp := range ms.Responses {
+		path, err := resp.Path()
+		if err != nil {
+			return nil, err
+		}
+
+		var calData calendarDataResp
+		if err := resp.DecodeProp(&calData); err != nil {
+			return nil, err
+		}
+
+		var getLastMod internal.GetLastModified
+		if err := resp.DecodeProp(&getLastMod); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
+		var getETag internal.GetETag
+		if err := resp.DecodeProp(&getETag); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+		etag, err := strconv.Unquote(getETag.ETag)
+		if err != nil {
+			return nil, fmt.Errorf("carddav: failed to unquote ETag: %v", err)
+		}
+
+		addrs = append(addrs, CalendarObject{
+			Path:    path,
+			ModTime: time.Time(getLastMod.LastModified),
+			ETag:    etag,
+			Data:    calData.Data,
+		})
+	}
+
+	return addrs, nil
+}
+
+func (c *Client) QueryCalendar(calendar string, query *CalendarQuery) ([]CalendarObject, error) {
+	propReq, err := encodeCalendarReq(&query.Comp)
+	if err != nil {
+		return nil, err
+	}
+
+	calendarQuery := calendarQuery{Prop: propReq}
+	req, err := c.ic.NewXMLRequest("REPORT", calendar, &calendarQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	ms, err := c.ic.DoMultiStatus(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return decodeCalendarObjectList(ms)
 }

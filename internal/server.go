@@ -109,6 +109,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if href != nil {
 					w.Header().Set("Location", (*url.URL)(href).String())
 				}
+				// TODO: http.StatusNoContent if the resource already existed
 				w.WriteHeader(http.StatusCreated)
 			}
 		case http.MethodDelete:

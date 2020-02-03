@@ -85,7 +85,7 @@ type prop struct {
 }
 
 // Response variant of https://tools.ietf.org/html/rfc4791#section-9.6
-type calendarData struct {
+type calendarDataResp struct {
 	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-data"`
 	Data    []byte   `xml:",chardata"`
 }
