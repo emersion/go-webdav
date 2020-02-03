@@ -33,7 +33,7 @@ func (s *Status) MarshalText() ([]byte, error) {
 	if text == "" {
 		text = http.StatusText(s.Code)
 	}
-	return []byte(fmt.Sprintf("HTTP/1.1 %v %v", s.Code, s.Text)), nil
+	return []byte(fmt.Sprintf("HTTP/1.1 %v %v", s.Code, text)), nil
 }
 
 func (s *Status) UnmarshalText(b []byte) error {
