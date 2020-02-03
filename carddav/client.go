@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -222,10 +221,6 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 		if err := resp.DecodeProp(&getETag); err != nil && !internal.IsNotFound(err) {
 			return nil, err
 		}
-		etag, err := strconv.Unquote(getETag.ETag)
-		if err != nil {
-			return nil, fmt.Errorf("carddav: failed to unquote ETag: %v", err)
-		}
 
 		r := bytes.NewReader(addrData.Data)
 		card, err := vcard.NewDecoder(r).Decode()
@@ -236,7 +231,7 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 		addrs = append(addrs, AddressObject{
 			Path:    path,
 			ModTime: time.Time(getLastMod.LastModified),
-			ETag:    etag,
+			ETag:    string(getETag.ETag),
 			Card:    card,
 		})
 	}

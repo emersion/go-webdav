@@ -342,7 +342,26 @@ type GetLastModified struct {
 // https://tools.ietf.org/html/rfc4918#section-15.6
 type GetETag struct {
 	XMLName xml.Name `xml:"DAV: getetag"`
-	ETag    string   `xml:",chardata"`
+	ETag    ETag     `xml:",chardata"`
+}
+
+type ETag string
+
+func (etag *ETag) UnmarshalText(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return fmt.Errorf("webdav: failed to unquote ETag: %v", err)
+	}
+	*etag = ETag(s)
+	return nil
+}
+
+func (etag *ETag) MarshalText() ([]byte, error) {
+	return []byte(fmt.Sprintf("%q", *etag)), nil
+}
+
+func (etag ETag) String() string {
+	return string(etag)
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.5

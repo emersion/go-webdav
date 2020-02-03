@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/emersion/go-webdav/internal"
@@ -88,15 +87,11 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 		if err := resp.DecodeProp(&getETag); err != nil && !internal.IsNotFound(err) {
 			return nil, err
 		}
-		etag, err := strconv.Unquote(getETag.ETag)
-		if err != nil {
-			return nil, fmt.Errorf("webdav: failed to unquote ETag: %v", err)
-		}
 
 		fi.Size = getLen.Length
 		fi.ModTime = time.Time(getMod.LastModified)
 		fi.MIMEType = getType.Type
-		fi.ETag = etag
+		fi.ETag = string(getETag.ETag)
 	}
 
 	return fi, nil

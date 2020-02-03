@@ -3,7 +3,6 @@ package caldav
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/emersion/go-webdav"
@@ -164,15 +163,11 @@ func decodeCalendarObjectList(ms *internal.Multistatus) ([]CalendarObject, error
 		if err := resp.DecodeProp(&getETag); err != nil && !internal.IsNotFound(err) {
 			return nil, err
 		}
-		etag, err := strconv.Unquote(getETag.ETag)
-		if err != nil {
-			return nil, fmt.Errorf("carddav: failed to unquote ETag: %v", err)
-		}
 
 		addrs = append(addrs, CalendarObject{
 			Path:    path,
 			ModTime: time.Time(getLastMod.LastModified),
-			ETag:    etag,
+			ETag:    string(getETag.ETag),
 			Data:    calData.Data,
 		})
 	}

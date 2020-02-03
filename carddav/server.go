@@ -372,7 +372,7 @@ func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *Address
 
 	if ao.ETag != "" {
 		props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetETag{ETag: fmt.Sprintf("%q", ao.ETag)}, nil
+			return &internal.GetETag{ETag: internal.ETag(ao.ETag)}, nil
 		}
 	}
 
