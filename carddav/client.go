@@ -70,6 +70,18 @@ func (c *Client) SetBasicAuth(username, password string) {
 	c.ic.SetBasicAuth(username, password)
 }
 
+func (c *Client) HasSupport() error {
+	classes, _, err := c.ic.Options("/")
+	if err != nil {
+		return err
+	}
+
+	if !classes["addressbook"] {
+		return fmt.Errorf("carddav: server doesn't support the DAV addressbook class")
+	}
+	return nil
+}
+
 func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
 	propfind := internal.NewPropNamePropfind(addressBookHomeSetName)
 	resp, err := c.ic.PropfindFlat(principal, propfind)

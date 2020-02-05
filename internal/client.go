@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"unicode"
+	"strings"
 )
 
 type Client struct {
@@ -118,4 +120,43 @@ func (c *Client) PropfindFlat(path string, propfind *Propfind) (*Response, error
 	}
 
 	return ms.Get(path)
+}
+
+func parseCommaSeparatedSet(values []string, upper bool) map[string]bool {
+	m := make(map[string]bool)
+	for _, v := range values {
+		fields := strings.FieldsFunc(v, func(r rune) bool {
+			return unicode.IsSpace(r) || r == ','
+		})
+		for _, f := range fields {
+			if upper {
+				f = strings.ToUpper(f)
+			} else {
+				f = strings.ToLower(f)
+			}
+			m[f] = true
+		}
+	}
+	return m
+}
+
+func (c *Client) Options(path string) (classes map[string]bool, methods map[string]bool, err error) {
+	req, err := c.NewRequest(http.MethodOptions, path, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	resp.Body.Close()
+
+	classes = parseCommaSeparatedSet(resp.Header["Dav"], false)
+	if !classes["1"] {
+		return nil, nil, fmt.Errorf("webdav: server doesn't support DAV class 1")
+	}
+
+	methods = parseCommaSeparatedSet(resp.Header["Allow"], true)
+	return classes, methods, nil
 }
