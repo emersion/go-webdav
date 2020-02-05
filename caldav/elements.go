@@ -72,8 +72,25 @@ type compFilter struct {
 	Name         string       `xml:"name,attr"`
 	IsNotDefined *struct{}    `xml:"is-not-defined,omitempty"`
 	TimeRange    *timeRange   `xml:"time-range,omitempty"`
+	PropFilters  []propFilter `xml:"prop-filter,omitempty"`
 	CompFilters  []compFilter `xml:"comp-filter,omitempty"`
-	// TODO: prop-filter
+}
+
+// https://tools.ietf.org/html/rfc4791#section-9.7.2
+type propFilter struct {
+	XMLName      xml.Name   `xml:"urn:ietf:params:xml:ns:caldav prop-filter"`
+	Name         string     `xml:"name,attr"`
+	IsNotDefined *struct{}  `xml:"is-not-defined,omitempty"`
+	TimeRange    *timeRange `xml:"time-range,omitempty"`
+	TextMatch    *textMatch `xml:"text-match,omitempty"`
+	// TODO: param-filter
+}
+
+// https://tools.ietf.org/html/rfc4791#section-9.7.5
+type textMatch struct {
+	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav text-match"`
+	Text    string   `xml:",chardata"`
+	// TODO: collation, negate-condition
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.9
