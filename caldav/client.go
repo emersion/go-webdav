@@ -141,6 +141,20 @@ func encodeCalendarReq(c *CalendarCompRequest) (*internal.Prop, error) {
 	return internal.EncodeProp(&calDataReq, getLastModReq, getETagReq)
 }
 
+func encodeCompFilter(filter *CompFilter) *compFilter {
+	encoded := compFilter{Name: filter.Name}
+	if !filter.Start.IsZero() || !filter.End.IsZero() {
+		encoded.TimeRange = &timeRange{
+			Start: dateWithUTCTime(filter.Start),
+			End:   dateWithUTCTime(filter.End),
+		}
+	}
+	for _, child := range filter.Comps {
+		encoded.CompFilters = append(encoded.CompFilters, *encodeCompFilter(&child))
+	}
+	return &encoded
+}
+
 func decodeCalendarObjectList(ms *internal.Multistatus) ([]CalendarObject, error) {
 	addrs := make([]CalendarObject, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
@@ -176,12 +190,13 @@ func decodeCalendarObjectList(ms *internal.Multistatus) ([]CalendarObject, error
 }
 
 func (c *Client) QueryCalendar(calendar string, query *CalendarQuery) ([]CalendarObject, error) {
-	propReq, err := encodeCalendarReq(&query.Comp)
+	propReq, err := encodeCalendarReq(&query.CompRequest)
 	if err != nil {
 		return nil, err
 	}
 
 	calendarQuery := calendarQuery{Prop: propReq}
+	calendarQuery.Filter.CompFilter = *encodeCompFilter(&query.CompFilter)
 	req, err := c.ic.NewXMLRequest("REPORT", calendar, &calendarQuery)
 	if err != nil {
 		return nil, err

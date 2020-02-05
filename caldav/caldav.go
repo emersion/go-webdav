@@ -24,8 +24,15 @@ type CalendarCompRequest struct {
 	Comps    []CalendarCompRequest
 }
 
+type CompFilter struct {
+	Name       string
+	Start, End time.Time
+	Comps      []CompFilter
+}
+
 type CalendarQuery struct {
-	Comp CalendarCompRequest
+	CompRequest CalendarCompRequest
+	CompFilter  CompFilter
 }
 
 type CalendarObject struct {

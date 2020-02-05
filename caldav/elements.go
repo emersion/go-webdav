@@ -62,24 +62,25 @@ type calendarQuery struct {
 
 // https://tools.ietf.org/html/rfc4791#section-9.7
 type filter struct {
-	XMLName xml.Name   `xml:"urn:ietf:params:xml:ns:caldav filter"`
-	Comp    compFilter `xml:"comp-filter"`
+	XMLName    xml.Name   `xml:"urn:ietf:params:xml:ns:caldav filter"`
+	CompFilter compFilter `xml:"comp-filter"`
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.7.1
 type compFilter struct {
-	XMLName      xml.Name   `xml:"urn:ietf:params:xml:ns:caldav comp-filter"`
-	Name         string     `xml:"name,attr"`
-	IsNotDefined *struct{}  `xml:"is-not-defined,omitempty"`
-	TimeRange    *timeRange `xml:"time-range,omitempty"`
-	// TODO: prop-filter, comp-filter
+	XMLName      xml.Name     `xml:"urn:ietf:params:xml:ns:caldav comp-filter"`
+	Name         string       `xml:"name,attr"`
+	IsNotDefined *struct{}    `xml:"is-not-defined,omitempty"`
+	TimeRange    *timeRange   `xml:"time-range,omitempty"`
+	CompFilters  []compFilter `xml:"comp-filter,omitempty"`
+	// TODO: prop-filter
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.9
 type timeRange struct {
 	XMLName xml.Name        `xml:"urn:ietf:params:xml:ns:caldav time-range"`
-	Start   dateWithUTCTime `xml:"start,attr"`
-	End     dateWithUTCTime `xml:"end,attr"`
+	Start   dateWithUTCTime `xml:"start,attr,omitempty"`
+	End     dateWithUTCTime `xml:"end,attr,omitempty"`
 }
 
 const dateWithUTCTimeLayout = "20060102T150405Z"
