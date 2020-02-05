@@ -2,6 +2,7 @@ package caldav
 
 import (
 	"encoding/xml"
+	"time"
 
 	"github.com/emersion/go-webdav/internal"
 )
@@ -55,7 +56,50 @@ type calendarQuery struct {
 	Prop     *internal.Prop `xml:"DAV: prop,omitempty"`
 	AllProp  *struct{}      `xml:"DAV: allprop,omitempty"`
 	PropName *struct{}      `xml:"DAV: propname,omitempty"`
-	// TODO: filter, timezone
+	Filter   filter         `xml:"filter"`
+	// TODO: timezone
+}
+
+// https://tools.ietf.org/html/rfc4791#section-9.7
+type filter struct {
+	XMLName xml.Name   `xml:"urn:ietf:params:xml:ns:caldav filter"`
+	Comp    compFilter `xml:"comp-filter"`
+}
+
+// https://tools.ietf.org/html/rfc4791#section-9.7.1
+type compFilter struct {
+	XMLName      xml.Name   `xml:"urn:ietf:params:xml:ns:caldav comp-filter"`
+	Name         string     `xml:"name,attr"`
+	IsNotDefined *struct{}  `xml:"is-not-defined,omitempty"`
+	TimeRange    *timeRange `xml:"time-range,omitempty"`
+	// TODO: prop-filter, comp-filter
+}
+
+// https://tools.ietf.org/html/rfc4791#section-9.9
+type timeRange struct {
+	XMLName xml.Name        `xml:"urn:ietf:params:xml:ns:caldav time-range"`
+	Start   dateWithUTCTime `xml:"start,attr"`
+	End     dateWithUTCTime `xml:"end,attr"`
+}
+
+const dateWithUTCTimeLayout = "20060102T150405Z"
+
+// dateWithUTCTime is the "date with UTC time" format defined in RFC 5545 page
+// 34.
+type dateWithUTCTime time.Time
+
+func (t *dateWithUTCTime) UnmarshalText(b []byte) error {
+	tt, err := time.Parse(dateWithUTCTimeLayout, string(b))
+	if err != nil {
+		return err
+	}
+	*t = dateWithUTCTime(tt)
+	return nil
+}
+
+func (t *dateWithUTCTime) MarshalText() ([]byte, error) {
+	s := time.Time(*t).Format(dateWithUTCTimeLayout)
+	return []byte(s), nil
 }
 
 // Request variant of https://tools.ietf.org/html/rfc4791#section-9.6

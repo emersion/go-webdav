@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"unicode"
 	"strings"
+	"unicode"
 )
 
 type Client struct {
