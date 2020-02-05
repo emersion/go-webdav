@@ -5,6 +5,8 @@ package caldav
 
 import (
 	"time"
+
+	"github.com/luxifer/ical"
 )
 
 type Calendar struct {
@@ -39,5 +41,5 @@ type CalendarObject struct {
 	Path    string
 	ModTime time.Time
 	ETag    string
-	Data    []byte
+	Data    *ical.Calendar
 }
