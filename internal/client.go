@@ -83,7 +83,6 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	if resp.StatusCode/100 != 2 {
 		var wrappedErr error
 		if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/") {
-			// TODO: if body is plaintext, read it and populate the error message
 			lr := io.LimitedReader{R: resp.Body, N: 1024}
 			var buf bytes.Buffer
 			io.Copy(&buf, &lr)
