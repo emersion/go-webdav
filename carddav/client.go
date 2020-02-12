@@ -71,7 +71,7 @@ func (c *Client) SetBasicAuth(username, password string) {
 }
 
 func (c *Client) HasSupport() error {
-	classes, _, err := c.ic.Options("/")
+	classes, _, err := c.ic.Options("")
 	if err != nil {
 		return err
 	}

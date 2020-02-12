@@ -29,7 +29,7 @@ func (c *Client) SetBasicAuth(username, password string) {
 func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	propfind := internal.NewPropNamePropfind(internal.CurrentUserPrincipalName)
 
-	resp, err := c.ic.PropfindFlat("/", propfind)
+	resp, err := c.ic.PropfindFlat("", propfind)
 	if err != nil {
 		return "", err
 	}
