@@ -36,11 +36,17 @@ func (c *Client) SetBasicAuth(username, password string) {
 }
 
 func (c *Client) ResolveHref(p string) *url.URL {
+	trailingSlash := strings.HasSuffix(p, "/")
+	p = path.Join(c.endpoint.Path, p)
+	// path.Join trims any trailing slash
+	if trailingSlash {
+		p += "/"
+	}
 	return &url.URL{
 		Scheme: c.endpoint.Scheme,
 		User:   c.endpoint.User,
 		Host:   c.endpoint.Host,
-		Path:   path.Join(c.endpoint.Path, p),
+		Path:   p,
 	}
 }
 
