@@ -125,7 +125,7 @@ func (c *Client) PropfindFlat(path string, propfind *Propfind) (*Response, error
 		return nil, err
 	}
 
-	return ms.Get(path)
+	return ms.Get(c.ResolveHref(path).Path)
 }
 
 func parseCommaSeparatedSet(values []string, upper bool) map[string]bool {
