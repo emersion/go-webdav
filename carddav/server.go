@@ -386,7 +386,7 @@ func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*
 }
 
 func (b *backend) Put(r *http.Request) (*internal.Href, error) {
-	// TODO: add support for If-None-Match
+	// TODO: add support for If-None-Match and If-Match
 
 	t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {

@@ -3,9 +3,11 @@ package carddav
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -316,4 +318,52 @@ func (c *Client) MultiGetAddressBook(path string, multiGet *AddressBookMultiGet)
 	}
 
 	return decodeAddressList(ms)
+}
+
+func (c *Client) PutAddressObject(path string, card vcard.Card) (*AddressObject, error) {
+	// TODO: add support for If-None-Match and If-Match
+
+	pr, pw := io.Pipe()
+
+	go func() {
+		err := vcard.NewEncoder(pw).Encode(card)
+		pw.CloseWithError(err)
+	}()
+
+	req, err := c.ic.NewRequest(http.MethodPut, path, pr)
+	if err != nil {
+		pr.Close()
+		return nil, err
+	}
+	req.Header.Set("Content-Type", vcard.MIMEType)
+
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	ao := &AddressObject{Path: path}
+	if loc := resp.Header.Get("Location"); loc != "" {
+		u, err := url.Parse(loc)
+		if err != nil {
+			return nil, err
+		}
+		ao.Path = u.Path
+	}
+	if etag := resp.Header.Get("ETag"); etag != "" {
+		etag, err := strconv.Unquote(etag)
+		if err != nil {
+			return nil, err
+		}
+		ao.ETag = etag
+	}
+	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
+		t, err := http.ParseTime(lastModified)
+		if err != nil {
+			return nil, err
+		}
+		ao.ModTime = t
+	}
+
+	return ao, nil
 }
