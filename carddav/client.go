@@ -3,7 +3,6 @@ package carddav
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -323,16 +322,24 @@ func (c *Client) MultiGetAddressBook(path string, multiGet *AddressBookMultiGet)
 func (c *Client) PutAddressObject(path string, card vcard.Card) (*AddressObject, error) {
 	// TODO: add support for If-None-Match and If-Match
 
-	pr, pw := io.Pipe()
+	// TODO: some servers want a Content-Length header, so we can't stream the
+	// request body here. See the Radicale issue:
+	// https://github.com/Kozea/Radicale/issues/1016
 
-	go func() {
-		err := vcard.NewEncoder(pw).Encode(card)
-		pw.CloseWithError(err)
-	}()
+	//pr, pw := io.Pipe()
+	//go func() {
+	//	err := vcard.NewEncoder(pw).Encode(card)
+	//	pw.CloseWithError(err)
+	//}()
 
-	req, err := c.ic.NewRequest(http.MethodPut, path, pr)
+	var buf bytes.Buffer
+	if err := vcard.NewEncoder(&buf).Encode(card); err != nil {
+		return nil, err
+	}
+
+	req, err := c.ic.NewRequest(http.MethodPut, path, &buf)
 	if err != nil {
-		pr.Close()
+		//pr.Close()
 		return nil, err
 	}
 	req.Header.Set("Content-Type", vcard.MIMEType)
