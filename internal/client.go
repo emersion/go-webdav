@@ -77,9 +77,21 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	if resp.StatusCode/100 != 2 {
-		// TODO: if body is plaintext, read it and populate the error message
-		resp.Body.Close()
-		return nil, &HTTPError{Code: resp.StatusCode}
+		var wrappedErr error
+		if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/") {
+			// TODO: if body is plaintext, read it and populate the error message
+			lr := io.LimitedReader{R: resp.Body, N: 1024}
+			var buf bytes.Buffer
+			io.Copy(&buf, &lr)
+			resp.Body.Close()
+			if s := strings.TrimSpace(buf.String()); s != "" {
+				if lr.N == 0 {
+					s += " […]"
+				}
+				wrappedErr = fmt.Errorf("%v", s)
+			}
+		}
+		return nil, &HTTPError{Code: resp.StatusCode, Err: wrappedErr}
 	}
 	return resp, nil
 }
