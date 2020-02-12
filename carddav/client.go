@@ -3,6 +3,7 @@ package carddav
 import (
 	"bytes"
 	"fmt"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -319,6 +320,68 @@ func (c *Client) MultiGetAddressBook(path string, multiGet *AddressBookMultiGet)
 	return decodeAddressList(ms)
 }
 
+func populateAddressObject(ao *AddressObject, resp *http.Response) error {
+	if loc := resp.Header.Get("Location"); loc != "" {
+		u, err := url.Parse(loc)
+		if err != nil {
+			return err
+		}
+		ao.Path = u.Path
+	}
+	if etag := resp.Header.Get("ETag"); etag != "" {
+		etag, err := strconv.Unquote(etag)
+		if err != nil {
+			return err
+		}
+		ao.ETag = etag
+	}
+	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
+		t, err := http.ParseTime(lastModified)
+		if err != nil {
+			return err
+		}
+		ao.ModTime = t
+	}
+
+	return nil
+}
+
+func (c *Client) GetAddressObject(path string) (*AddressObject, error) {
+	req, err := c.ic.NewRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", vcard.MIMEType)
+
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, err
+	}
+	if !strings.EqualFold(mediaType, vcard.MIMEType) {
+		return nil, fmt.Errorf("carddav: expected Content-Type %q, got %q", vcard.MIMEType, mediaType)
+	}
+
+	card, err := vcard.NewDecoder(resp.Body).Decode()
+	if err != nil {
+		return nil, err
+	}
+
+	ao := &AddressObject{
+		Path: resp.Request.URL.Path,
+		Card: card,
+	}
+	if err := populateAddressObject(ao, resp); err != nil {
+		return nil, err
+	}
+	return ao, nil
+}
+
 func (c *Client) PutAddressObject(path string, card vcard.Card) (*AddressObject, error) {
 	// TODO: add support for If-None-Match and If-Match
 
@@ -348,29 +411,11 @@ func (c *Client) PutAddressObject(path string, card vcard.Card) (*AddressObject,
 	if err != nil {
 		return nil, err
 	}
+	resp.Body.Close()
 
 	ao := &AddressObject{Path: path}
-	if loc := resp.Header.Get("Location"); loc != "" {
-		u, err := url.Parse(loc)
-		if err != nil {
-			return nil, err
-		}
-		ao.Path = u.Path
+	if err := populateAddressObject(ao, resp); err != nil {
+		return nil, err
 	}
-	if etag := resp.Header.Get("ETag"); etag != "" {
-		etag, err := strconv.Unquote(etag)
-		if err != nil {
-			return nil, err
-		}
-		ao.ETag = etag
-	}
-	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
-		t, err := http.ParseTime(lastModified)
-		if err != nil {
-			return nil, err
-		}
-		ao.ModTime = t
-	}
-
 	return ao, nil
 }
