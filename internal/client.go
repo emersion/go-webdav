@@ -27,6 +27,10 @@ func NewClient(c *http.Client, endpoint string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	if u.Path == "" {
+		// This is important to avoid issues with path.Join
+		u.Path = "/"
+	}
 	return &Client{http: c, endpoint: u}, nil
 }
 
