@@ -55,7 +55,7 @@ type Client struct {
 	ic *internal.Client
 }
 
-func NewClient(c *http.Client, endpoint string) (*Client, error) {
+func NewClient(c webdav.HTTPClient, endpoint string) (*Client, error) {
 	wc, err := webdav.NewClient(c, endpoint)
 	if err != nil {
 		return nil, err
@@ -65,11 +65,6 @@ func NewClient(c *http.Client, endpoint string) (*Client, error) {
 		return nil, err
 	}
 	return &Client{wc, ic}, nil
-}
-
-func (c *Client) SetBasicAuth(username, password string) {
-	c.Client.SetBasicAuth(username, password)
-	c.ic.SetBasicAuth(username, password)
 }
 
 func (c *Client) HasSupport() error {

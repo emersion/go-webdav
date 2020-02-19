@@ -9,21 +9,42 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
+// HTTPClient performs HTTP requests. It's implemented by *http.Client.
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+type basicAuthHTTPClient struct {
+	c                  HTTPClient
+	username, password string
+}
+
+func (c *basicAuthHTTPClient) Do(req *http.Request) (*http.Response, error) {
+	req.SetBasicAuth(c.username, c.password)
+	return c.c.Do(req)
+}
+
+// HTTPClientWithBasicAuth returns an HTTP client that adds basic
+// authentication to all outgoing requests. If c is nil, http.DefaultClient is
+// used.
+func HTTPClientWithBasicAuth(c HTTPClient, username, password string) HTTPClient {
+	if c == nil {
+		c = http.DefaultClient
+	}
+	return &basicAuthHTTPClient{c, username, password}
+}
+
 // Client provides access to a remote WebDAV filesystem.
 type Client struct {
 	ic *internal.Client
 }
 
-func NewClient(c *http.Client, endpoint string) (*Client, error) {
+func NewClient(c HTTPClient, endpoint string) (*Client, error) {
 	ic, err := internal.NewClient(c, endpoint)
 	if err != nil {
 		return nil, err
 	}
 	return &Client{ic}, nil
-}
-
-func (c *Client) SetBasicAuth(username, password string) {
-	c.ic.SetBasicAuth(username, password)
 }
 
 func (c *Client) FindCurrentUserPrincipal() (string, error) {

@@ -12,13 +12,17 @@ import (
 	"unicode"
 )
 
-type Client struct {
-	http               *http.Client
-	endpoint           *url.URL
-	username, password string
+// HTTPClient performs HTTP requests. It's implemented by *http.Client.
+type HTTPClient interface {
+	Do(req *http.Request) (*http.Response, error)
 }
 
-func NewClient(c *http.Client, endpoint string) (*Client, error) {
+type Client struct {
+	http     HTTPClient
+	endpoint *url.URL
+}
+
+func NewClient(c HTTPClient, endpoint string) (*Client, error) {
 	if c == nil {
 		c = http.DefaultClient
 	}
@@ -32,11 +36,6 @@ func NewClient(c *http.Client, endpoint string) (*Client, error) {
 		u.Path = "/"
 	}
 	return &Client{http: c, endpoint: u}, nil
-}
-
-func (c *Client) SetBasicAuth(username, password string) {
-	c.username = username
-	c.password = password
 }
 
 func (c *Client) ResolveHref(p string) *url.URL {
@@ -73,9 +72,6 @@ func (c *Client) NewXMLRequest(method string, path string, v interface{}) (*http
 }
 
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
-	if c.username != "" || c.password != "" {
-		req.SetBasicAuth(c.username, c.password)
-	}
 	resp, err := c.http.Do(req)
 	if err != nil {
 		return nil, err
