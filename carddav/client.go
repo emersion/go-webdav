@@ -36,7 +36,7 @@ func Discover(domain string) (string, error) {
 
 	target := strings.TrimSuffix(addr.Target, ".")
 	if target == "" {
-		return "", nil
+		return "", fmt.Errorf("carddav: empty target in SRV record")
 	}
 
 	u := url.URL{Scheme: "https"}
