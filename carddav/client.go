@@ -41,7 +41,7 @@ func Discover(domain string) (string, error) {
 
 	u := url.URL{Scheme: "https"}
 	if addr.Port == 443 {
-		u.Host = addr.Target
+		u.Host = target
 	} else {
 		u.Host = fmt.Sprintf("%v:%v", target, addr.Port)
 	}
