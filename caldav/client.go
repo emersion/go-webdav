@@ -3,9 +3,11 @@ package caldav
 import (
 	"bytes"
 	"fmt"
+	"mime"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/emersion/go-ical"
@@ -239,6 +241,42 @@ func populateCalendarObject(co *CalendarObject, resp *http.Response) error {
 	}
 
 	return nil
+}
+
+func (c *Client) GetCalendarObject(path string) (*CalendarObject, error) {
+	req, err := c.ic.NewRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", ical.MIMEType)
+
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	mediaType, _, err := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, err
+	}
+	if !strings.EqualFold(mediaType, ical.MIMEType) {
+		return nil, fmt.Errorf("caldav: expected Content-Type %q, got %q", ical.MIMEType, mediaType)
+	}
+
+	cal, err := ical.NewDecoder(resp.Body).DecodeCalendar()
+	if err != nil {
+		return nil, err
+	}
+
+	co := &CalendarObject{
+		Path: resp.Request.URL.Path,
+		Data: cal,
+	}
+	if err := populateCalendarObject(co, resp); err != nil {
+		return nil, err
+	}
+	return co, nil
 }
 
 func (c *Client) PutCalendarObject(path string, cal *ical.Calendar) (*CalendarObject, error) {
