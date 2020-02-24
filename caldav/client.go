@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/emersion/go-ical"
 	"github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/internal"
-	"github.com/luxifer/ical"
 )
 
 // Client provides access to a remote CardDAV server.
@@ -174,13 +174,8 @@ func decodeCalendarObjectList(ms *internal.Multistatus) ([]CalendarObject, error
 			return nil, err
 		}
 
-		// Normalize line endings
-		// TODO: make the ical package less strict
-		b := calData.Data
-		b = bytes.ReplaceAll(b, []byte{'\r', '\n'}, []byte{'\n'})
-		b = bytes.ReplaceAll(b, []byte{'\n'}, []byte{'\r', '\n'})
-
-		data, err := ical.Parse(bytes.NewReader(b), nil)
+		r := bytes.NewReader(calData.Data)
+		data, err := ical.NewDecoder(r).DecodeCalendar()
 		if err != nil {
 			return nil, err
 		}

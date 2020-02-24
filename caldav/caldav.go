@@ -6,7 +6,7 @@ package caldav
 import (
 	"time"
 
-	"github.com/luxifer/ical"
+	"github.com/emersion/go-ical"
 )
 
 type Calendar struct {
