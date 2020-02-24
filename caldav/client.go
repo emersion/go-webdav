@@ -180,7 +180,7 @@ func decodeCalendarObjectList(ms *internal.Multistatus) ([]CalendarObject, error
 		}
 
 		r := bytes.NewReader(calData.Data)
-		data, err := ical.NewDecoder(r).DecodeCalendar()
+		data, err := ical.NewDecoder(r).Decode()
 		if err != nil {
 			return nil, err
 		}
@@ -264,7 +264,7 @@ func (c *Client) GetCalendarObject(path string) (*CalendarObject, error) {
 		return nil, fmt.Errorf("caldav: expected Content-Type %q, got %q", ical.MIMEType, mediaType)
 	}
 
-	cal, err := ical.NewDecoder(resp.Body).DecodeCalendar()
+	cal, err := ical.NewDecoder(resp.Body).Decode()
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (c *Client) PutCalendarObject(path string, cal *ical.Calendar) (*CalendarOb
 	// https://github.com/Kozea/Radicale/issues/1016
 
 	var buf bytes.Buffer
-	if err := ical.NewEncoder(&buf).EncodeCalendar(cal); err != nil {
+	if err := ical.NewEncoder(&buf).Encode(cal); err != nil {
 		return nil, err
 	}
 

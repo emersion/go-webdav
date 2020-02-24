@@ -1,4 +1,4 @@
-github.com/emersion/go-ical v0.0.0-20200224170602-c9b8621220bc h1:kpISLFxf4eYcslxD/XkzE2Su7UQdNKt0XYgnN6MEUxg=
-github.com/emersion/go-ical v0.0.0-20200224170602-c9b8621220bc/go.mod h1:4xVTBPcT43a1pp3vdaa+FuRdX5XhKCZPpWv7m0z9ByM=
+github.com/emersion/go-ical v0.0.0-20200224201310-cd514449c39e h1:YGM1sI7edZOt8KAfX9Miq/X99d2QXdgjkJ7vN4HjxAA=
+github.com/emersion/go-ical v0.0.0-20200224201310-cd514449c39e/go.mod h1:4xVTBPcT43a1pp3vdaa+FuRdX5XhKCZPpWv7m0z9ByM=
 github.com/emersion/go-vcard v0.0.0-20191221110513-5f81fa0d3cc7 h1:SE+tcd+0kn0cT4MqTo66gmkjqWHF1Z+Yha5/rhLs/H8=
 github.com/emersion/go-vcard v0.0.0-20191221110513-5f81fa0d3cc7/go.mod h1:HMJKR5wlh/ziNp+sHEDV2ltblO4JD2+IdDOWtGcQBTM=
