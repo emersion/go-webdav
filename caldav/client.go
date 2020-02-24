@@ -3,6 +3,9 @@ package caldav
 import (
 	"bytes"
 	"fmt"
+	"net/http"
+	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/emersion/go-ical"
@@ -210,4 +213,61 @@ func (c *Client) QueryCalendar(calendar string, query *CalendarQuery) ([]Calenda
 	}
 
 	return decodeCalendarObjectList(ms)
+}
+
+func populateCalendarObject(co *CalendarObject, resp *http.Response) error {
+	if loc := resp.Header.Get("Location"); loc != "" {
+		u, err := url.Parse(loc)
+		if err != nil {
+			return err
+		}
+		co.Path = u.Path
+	}
+	if etag := resp.Header.Get("ETag"); etag != "" {
+		etag, err := strconv.Unquote(etag)
+		if err != nil {
+			return err
+		}
+		co.ETag = etag
+	}
+	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
+		t, err := http.ParseTime(lastModified)
+		if err != nil {
+			return err
+		}
+		co.ModTime = t
+	}
+
+	return nil
+}
+
+func (c *Client) PutCalendarObject(path string, cal *ical.Calendar) (*CalendarObject, error) {
+	// TODO: add support for If-None-Match and If-Match
+
+	// TODO: some servers want a Content-Length header, so we can't stream the
+	// request body here. See the Radicale issue:
+	// https://github.com/Kozea/Radicale/issues/1016
+
+	var buf bytes.Buffer
+	if err := ical.NewEncoder(&buf).EncodeCalendar(cal); err != nil {
+		return nil, err
+	}
+
+	req, err := c.ic.NewRequest(http.MethodPut, path, &buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", ical.MIMEType)
+
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	resp.Body.Close()
+
+	co := &CalendarObject{Path: path}
+	if err := populateCalendarObject(co, resp); err != nil {
+		return nil, err
+	}
+	return co, nil
 }
