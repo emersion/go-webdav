@@ -94,12 +94,21 @@ func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
 	return prop.Href.Path, nil
 }
 
+func decodeSupportedAddressData(supported *supportedAddressData) []AddressDataType {
+	l := make([]AddressDataType, len(supported.Types))
+	for i, t := range supported.Types {
+		l[i] = AddressDataType{t.ContentType, t.Version}
+	}
+	return l
+}
+
 func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, error) {
 	propfind := internal.NewPropNamePropfind(
 		internal.ResourceTypeName,
 		internal.DisplayNameName,
 		addressBookDescriptionName,
 		maxResourceSizeName,
+		supportedAddressDataName,
 	)
 	ms, err := c.ic.Propfind(addressBookHomeSet, internal.DepthOne, propfind)
 	if err != nil {
@@ -139,11 +148,17 @@ func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, err
 			return nil, fmt.Errorf("carddav: max-resource-size must be a positive integer")
 		}
 
+		var supported supportedAddressData
+		if err := resp.DecodeProp(&supported); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
 		l = append(l, AddressBook{
-			Path:            path,
-			Name:            dispName.Name,
-			Description:     desc.Description,
-			MaxResourceSize: maxResSize.Size,
+			Path:                 path,
+			Name:                 dispName.Name,
+			Description:          desc.Description,
+			MaxResourceSize:      maxResSize.Size,
+			SupportedAddressData: decodeSupportedAddressData(&supported),
 		})
 	}
 

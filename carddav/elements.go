@@ -12,10 +12,10 @@ const namespace = "urn:ietf:params:xml:ns:carddav"
 var (
 	addressBookHomeSetName = xml.Name{namespace, "addressbook-home-set"}
 
-	addressBookName                 = xml.Name{namespace, "addressbook"}
-	addressBookDescriptionName      = xml.Name{namespace, "addressbook-description"}
-	addressBookSupportedAddressData = xml.Name{namespace, "addressbook-supported-address-data"}
-	maxResourceSizeName             = xml.Name{namespace, "max-resource-size"}
+	addressBookName            = xml.Name{namespace, "addressbook"}
+	addressBookDescriptionName = xml.Name{namespace, "addressbook-description"}
+	supportedAddressDataName   = xml.Name{namespace, "supported-address-data"}
+	maxResourceSizeName        = xml.Name{namespace, "max-resource-size"}
 
 	addressBookQueryName    = xml.Name{namespace, "addressbook-query"}
 	addressBookMultigetName = xml.Name{namespace, "addressbook-multiget"}
@@ -35,8 +35,8 @@ type addressbookDescription struct {
 }
 
 // https://tools.ietf.org/html/rfc6352#section-6.2.2
-type addressbookSupportedAddressData struct {
-	XMLName xml.Name          `xml:"urn:ietf:params:xml:ns:carddav addressbook-supported-address-data"`
+type supportedAddressData struct {
+	XMLName xml.Name          `xml:"urn:ietf:params:xml:ns:carddav supported-address-data"`
 	Types   []addressDataType `xml:"address-data-type"`
 }
 

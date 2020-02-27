@@ -9,11 +9,29 @@ import (
 	"github.com/emersion/go-vcard"
 )
 
+type AddressDataType struct {
+	ContentType string
+	Version     string
+}
+
 type AddressBook struct {
-	Path            string
-	Name            string
-	Description     string
-	MaxResourceSize int64
+	Path                 string
+	Name                 string
+	Description          string
+	MaxResourceSize      int64
+	SupportedAddressData []AddressDataType
+}
+
+func (ab *AddressBook) SupportsAddressData(contentType, version string) bool {
+	if len(ab.SupportedAddressData) == 0 {
+		return contentType == "text/vcard" && version == "3.0"
+	}
+	for _, t := range ab.SupportedAddressData {
+		if t.ContentType == contentType && t.Version == version {
+			return true
+		}
+	}
+	return false
 }
 
 type AddressBookQuery struct {

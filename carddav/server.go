@@ -321,8 +321,8 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 		addressBookDescriptionName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &addressbookDescription{Description: ab.Description}, nil
 		},
-		addressBookSupportedAddressData: func(*internal.RawXMLValue) (interface{}, error) {
-			return &addressbookSupportedAddressData{
+		supportedAddressDataName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &supportedAddressData{
 				Types: []addressDataType{
 					{ContentType: vcard.MIMEType, Version: "3.0"},
 					{ContentType: vcard.MIMEType, Version: "4.0"},
