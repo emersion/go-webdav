@@ -237,12 +237,12 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 		}
 
 		var getLastMod internal.GetLastModified
-		if err := resp.DecodeProp(&getLastMod); err != nil && !internal.IsNotFound(err) {
+		if err := resp.DecodeProp(&getLastMod); err != nil && !internal.IsMissingProp(err) {
 			return nil, err
 		}
 
 		var getETag internal.GetETag
-		if err := resp.DecodeProp(&getETag); err != nil && !internal.IsNotFound(err) {
+		if err := resp.DecodeProp(&getETag); err != nil && !internal.IsMissingProp(err) {
 			return nil, err
 		}
 
