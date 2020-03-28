@@ -143,19 +143,6 @@ func (resp *Response) Path() (string, error) {
 	return resp.Hrefs[0].Path, nil
 }
 
-type missingPropError struct {
-	XMLName xml.Name
-}
-
-func (err *missingPropError) Error() string {
-	return fmt.Sprintf("webdav: missing prop %q %q", err.XMLName.Space, err.XMLName.Local)
-}
-
-func IsMissingProp(err error) bool {
-	_, ok := err.(*missingPropError)
-	return ok
-}
-
 func (resp *Response) DecodeProp(values ...interface{}) error {
 	for _, v := range values {
 		// TODO wrap errors with more context (XML name)
@@ -176,7 +163,7 @@ func (resp *Response) DecodeProp(values ...interface{}) error {
 			}
 			return raw.Decode(v)
 		}
-		return &missingPropError{name}
+		return HTTPErrorf(http.StatusNotFound, "missing property %s", name)
 	}
 
 	return nil
@@ -254,7 +241,7 @@ func (p *Prop) Decode(v interface{}) error {
 
 	raw := p.Get(name)
 	if raw == nil {
-		return &missingPropError{name}
+		return HTTPErrorf(http.StatusNotFound, "missing property %s", name)
 	}
 
 	return raw.Decode(v)
