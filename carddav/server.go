@@ -124,7 +124,7 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 	var q AddressBookQuery
 	if query.Prop != nil {
 		var addressData addressDataReq
-		if err := query.Prop.Decode(&addressData); err != nil && !internal.IsMissingProp(err) {
+		if err := query.Prop.Decode(&addressData); err != nil && !internal.IsNotFound(err) {
 			return err
 		}
 		req, err := decodeAddressDataReq(&addressData)
@@ -176,7 +176,7 @@ func (h *Handler) handleMultiget(w http.ResponseWriter, multiget *addressbookMul
 	var dataReq AddressDataRequest
 	if multiget.Prop != nil {
 		var addressData addressDataReq
-		if err := multiget.Prop.Decode(&addressData); err != nil && !internal.IsMissingProp(err) {
+		if err := multiget.Prop.Decode(&addressData); err != nil && !internal.IsNotFound(err) {
 			return err
 		}
 		decoded, err := decodeAddressDataReq(&addressData)
