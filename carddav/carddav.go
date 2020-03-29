@@ -99,3 +99,17 @@ type AddressObject struct {
 	ETag    string
 	Card    vcard.Card
 }
+
+//SyncQuery is the query struct represents a sync-collection request
+type SyncQuery struct {
+	DataRequest AddressDataRequest
+	SyncToken   string
+	Limit       int // <= 0 means unlimited
+}
+
+//SyncResponse contains the returned sync-token for next time
+type SyncResponse struct {
+	SyncToken string
+	Updated   []AddressObject
+	Deleted   []string
+}

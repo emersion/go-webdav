@@ -93,6 +93,7 @@ type Multistatus struct {
 	XMLName             xml.Name   `xml:"DAV: multistatus"`
 	Responses           []Response `xml:"response"`
 	ResponseDescription string     `xml:"responsedescription,omitempty"`
+	SyncToken           string     `xml:"sync-token,omitempty"`
 }
 
 func NewMultistatus(resps ...Response) *Multistatus {
@@ -403,4 +404,19 @@ type Remove struct {
 type Set struct {
 	XMLName xml.Name `xml:"DAV: set"`
 	Prop    Prop     `xml:"prop"`
+}
+
+// https://tools.ietf.org/html/rfc6578#section-6.1
+type SyncCollectionQuery struct {
+	XMLName   xml.Name `xml:"DAV: sync-collection"`
+	SyncToken string   `xml:"sync-token"`
+	Limit     *Limit   `xml:"limit,omitempty"`
+	SyncLevel string   `xml:"sync-level"`
+	Prop      *Prop    `xml:"prop"`
+}
+
+// https://tools.ietf.org/html/rfc5323#section-5.17
+type Limit struct {
+	XMLName  xml.Name `xml:"DAV: limit"`
+	NResults uint     `xml:"nresults"`
 }

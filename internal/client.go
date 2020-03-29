@@ -174,3 +174,25 @@ func (c *Client) Options(path string) (classes map[string]bool, methods map[stri
 	methods = parseCommaSeparatedSet(resp.Header["Allow"], true)
 	return classes, methods, nil
 }
+
+// SyncCollection perform a `sync-collection` REPORT operation on a resource
+func (c *Client) SyncCollection(path, syncToken string, level Depth, limit *Limit, prop *Prop) (*Multistatus, error) {
+	q := SyncCollectionQuery{
+		SyncToken: syncToken,
+		SyncLevel: string(level),
+		Limit:     limit,
+		Prop:      prop,
+	}
+
+	req, err := c.NewXMLRequest("REPORT", path, &q)
+	if err != nil {
+		return nil, err
+	}
+
+	ms, err := c.DoMultiStatus(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return ms, nil
+}
