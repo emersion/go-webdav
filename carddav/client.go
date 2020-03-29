@@ -429,3 +429,56 @@ func (c *Client) PutAddressObject(path string, card vcard.Card) (*AddressObject,
 	}
 	return ao, nil
 }
+
+// SyncCollection do a sync-collection operation on resource(path), it returns a SyncResponse
+func (c *Client) SyncCollection(path string, query *SyncQuery) (*SyncResponse, error) {
+	var limit *internal.Limit
+	if query.Limit > 0 {
+		limit = &internal.Limit{NResults: uint(query.Limit)}
+	}
+
+	propReq, err := encodeAddressPropReq(&query.DataRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	ms, err := c.ic.SyncCollection(path, query.SyncToken, internal.DepthOne, limit, propReq)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &SyncResponse{SyncToken: ms.SyncToken}
+	for _, resp := range ms.Responses {
+		p, err := resp.Path()
+		if err != nil {
+			if err, ok := err.(*internal.HTTPError); ok && err.Code == http.StatusNotFound {
+				ret.Deleted = append(ret.Deleted, p)
+				continue
+			}
+			return nil, err
+		}
+
+		if p == path || path == fmt.Sprintf("%s/", p) {
+			continue
+		}
+
+		var getLastMod internal.GetLastModified
+		if err := resp.DecodeProp(&getLastMod); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
+		var getETag internal.GetETag
+		if err := resp.DecodeProp(&getETag); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
+		o := AddressObject{
+			Path:    p,
+			ModTime: time.Time(getLastMod.LastModified),
+			ETag:    string(getETag.ETag),
+		}
+		ret.Updated = append(ret.Updated, o)
+	}
+
+	return ret, nil
+}
