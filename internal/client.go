@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"path"
@@ -77,8 +78,23 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	if resp.StatusCode/100 != 2 {
+		defer resp.Body.Close()
+
+		contentType := resp.Header.Get("Content-Type")
+		if contentType == "" {
+			contentType = "text/plain"
+		}
+
 		var wrappedErr error
-		if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/") {
+		t, _, _ := mime.ParseMediaType(contentType)
+		if t == "application/xml" || t == "text/xml" {
+			var davErr Error
+			if err := xml.NewDecoder(resp.Body).Decode(&davErr); err != nil {
+				wrappedErr = err
+			} else {
+				wrappedErr = &davErr
+			}
+		} else if strings.HasPrefix(t, "text/") {
 			lr := io.LimitedReader{R: resp.Body, N: 1024}
 			var buf bytes.Buffer
 			io.Copy(&buf, &lr)

@@ -360,6 +360,11 @@ type Error struct {
 	Raw     []RawXMLValue `xml:",any"`
 }
 
+func (err *Error) Error() string {
+	b, _ := xml.Marshal(err)
+	return string(b)
+}
+
 // https://tools.ietf.org/html/rfc4918#section-15.2
 type DisplayName struct {
 	XMLName xml.Name `xml:"DAV: displayname"`
