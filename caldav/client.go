@@ -208,6 +208,7 @@ func (c *Client) QueryCalendar(calendar string, query *CalendarQuery) ([]Calenda
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("Depth", "1")
 
 	ms, err := c.ic.DoMultiStatus(req)
 	if err != nil {
