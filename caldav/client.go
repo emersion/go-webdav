@@ -218,6 +218,38 @@ func (c *Client) QueryCalendar(calendar string, query *CalendarQuery) ([]Calenda
 	return decodeCalendarObjectList(ms)
 }
 
+func (c *Client) MultiGetCalendar(path string, multiGet *CalendarMultiGet) ([]CalendarObject, error) {
+	propReq, err := encodeCalendarReq(&multiGet.CompRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	calendarMultiget := calendarMultiget{Prop: propReq}
+
+	if multiGet == nil || len(multiGet.Paths) == 0 {
+		href := internal.Href{Path: path}
+		calendarMultiget.Hrefs = []internal.Href{href}
+	} else {
+		calendarMultiget.Hrefs = make([]internal.Href, len(multiGet.Paths))
+		for i, p := range multiGet.Paths {
+			calendarMultiget.Hrefs[i] = internal.Href{Path: p}
+		}
+	}
+
+	req, err := c.ic.NewXMLRequest("REPORT", path, &calendarMultiget)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Add("Depth", "1")
+
+	ms, err := c.ic.DoMultiStatus(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return decodeCalendarObjectList(ms)
+}
+
 func populateCalendarObject(co *CalendarObject, resp *http.Response) error {
 	if loc := resp.Header.Get("Location"); loc != "" {
 		u, err := url.Parse(loc)

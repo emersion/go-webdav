@@ -47,6 +47,11 @@ type CalendarQuery struct {
 	CompFilter  CompFilter
 }
 
+type CalendarMultiGet struct {
+	Paths       []string
+	CompRequest CalendarCompRequest
+}
+
 type CalendarObject struct {
 	Path    string
 	ModTime time.Time

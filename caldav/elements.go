@@ -60,6 +60,15 @@ type calendarQuery struct {
 	// TODO: timezone
 }
 
+// https://tools.ietf.org/html/rfc4791#section-9.10
+type calendarMultiget struct {
+	XMLName  xml.Name        `xml:"urn:ietf:params:xml:ns:caldav calendar-multiget"`
+	Hrefs    []internal.Href `xml:"DAV: href"`
+	Prop     *internal.Prop  `xml:"DAV: prop,omitempty"`
+	AllProp  *struct{}       `xml:"DAV: allprop,omitempty"`
+	PropName *struct{}       `xml:"DAV: propname,omitempty"`
+}
+
 // https://tools.ietf.org/html/rfc4791#section-9.7
 type filter struct {
 	XMLName    xml.Name   `xml:"urn:ietf:params:xml:ns:caldav filter"`
