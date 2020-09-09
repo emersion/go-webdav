@@ -195,7 +195,7 @@ func (c *Client) Options(path string) (classes map[string]bool, methods map[stri
 func (c *Client) SyncCollection(path, syncToken string, level Depth, limit *Limit, prop *Prop) (*Multistatus, error) {
 	q := SyncCollectionQuery{
 		SyncToken: syncToken,
-		SyncLevel: string(level),
+		SyncLevel: level.String(),
 		Limit:     limit,
 		Prop:      prop,
 	}
