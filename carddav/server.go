@@ -36,6 +36,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.URL.Path == "/.well-known/carddav" {
+		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		return
+	}
+
 	var err error
 	switch r.Method {
 	case "REPORT":
