@@ -134,17 +134,18 @@ func NewOKResponse(path string) *Response {
 	}
 }
 
-func (resp *Response) Path() (path string, err error) {
-	if len(resp.Hrefs) == 1 {
-		path = resp.Hrefs[0].Path // A sync response for a deleted entry has to have a href/path together with a 404. See https://tools.ietf.org/html/rfc6578#section-3.2
-	}
-	if err = resp.Status.Err(); err != nil {
-		return
+func (resp *Response) Path() (string, error) {
+	if err := resp.Status.Err(); err != nil {
+		if len(resp.Hrefs) == 1 {
+			path := resp.Hrefs[0].Path // A sync response for a deleted entry has to have a path together with a 404. See https://tools.ietf.org/html/rfc6578#section-3.2
+			return path, err
+		}
+		return "", err
 	}
 	if len(resp.Hrefs) != 1 {
-		err = fmt.Errorf("webdav: malformed response: expected exactly one href element, got %v", len(resp.Hrefs))
+		return "", fmt.Errorf("webdav: malformed response: expected exactly one href element, got %v", len(resp.Hrefs))
 	}
-	return
+	return resp.Hrefs[0].Path, nil
 }
 
 func (resp *Response) DecodeProp(values ...interface{}) error {
