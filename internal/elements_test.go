@@ -1,9 +1,11 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/xml"
 	"strings"
 	"testing"
+	"time"
 )
 
 // https://tools.ietf.org/html/rfc4918#section-9.6.2
@@ -30,5 +32,25 @@ func TestMultistatus_Get_error(t *testing.T) {
 		t.Errorf("Multistatus.Get() = %T, expected an *HTTPError", err)
 	} else if httpErr.Code != 423 {
 		t.Errorf("HTTPError.Code = %v, expected 423", httpErr.Code)
+	}
+}
+
+func TestTimeRoundTrip(t *testing.T) {
+	buf := new(bytes.Buffer)
+	enc := xml.NewEncoder(buf)
+	now := Time(time.Now())
+	err := enc.Encode(now)
+	if err != nil {
+		t.Fatalf("could not encode time: %+v", err)
+	}
+
+	var got Time
+	err = xml.NewDecoder(buf).Decode(&got)
+	if err != nil {
+		t.Fatalf("could not decode time: %+v", err)
+	}
+
+	if got, want := got, now; !got.Equal(want) {
+		t.Fatalf("invalid round-trip:\ngot= %+v\nwant=%+v", got, want)
 	}
 }
