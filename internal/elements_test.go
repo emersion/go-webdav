@@ -36,21 +36,24 @@ func TestMultistatus_Get_error(t *testing.T) {
 }
 
 func TestTimeRoundTrip(t *testing.T) {
-	buf := new(bytes.Buffer)
-	enc := xml.NewEncoder(buf)
-	now := Time(time.Now())
-	err := enc.Encode(now)
+	now := Time(time.Now().UTC())
+	want, err := now.MarshalText()
 	if err != nil {
-		t.Fatalf("could not encode time: %+v", err)
+		t.Fatalf("could not marshal time: %+v", err)
 	}
 
 	var got Time
-	err = xml.NewDecoder(buf).Decode(&got)
+	err = got.UnmarshalText(want)
 	if err != nil {
-		t.Fatalf("could not decode time: %+v", err)
+		t.Fatalf("could not unmarshal time: %+v", err)
 	}
 
-	if got, want := got, now; !got.Equal(want) {
-		t.Fatalf("invalid round-trip:\ngot= %+v\nwant=%+v", got, want)
+	raw, err := got.MarshalText()
+	if err != nil {
+		t.Fatalf("could not marshal back: %+v", err)
+	}
+
+	if got, want := raw, want; !bytes.Equal(got, want) {
+		t.Fatalf("invalid round-trip:\ngot= %s\nwant=%s", got, want)
 	}
 }
