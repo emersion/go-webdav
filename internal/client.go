@@ -6,12 +6,98 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
 	"unicode"
 )
+
+// Discover performs a DNS-based CalDAV/CardDAV service discovery as described
+// in RFC 6764 section 6. It returns the URL to the CalDAV/CardDAV server.
+func Discover(service string, host string) (string, error) {
+	if service != "caldav" && service != "carddav" {
+		return "", fmt.Errorf("webdav: service discovery of type %v not supported", service)
+	}
+
+	path := ""
+
+	// Check for SRV records for the service we want, only lookup secure versions
+	// (caldavs, carddavs), plaintext connections are insecure
+	_, addrs, err := net.LookupSRV(fmt.Sprintf("%vs", service), "tcp", host)
+	if dnsErr, ok := err.(*net.DNSError); ok {
+		if dnsErr.IsTemporary {
+			return "", err
+		}
+	} else if err != nil {
+		return "", err
+	}
+
+	if len(addrs) > 0 {
+		srvTarget := strings.TrimSuffix(addrs[0].Target, ".")
+
+		// If we found one, check for a TXT record specifying the path
+		if srvTarget != "" {
+			txtRecs, err := net.LookupTXT(fmt.Sprintf("_%vs._tcp.%v", service, host))
+			if dnsErr, ok := err.(*net.DNSError); ok {
+				if dnsErr.IsTemporary {
+					return "", err
+				}
+			} else if err != nil {
+				return "", err
+			}
+
+			for _, txtRec := range txtRecs {
+				// This is not correct according to RFC 6763 sections 6.3 to 6.5,
+				// but LookupTXT merges all constituent strings together
+				for _, txtRecKeyVal := range strings.Split(txtRec, " ") {
+					if strings.HasPrefix(strings.ToLower(txtRecKeyVal), "path=") {
+						path = txtRecKeyVal[5:]
+						break
+					}
+				}
+
+				if path != "" {
+					break
+				}
+			}
+
+			if addrs[0].Port == 443 {
+				host = srvTarget
+			} else {
+				host = fmt.Sprintf("%v:%v", srvTarget, addrs[0].Port)
+			}
+		}
+	}
+
+	// If we didn't get a path from TXT records, use the default well-known location
+	if path == "" {
+		path = fmt.Sprintf("/.well-known/%v", service)
+	}
+
+	u := url.URL{Scheme: "https", Host: host, Path: path}
+	serviceUrl := u.String()
+
+	// Check if the resulting URL hosts a service
+	req, err := http.NewRequest(http.MethodOptions, serviceUrl, nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	resp.Body.Close()
+
+	// Servers might require authentication to perform an OPTIONS request
+	if resp.StatusCode/100 != 2 && resp.StatusCode != http.StatusUnauthorized {
+		return "", fmt.Errorf("HTTP request to %v failed: %v %v", serviceUrl, resp.StatusCode, resp.Status)
+	}
+
+	return serviceUrl, nil
+}
 
 // HTTPClient performs HTTP requests. It's implemented by *http.Client.
 type HTTPClient interface {
