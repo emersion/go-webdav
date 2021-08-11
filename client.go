@@ -86,16 +86,12 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 	if err := resp.DecodeProp(&resType); err != nil {
 		return nil, err
 	}
+
 	if resType.Is(internal.CollectionName) {
 		fi.IsDir = true
 	} else {
 		var getLen internal.GetContentLength
 		if err := resp.DecodeProp(&getLen); err != nil {
-			return nil, err
-		}
-
-		var getMod internal.GetLastModified
-		if err := resp.DecodeProp(&getMod); err != nil && !internal.IsNotFound(err) {
 			return nil, err
 		}
 
@@ -110,10 +106,15 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 		}
 
 		fi.Size = getLen.Length
-		fi.ModTime = time.Time(getMod.LastModified)
 		fi.MIMEType = getType.Type
 		fi.ETag = string(getETag.ETag)
 	}
+
+	var getMod internal.GetLastModified
+	if err := resp.DecodeProp(&getMod); err != nil && !internal.IsNotFound(err) {
+		return nil, err
+	}
+	fi.ModTime = time.Time(getMod.LastModified)
 
 	return fi, nil
 }
