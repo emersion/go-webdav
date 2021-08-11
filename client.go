@@ -111,7 +111,6 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 		}
 
 		fi.Size = getLen.Length
-
 		fi.MIMEType = getType.Type
 		fi.ETag = string(getETag.ETag)
 	}
