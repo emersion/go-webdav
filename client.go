@@ -95,11 +95,6 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 			return nil, err
 		}
 
-		var getMod internal.GetLastModified
-		if err := resp.DecodeProp(&getMod); err != nil && !internal.IsNotFound(err) {
-			return nil, err
-		}
-
 		var getType internal.GetContentType
 		if err := resp.DecodeProp(&getType); err != nil && !internal.IsNotFound(err) {
 			return nil, err
