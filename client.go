@@ -87,7 +87,13 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 		return nil, err
 	}
 	if resType.Is(internal.CollectionName) {
+		var getMod internal.GetLastModified
+		if err := resp.DecodeProp(&getMod); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
 		fi.IsDir = true
+		fi.ModTime = time.Time(getMod.LastModified)
 	} else {
 		var getLen internal.GetContentLength
 		if err := resp.DecodeProp(&getLen); err != nil {
