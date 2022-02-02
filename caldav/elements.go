@@ -2,6 +2,7 @@ package caldav
 
 import (
 	"encoding/xml"
+	"fmt"
 	"time"
 
 	"github.com/emersion/go-webdav/internal"
@@ -12,9 +13,13 @@ const namespace = "urn:ietf:params:xml:ns:caldav"
 var (
 	calendarHomeSetName = xml.Name{namespace, "calendar-home-set"}
 
-	calendarDescriptionName   = xml.Name{namespace, "calendar-description"}
-	supportedCalendarDataName = xml.Name{namespace, "supported-calendar-data"}
-	maxResourceSizeName       = xml.Name{namespace, "max-resource-size"}
+	calendarDescriptionName           = xml.Name{namespace, "calendar-description"}
+	supportedCalendarDataName         = xml.Name{namespace, "supported-calendar-data"}
+	supportedCalendarComponentSetName = xml.Name{namespace, "supported-calendar-component-set"}
+	maxResourceSizeName               = xml.Name{namespace, "max-resource-size"}
+
+	calendarQueryName    = xml.Name{namespace, "calendar-query"}
+	calendarMultigetName = xml.Name{namespace, "calendar-multiget"}
 
 	calendarName = xml.Name{namespace, "calendar"}
 )
@@ -35,6 +40,12 @@ type calendarDescription struct {
 type supportedCalendarData struct {
 	XMLName xml.Name           `xml:"urn:ietf:params:xml:ns:caldav supported-calendar-data"`
 	Types   []calendarDataType `xml:"calendar-data"`
+}
+
+// https://tools.ietf.org/html/rfc4791#section-5.2.3
+type supportedCalendarComponentSet struct {
+	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav supported-calendar-component-set"`
+	Comp    []comp   `xml:"comp"`
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.6
@@ -159,4 +170,26 @@ type prop struct {
 type calendarDataResp struct {
 	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-data"`
 	Data    []byte   `xml:",chardata"`
+}
+
+type reportReq struct {
+	Query    *calendarQuery
+	Multiget *calendarMultiget
+	// TODO: CALDAV:free-busy-query
+}
+
+func (r *reportReq) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	var v interface{}
+	switch start.Name {
+	case calendarQueryName:
+		r.Query = &calendarQuery{}
+		v = r.Query
+	case calendarMultigetName:
+		r.Multiget = &calendarMultiget{}
+		v = r.Multiget
+	default:
+		return fmt.Errorf("caldav: unsupported REPORT root %q %q", start.Name.Space, start.Name.Local)
+	}
+
+	return d.DecodeElement(v, &start)
 }
