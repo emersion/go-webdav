@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"bytes"
+	"log"
 )
 
 func ServeError(w http.ResponseWriter, err error) {
@@ -38,6 +41,13 @@ func ServeXML(w http.ResponseWriter) *xml.Encoder {
 func ServeMultistatus(w http.ResponseWriter, ms *Multistatus) error {
 	// TODO: streaming
 	w.WriteHeader(http.StatusMultiStatus)
+
+	var buf bytes.Buffer
+	enc := xml.NewEncoder(&buf)
+	enc.Indent("  ", "  ")
+	enc.Encode(&ms)
+	log.Println(">>", buf.String())
+
 	return ServeXML(w).Encode(ms)
 }
 
@@ -128,6 +138,12 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 	if err := DecodeXMLRequest(r, &propfind); err != nil {
 		return err
 	}
+
+	var buf bytes.Buffer
+	enc := xml.NewEncoder(&buf)
+	enc.Indent("  ", "  ")
+	enc.Encode(&propfind)
+	log.Println("<< PROPFIND", r.URL, buf.String())
 
 	depth := DepthInfinity
 	if s := r.Header.Get("Depth"); s != "" {
