@@ -2,6 +2,7 @@ package carddav
 
 import (
 	"bytes"
+	"context"
 	"encoding/xml"
 	"fmt"
 	"mime"
@@ -15,12 +16,12 @@ import (
 
 // Backend is a CardDAV server backend.
 type Backend interface {
-	AddressBook() (*AddressBook, error)
-	GetAddressObject(path string, req *AddressDataRequest) (*AddressObject, error)
-	ListAddressObjects(req *AddressDataRequest) ([]AddressObject, error)
-	QueryAddressObjects(query *AddressBookQuery) ([]AddressObject, error)
-	PutAddressObject(path string, card vcard.Card) (loc string, err error)
-	DeleteAddressObject(path string) error
+	AddressBook(ctx context.Context) (*AddressBook, error)
+	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
+	ListAddressObjects(ctx context.Context, req *AddressDataRequest) ([]AddressObject, error)
+	QueryAddressObjects(ctx context.Context, query *AddressBookQuery) ([]AddressObject, error)
+	PutAddressObject(ctx context.Context, path string, card vcard.Card) (loc string, err error)
+	DeleteAddressObject(ctx context.Context, path string) error
 }
 
 // Handler handles CardDAV HTTP requests. It can be used to create a CardDAV
@@ -63,9 +64,9 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if report.Query != nil {
-		return h.handleQuery(w, report.Query)
+		return h.handleQuery(r.Context(), w, report.Query)
 	} else if report.Multiget != nil {
-		return h.handleMultiget(w, report.Multiget)
+		return h.handleMultiget(r.Context(), w, report.Multiget)
 	}
 	return internal.HTTPErrorf(http.StatusBadRequest, "carddav: expected addressbook-query or addressbook-multiget element in REPORT request")
 }
@@ -125,7 +126,7 @@ func decodeAddressDataReq(addressData *addressDataReq) (*AddressDataRequest, err
 	return req, nil
 }
 
-func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) error {
+func (h *Handler) handleQuery(ctx context.Context, w http.ResponseWriter, query *addressbookQuery) error {
 	var q AddressBookQuery
 	if query.Prop != nil {
 		var addressData addressDataReq
@@ -153,7 +154,7 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 		}
 	}
 
-	aos, err := h.Backend.QueryAddressObjects(&q)
+	aos, err := h.Backend.QueryAddressObjects(ctx, &q)
 	if err != nil {
 		return err
 	}
@@ -177,7 +178,7 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *addressbookQuery) er
 	return internal.ServeMultistatus(w, ms)
 }
 
-func (h *Handler) handleMultiget(w http.ResponseWriter, multiget *addressbookMultiget) error {
+func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, multiget *addressbookMultiget) error {
 	var dataReq AddressDataRequest
 	if multiget.Prop != nil {
 		var addressData addressDataReq
@@ -193,7 +194,7 @@ func (h *Handler) handleMultiget(w http.ResponseWriter, multiget *addressbookMul
 
 	var resps []internal.Response
 	for _, href := range multiget.Hrefs {
-		ao, err := h.Backend.GetAddressObject(href.Path, &dataReq)
+		ao, err := h.Backend.GetAddressObject(ctx, href.Path, &dataReq)
 		if err != nil {
 			return err // TODO: create internal.Response with error
 		}
@@ -229,7 +230,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 	}
 
 	var dataReq AddressDataRequest
-	_, err = b.Backend.GetAddressObject(r.URL.Path, &dataReq)
+	_, err = b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
 	if httpErr, ok := err.(*internal.HTTPError); ok && httpErr.Code == http.StatusNotFound {
 		return caps, []string{http.MethodOptions, http.MethodPut}, nil
 	} else if err != nil {
@@ -255,7 +256,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodHead {
 		dataReq.AllProp = true
 	}
-	ao, err := b.Backend.GetAddressObject(r.URL.Path, &dataReq)
+	ao, err := b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
 	if err != nil {
 		return err
 	}
@@ -274,7 +275,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 
 	var resps []internal.Response
 	if r.URL.Path == "/" {
-		ab, err := b.Backend.AddressBook()
+		ab, err := b.Backend.AddressBook(r.Context())
 		if err != nil {
 			return nil, err
 		}
@@ -286,7 +287,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		resps = append(resps, *resp)
 
 		if depth != internal.DepthZero {
-			aos, err := b.Backend.ListAddressObjects(&dataReq)
+			aos, err := b.Backend.ListAddressObjects(r.Context(), &dataReq)
 			if err != nil {
 				return nil, err
 			}
@@ -300,7 +301,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			}
 		}
 	} else {
-		ao, err := b.Backend.GetAddressObject(r.URL.Path, &dataReq)
+		ao, err := b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
 		if err != nil {
 			return nil, err
 		}
@@ -410,7 +411,7 @@ func (b *backend) Put(r *http.Request) (*internal.Href, error) {
 	}
 
 	// TODO: add support for the CARDDAV:no-uid-conflict error
-	loc, err := b.Backend.PutAddressObject(r.URL.Path, card)
+	loc, err := b.Backend.PutAddressObject(r.Context(), r.URL.Path, card)
 	if err != nil {
 		return nil, err
 	}
@@ -419,7 +420,7 @@ func (b *backend) Put(r *http.Request) (*internal.Href, error) {
 }
 
 func (b *backend) Delete(r *http.Request) error {
-	return b.Backend.DeleteAddressObject(r.URL.Path)
+	return b.Backend.DeleteAddressObject(r.Context(), r.URL.Path)
 }
 
 func (b *backend) Mkcol(r *http.Request) error {
