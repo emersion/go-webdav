@@ -262,7 +262,12 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	w.Header().Set("Content-Type", vcard.MIMEType)
-	// TODO: set ETag, Last-Modified
+	if ao.ETag != "" {
+		w.Header().Set("ETag", internal.ETag(ao.ETag).String())
+	}
+	if !ao.ModTime.IsZero() {
+		w.Header().Set("Last-Modified", ao.ModTime.UTC().Format(http.TimeFormat))
+	}
 
 	if r.Method != http.MethodHead {
 		return vcard.NewEncoder(w).Encode(ao.Card)
