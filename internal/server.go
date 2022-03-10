@@ -10,6 +10,12 @@ import (
 )
 
 func ServeError(w http.ResponseWriter, err error) {
+	if davErr, ok := err.(*DAVError); ok {
+		w.WriteHeader(davErr.Code)
+		ServeXML(w).Encode(davErr.Err)
+		return
+	}
+
 	code := http.StatusInternalServerError
 	if httpErr, ok := err.(*HTTPError); ok {
 		code = httpErr.Code
@@ -102,11 +108,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		code := http.StatusInternalServerError
-		if httpErr, ok := err.(*HTTPError); ok {
-			code = httpErr.Code
-		}
-		http.Error(w, err.Error(), code)
+		ServeError(w, err)
 	}
 }
 

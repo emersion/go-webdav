@@ -99,3 +99,14 @@ func (err *HTTPError) Error() string {
 		return s
 	}
 }
+
+// DAVError is a XML error with HTTP status and a human readable message
+type DAVError struct {
+	Code int
+	Msg  string
+	Err  Error
+}
+
+func (err *DAVError) Error() string {
+	return err.Msg
+}

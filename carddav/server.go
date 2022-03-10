@@ -439,3 +439,28 @@ func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrit
 func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (created bool, err error) {
 	panic("TODO")
 }
+
+// https://tools.ietf.org/rfcmarkup?doc=6352#section-6.3.2.1
+type PreconditionType string
+
+const (
+	PreconditionNoUIDConflict        PreconditionType = "no-uid-conflict"
+	PreconditionSupportedAddressData PreconditionType = "supported-address-data"
+	PreconditionValidAddressData     PreconditionType = "valid-address-data"
+	PreconditionMaxResourceSize      PreconditionType = "max-resource-size"
+)
+
+func NewPreconditionError(err PreconditionType) error {
+	name := xml.Name{"urn:ietf:params:xml:ns:carddav", string(err)}
+	elem := internal.NewRawXMLElement(name, nil, nil)
+	e := internal.Error{
+		Raw: []internal.RawXMLValue{
+			*elem,
+		},
+	}
+	return &internal.DAVError{
+		Code: 409,
+		Msg:  fmt.Sprintf("precondition not met: %s", string(err)),
+		Err:  e,
+	}
+}
