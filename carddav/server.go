@@ -28,6 +28,7 @@ type Backend interface {
 // server.
 type Handler struct {
 	Backend Backend
+	Prefix  string
 }
 
 // ServeHTTP implements http.Handler.
@@ -38,7 +39,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Path == "/.well-known/carddav" {
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+		http.Redirect(w, r, h.Prefix, http.StatusMovedPermanently)
 		return
 	}
 
@@ -47,7 +48,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "REPORT":
 		err = h.handleReport(w, r)
 	default:
-		b := backend{h.Backend}
+		fmt.Printf("handling req for %s\n", r.URL.Path)
+		b := backend{h.Backend, h.Prefix}
 		hh := internal.Handler{&b}
 		hh.ServeHTTP(w, r)
 	}
@@ -161,7 +163,7 @@ func (h *Handler) handleQuery(ctx context.Context, w http.ResponseWriter, query 
 
 	var resps []internal.Response
 	for _, ao := range aos {
-		b := backend{h.Backend}
+		b := backend{h.Backend, h.Prefix}
 		propfind := internal.Propfind{
 			Prop:     query.Prop,
 			AllProp:  query.AllProp,
@@ -199,7 +201,7 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 			return err // TODO: create internal.Response with error
 		}
 
-		b := backend{h.Backend}
+		b := backend{h.Backend, h.Prefix}
 		propfind := internal.Propfind{
 			Prop:     multiget.Prop,
 			AllProp:  multiget.AllProp,
@@ -218,12 +220,13 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 
 type backend struct {
 	Backend Backend
+	Prefix  string
 }
 
 func (b *backend) Options(r *http.Request) (caps []string, allow []string, err error) {
 	caps = []string{"addressbook"}
 
-	if r.URL.Path == "/" {
+	if r.URL.Path == b.Prefix {
 		// Note: some clients assume the address book is read-only when
 		// DELETE/MKCOL are missing
 		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT", "DELETE", "MKCOL"}, nil
@@ -248,7 +251,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 }
 
 func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
-	if r.URL.Path == "/" {
+	if r.URL.Path == b.Prefix {
 		return &internal.HTTPError{Code: http.StatusMethodNotAllowed}
 	}
 
@@ -279,7 +282,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 	var dataReq AddressDataRequest
 
 	var resps []internal.Response
-	if r.URL.Path == "/" {
+	if r.URL.Path == b.Prefix {
 		ab, err := b.Backend.AddressBook(r.Context())
 		if err != nil {
 			return nil, err
@@ -342,11 +345,11 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 		},
 		// TODO: this is a principal property
 		addressBookHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &addressbookHomeSet{Href: internal.Href{Path: "/"}}, nil
+			return &addressbookHomeSet{Href: internal.Href{Path: b.Prefix}}, nil
 		},
 		// TODO: this should be set on all resources
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: "/"}}, nil
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: b.Prefix}}, nil
 		},
 	}
 
@@ -356,7 +359,7 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 		}
 	}
 
-	return internal.NewPropfindResponse("/", propfind, props)
+	return internal.NewPropfindResponse(b.Prefix, propfind, props)
 }
 
 func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *AddressObject) (*internal.Response, error) {
