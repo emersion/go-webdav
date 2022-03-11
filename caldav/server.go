@@ -1,6 +1,7 @@
 package caldav
 
 import (
+	"context"
 	"encoding/xml"
 	"net/http"
 	"time"
@@ -14,10 +15,10 @@ import (
 
 // Backend is a CalDAV server backend.
 type Backend interface {
-	Calendar() (*Calendar, error)
-	GetCalendarObject(path string, req *CalendarCompRequest) (*CalendarObject, error)
-	ListCalendarObjects(req *CalendarCompRequest) ([]CalendarObject, error)
-	QueryCalendarObjects(query *CalendarQuery) ([]CalendarObject, error)
+	Calendar(ctx context.Context) (*Calendar, error)
+	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
+	ListCalendarObjects(ctx context.Context, req *CalendarCompRequest) ([]CalendarObject, error)
+	QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error)
 }
 
 // Handler handles CalDAV HTTP requests. It can be used to create a CalDAV
@@ -60,7 +61,7 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if report.Query != nil {
-		return h.handleQuery(w, report.Query)
+		return h.handleQuery(r, w, report.Query)
 	} else if report.Multiget != nil {
 		return h.handleMultiget(w, report.Multiget)
 	}
@@ -100,7 +101,7 @@ func decodeCompFilter(el *compFilter) (*CompFilter, error) {
 	return cf, nil
 }
 
-func (h *Handler) handleQuery(w http.ResponseWriter, query *calendarQuery) error {
+func (h *Handler) handleQuery(r *http.Request, w http.ResponseWriter, query *calendarQuery) error {
 	var q CalendarQuery
 	// TODO: calendar-data in query.Prop
 	cf, err := decodeCompFilter(&query.Filter.CompFilter)
@@ -109,7 +110,7 @@ func (h *Handler) handleQuery(w http.ResponseWriter, query *calendarQuery) error
 	}
 	q.CompFilter = *cf
 
-	cos, err := h.Backend.QueryCalendarObjects(&q)
+	cos, err := h.Backend.QueryCalendarObjects(r.Context(), &q)
 	if err != nil {
 		return err
 	}
@@ -150,7 +151,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 	}
 
 	var dataReq CalendarCompRequest
-	_, err = b.Backend.GetCalendarObject(r.URL.Path, &dataReq)
+	_, err = b.Backend.GetCalendarObject(r.Context(), r.URL.Path, &dataReq)
 	if httpErr, ok := err.(*internal.HTTPError); ok && httpErr.Code == http.StatusNotFound {
 		return caps, []string{http.MethodOptions, http.MethodPut}, nil
 	} else if err != nil {
@@ -174,7 +175,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
 	var resps []internal.Response
 	if r.URL.Path == "/" {
-		cal, err := b.Backend.Calendar()
+		cal, err := b.Backend.Calendar(r.Context())
 		if err != nil {
 			return nil, err
 		}
