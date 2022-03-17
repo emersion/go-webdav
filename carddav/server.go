@@ -14,13 +14,22 @@ import (
 
 // TODO: add support for multiple address books
 
+type PutAddressObjectOptions struct {
+	// IfNoneMatch indicates that the client does not want to overwrite
+	// an existing resource.
+	IfNoneMatch bool
+	// IfMatch provides the ETag of the resource that the client intends
+	// to overwrite, can be ""
+	IfMatch string
+}
+
 // Backend is a CardDAV server backend.
 type Backend interface {
 	AddressBook(ctx context.Context) (*AddressBook, error)
 	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
 	ListAddressObjects(ctx context.Context, req *AddressDataRequest) ([]AddressObject, error)
 	QueryAddressObjects(ctx context.Context, query *AddressBookQuery) ([]AddressObject, error)
-	PutAddressObject(ctx context.Context, path string, card vcard.Card) (loc string, err error)
+	PutAddressObject(ctx context.Context, path string, card vcard.Card, opts *PutAddressObjectOptions) (loc string, err error)
 	DeleteAddressObject(ctx context.Context, path string) error
 }
 
@@ -397,7 +406,14 @@ func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*
 }
 
 func (b *backend) Put(r *http.Request) (*internal.Href, error) {
-	// TODO: add support for If-None-Match and If-Match
+	if inm := r.Header.Get("If-None-Match"); inm != "" && inm != "*" {
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "invalid value for If-None-Match header")
+	}
+
+	opts := PutAddressObjectOptions{
+		IfNoneMatch: r.Header.Get("If-None-Match") == "*",
+		IfMatch:     r.Header.Get("If-Match"),
+	}
 
 	t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 	if err != nil {
@@ -416,7 +432,7 @@ func (b *backend) Put(r *http.Request) (*internal.Href, error) {
 	}
 
 	// TODO: add support for the CARDDAV:no-uid-conflict error
-	loc, err := b.Backend.PutAddressObject(r.Context(), r.URL.Path, card)
+	loc, err := b.Backend.PutAddressObject(r.Context(), r.URL.Path, card, &opts)
 	if err != nil {
 		return nil, err
 	}
