@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/emersion/go-vcard"
+	"github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/internal"
 )
 
@@ -25,12 +26,15 @@ type PutAddressObjectOptions struct {
 
 // Backend is a CardDAV server backend.
 type Backend interface {
+	AddressbookHomeSetPath(ctx context.Context) (string, error)
 	AddressBook(ctx context.Context) (*AddressBook, error)
 	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
 	ListAddressObjects(ctx context.Context, req *AddressDataRequest) ([]AddressObject, error)
 	QueryAddressObjects(ctx context.Context, query *AddressBookQuery) ([]AddressObject, error)
 	PutAddressObject(ctx context.Context, path string, card vcard.Card, opts *PutAddressObjectOptions) (loc string, err error)
 	DeleteAddressObject(ctx context.Context, path string) error
+
+	webdav.UserPrincipalBackend
 }
 
 // Handler handles CardDAV HTTP requests. It can be used to create a CardDAV
@@ -46,12 +50,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Path == "/.well-known/carddav" {
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+	principalPath, err := h.Backend.CurrentUserPrincipal(r.Context())
+	if err != nil {
+		http.Error(w, "carddav: failed to determine current user principal", http.StatusInternalServerError)
 		return
 	}
 
-	var err error
+	if r.URL.Path == "/.well-known/carddav" {
+		http.Redirect(w, r, principalPath, http.StatusMovedPermanently)
+		return
+	}
+
 	switch r.Method {
 	case "REPORT":
 		err = h.handleReport(w, r)
@@ -176,7 +185,7 @@ func (h *Handler) handleQuery(ctx context.Context, w http.ResponseWriter, query 
 			AllProp:  query.AllProp,
 			PropName: query.PropName,
 		}
-		resp, err := b.propfindAddressObject(&propfind, &ao)
+		resp, err := b.propfindAddressObject(ctx, &propfind, &ao)
 		if err != nil {
 			return err
 		}
@@ -216,7 +225,7 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 			AllProp:  multiget.AllProp,
 			PropName: multiget.PropName,
 		}
-		resp, err := b.propfindAddressObject(&propfind, ao)
+		resp, err := b.propfindAddressObject(ctx, &propfind, ao)
 		if err != nil {
 			return err
 		}
@@ -234,7 +243,17 @@ type backend struct {
 func (b *backend) Options(r *http.Request) (caps []string, allow []string, err error) {
 	caps = []string{"addressbook"}
 
-	if r.URL.Path == "/" {
+	homeSetPath, err := b.Backend.AddressbookHomeSetPath(r.Context())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	principalPath, err := b.Backend.CurrentUserPrincipal(r.Context())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if r.URL.Path == "/" || r.URL.Path == principalPath || r.URL.Path == homeSetPath {
 		// Note: some clients assume the address book is read-only when
 		// DELETE/MKCOL are missing
 		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT", "DELETE", "MKCOL"}, nil
@@ -259,10 +278,6 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 }
 
 func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
-	if r.URL.Path == "/" {
-		return &internal.HTTPError{Code: http.StatusMethodNotAllowed}
-	}
-
 	var dataReq AddressDataRequest
 	if r.Method != http.MethodHead {
 		dataReq.AllProp = true
@@ -287,16 +302,32 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
+	homeSetPath, err := b.Backend.AddressbookHomeSetPath(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	principalPath, err := b.Backend.CurrentUserPrincipal(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
 	var dataReq AddressDataRequest
 
 	var resps []internal.Response
-	if r.URL.Path == "/" {
+
+	if r.URL.Path == principalPath {
+		resp, err := b.propfindUserPrincipal(r.Context(), propfind, homeSetPath)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
+	} else if r.URL.Path == homeSetPath {
 		ab, err := b.Backend.AddressBook(r.Context())
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := b.propfindAddressBook(propfind, ab)
+		resp, err := b.propfindAddressBook(r.Context(), propfind, ab)
 		if err != nil {
 			return nil, err
 		}
@@ -309,7 +340,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			}
 
 			for _, ao := range aos {
-				resp, err := b.propfindAddressObject(propfind, &ao)
+				resp, err := b.propfindAddressObject(r.Context(), propfind, &ao)
 				if err != nil {
 					return nil, err
 				}
@@ -322,7 +353,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			return nil, err
 		}
 
-		resp, err := b.propfindAddressObject(propfind, ao)
+		resp, err := b.propfindAddressObject(r.Context(), propfind, ao)
 		if err != nil {
 			return nil, err
 		}
@@ -332,8 +363,31 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 	return internal.NewMultistatus(resps...), nil
 }
 
-func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBook) (*internal.Response, error) {
+func (b *backend) propfindUserPrincipal(ctx context.Context, propfind *internal.Propfind, homeSetPath string) (*internal.Response, error) {
+	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
 	props := map[xml.Name]internal.PropfindFunc{
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+		},
+		addressBookHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &addressbookHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
+		},
+	}
+	return internal.NewPropfindResponse(principalPath, propfind, props)
+}
+
+func (b *backend) propfindAddressBook(ctx context.Context, propfind *internal.Propfind, ab *AddressBook) (*internal.Response, error) {
+	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	props := map[xml.Name]internal.PropfindFunc{
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+		},
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, addressBookName), nil
 		},
@@ -351,14 +405,6 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 				},
 			}, nil
 		},
-		// TODO: this is a principal property
-		addressBookHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &addressbookHomeSet{Href: internal.Href{Path: "/"}}, nil
-		},
-		// TODO: this should be set on all resources
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: "/"}}, nil
-		},
 	}
 
 	if ab.MaxResourceSize > 0 {
@@ -370,8 +416,15 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 	return internal.NewPropfindResponse(ab.Path, propfind, props)
 }
 
-func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *AddressObject) (*internal.Response, error) {
+func (b *backend) propfindAddressObject(ctx context.Context, propfind *internal.Propfind, ao *AddressObject) (*internal.Response, error) {
+	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
 	props := map[xml.Name]internal.PropfindFunc{
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+		},
 		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetContentType{Type: vcard.MIMEType}, nil
 		},

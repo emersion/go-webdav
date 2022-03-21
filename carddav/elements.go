@@ -29,6 +29,10 @@ type addressbookHomeSet struct {
 	Href    internal.Href `xml:"DAV: href"`
 }
 
+func (a *addressbookHomeSet) GetXMLName() xml.Name {
+	return addressBookHomeSetName
+}
+
 type addressbookDescription struct {
 	XMLName     xml.Name `xml:"urn:ietf:params:xml:ns:carddav addressbook-description"`
 	Description string   `xml:",chardata"`
