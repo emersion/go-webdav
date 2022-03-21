@@ -1,6 +1,7 @@
 package webdav
 
 import (
+	"context"
 	"encoding/xml"
 	"io"
 	"net/http"
@@ -9,6 +10,24 @@ import (
 
 	"github.com/emersion/go-webdav/internal"
 )
+
+type contextKey string
+
+var currentUserPrincipalPathCtxKey contextKey = "userPrincipalPath"
+
+type UserPrincipalPath string
+
+func NewContextWithCurrentUserPrincipalPath(ctx context.Context, path UserPrincipalPath) context.Context {
+	return context.WithValue(ctx, currentUserPrincipalPathCtxKey, path)
+}
+
+func CurrentUserPrincipalPathFromContext(ctx context.Context) UserPrincipalPath {
+	p, ok := ctx.Value(currentUserPrincipalPathCtxKey).(UserPrincipalPath)
+	if ok {
+		return p
+	}
+	return "/"
+}
 
 // FileSystem is a WebDAV server backend.
 type FileSystem interface {
@@ -233,4 +252,83 @@ func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (cr
 		return false, &internal.HTTPError{http.StatusPreconditionFailed, err}
 	}
 	return created, err
+}
+
+type ListableHomeSet interface {
+	GetXMLName() xml.Name
+}
+
+type homeSetBackend struct {
+	homeSets []ListableHomeSet
+}
+
+func ServeListHomeSets(w http.ResponseWriter, r *http.Request, homeSets []ListableHomeSet) bool {
+	principalPath := string(CurrentUserPrincipalPathFromContext(r.Context()))
+
+	if r.URL.Path == "/.well-known/carddav" || r.URL.Path == "/.well-known/caldav" {
+		http.Redirect(w, r, principalPath, http.StatusMovedPermanently)
+		return true
+	}
+
+	if r.Method != "PROPFIND" {
+		return false
+	}
+
+	hh := internal.Handler{&homeSetBackend{homeSets: homeSets}}
+	hh.ServeHTTP(w, r)
+	return true
+}
+
+func (b *homeSetBackend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
+	principalPath := string(CurrentUserPrincipalPathFromContext(r.Context()))
+
+	props := map[xml.Name]internal.PropfindFunc{
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+		},
+	}
+
+	if r.URL.Path == principalPath {
+		for _, homeSet := range b.homeSets {
+			hs := homeSet // capture variable for closure
+			props[homeSet.GetXMLName()] = func(*internal.RawXMLValue) (interface{}, error) {
+				return hs, nil
+			}
+		}
+	}
+
+	resp, err := internal.NewPropfindResponse(r.URL.Path, propfind, props)
+	return internal.NewMultistatus(*resp), err
+}
+
+func (*homeSetBackend) Options(r *http.Request) (caps []string, allow []string, err error) {
+	panic("Not implemented")
+}
+
+func (*homeSetBackend) HeadGet(w http.ResponseWriter, r *http.Request) error {
+	panic("Not implemented")
+}
+
+func (*homeSetBackend) Proppatch(r *http.Request, pu *internal.Propertyupdate) (*internal.Response, error) {
+	panic("Not implemented")
+}
+
+func (*homeSetBackend) Put(r *http.Request) (*internal.Href, error) {
+	panic("Not implemented")
+}
+
+func (*homeSetBackend) Delete(r *http.Request) error {
+	panic("Not implemented")
+}
+
+func (*homeSetBackend) Mkcol(r *http.Request) error {
+	panic("Not implemented")
+}
+
+func (*homeSetBackend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {
+	panic("Not implemented")
+}
+
+func (*homeSetBackend) Move(r *http.Request, dest *internal.Href, overwrite bool) (created bool, err error) {
+	panic("Not implemented")
 }

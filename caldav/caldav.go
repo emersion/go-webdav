@@ -7,7 +7,13 @@ import (
 	"time"
 
 	"github.com/emersion/go-ical"
+	"github.com/emersion/go-webdav"
+	"github.com/emersion/go-webdav/internal"
 )
+
+func NewCalendarHomeSet(path string) webdav.ListableHomeSet {
+	return &calendarHomeSet{Href: internal.Href{Path: path}}
+}
 
 type Calendar struct {
 	Path            string
