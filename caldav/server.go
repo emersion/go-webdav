@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/emersion/go-ical"
-
+	"github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/internal"
 )
 
@@ -16,10 +16,13 @@ import (
 
 // Backend is a CalDAV server backend.
 type Backend interface {
+	CalendarHomeSetPath(ctx context.Context) (string, error)
 	Calendar(ctx context.Context) (*Calendar, error)
 	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
 	ListCalendarObjects(ctx context.Context, req *CalendarCompRequest) ([]CalendarObject, error)
 	QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error)
+
+	webdav.UserPrincipalBackend
 }
 
 // Handler handles CalDAV HTTP requests. It can be used to create a CalDAV
@@ -35,12 +38,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.URL.Path == "/.well-known/caldav" {
-		http.Redirect(w, r, "/", http.StatusMovedPermanently)
+	principalPath, err := h.Backend.CurrentUserPrincipal(r.Context())
+	if err != nil {
+		http.Error(w, "caldav: failed to determine current user principal", http.StatusInternalServerError)
 		return
 	}
 
-	var err error
+	if r.URL.Path == "/.well-known/caldav" {
+		http.Redirect(w, r, principalPath, http.StatusMovedPermanently)
+		return
+	}
+
 	switch r.Method {
 	case "REPORT":
 		err = h.handleReport(w, r)
@@ -182,7 +190,17 @@ type backend struct {
 func (b *backend) Options(r *http.Request) (caps []string, allow []string, err error) {
 	caps = []string{"calendar-access"}
 
-	if r.URL.Path == "/" {
+	homeSetPath, err := b.Backend.CalendarHomeSetPath(r.Context())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	principalPath, err := b.Backend.CurrentUserPrincipal(r.Context())
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if r.URL.Path == "/" || r.URL.Path == principalPath || r.URL.Path == homeSetPath {
 		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT"}, nil
 	}
 
@@ -209,14 +227,30 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
+	homeSetPath, err := b.Backend.CalendarHomeSetPath(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	principalPath, err := b.Backend.CurrentUserPrincipal(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
 	var resps []internal.Response
-	if r.URL.Path == "/" {
+
+	if r.URL.Path == principalPath {
+		resp, err := b.propfindUserPrincipal(r.Context(), propfind, homeSetPath)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
+	} else if r.URL.Path == homeSetPath {
 		cal, err := b.Backend.Calendar(r.Context())
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := b.propfindCalendar(propfind, cal)
+		resp, err := b.propfindCalendar(r.Context(), propfind, cal)
 		if err != nil {
 			return nil, err
 		}
@@ -225,13 +259,38 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		if depth != internal.DepthZero {
 			// TODO
 		}
+	} else {
+		// TODO
 	}
 
 	return internal.NewMultistatus(resps...), nil
 }
 
-func (b *backend) propfindCalendar(propfind *internal.Propfind, cal *Calendar) (*internal.Response, error) {
+func (b *backend) propfindUserPrincipal(ctx context.Context, propfind *internal.Propfind, homeSetPath string) (*internal.Response, error) {
+	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
 	props := map[xml.Name]internal.PropfindFunc{
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+		},
+		calendarHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &calendarHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
+		},
+	}
+	return internal.NewPropfindResponse(principalPath, propfind, props)
+}
+
+func (b *backend) propfindCalendar(ctx context.Context, propfind *internal.Propfind, cal *Calendar) (*internal.Response, error) {
+	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	props := map[xml.Name]internal.PropfindFunc{
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+		},
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, calendarName), nil
 		},
@@ -251,14 +310,6 @@ func (b *backend) propfindCalendar(propfind *internal.Propfind, cal *Calendar) (
 					{Name: ical.CompEvent},
 				},
 			}, nil
-		},
-		// TODO: this is a principal property
-		calendarHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &calendarHomeSet{Href: internal.Href{Path: "/"}}, nil
-		},
-		// TODO: this should be set on all resources
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: "/"}}, nil
 		},
 	}
 
