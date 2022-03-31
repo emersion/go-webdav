@@ -3,6 +3,7 @@ package caldav
 import (
 	"context"
 	"encoding/xml"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -269,4 +270,36 @@ func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrit
 
 func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (created bool, err error) {
 	panic("TODO")
+}
+
+// https://datatracker.ietf.org/doc/html/rfc4791#section-5.3.2.1
+type PreconditionType string
+
+const (
+	PreconditionNoUIDConflict                PreconditionType = "no-uid-conflict"
+	PreconditionSupportedCalendarData        PreconditionType = "supported-calendar-data"
+	PreconditionSupportedCalendarComponent   PreconditionType = "supported-calendar-component"
+	PreconditionValidCalendarData            PreconditionType = "valid-calendar-data"
+	PreconditionValidCalendarObjectResource  PreconditionType = "valid-calendar-object-resource"
+	PreconditionCalendarCollectionLocationOk PreconditionType = "calendar-collection-location-ok"
+	PreconditionMaxResourceSize              PreconditionType = "max-resource-size"
+	PreconditionMinDateTime                  PreconditionType = "min-date-time"
+	PreconditionMaxDateTime                  PreconditionType = "max-date-time"
+	PreconditionMaxInstances                 PreconditionType = "max-instances"
+	PreconditionMaxAttendeesPerInstance      PreconditionType = "max-attendees-per-instance"
+)
+
+func NewPreconditionError(err PreconditionType) error {
+	name := xml.Name{"urn:ietf:params:xml:ns:caldav", string(err)}
+	elem := internal.NewRawXMLElement(name, nil, nil)
+	e := internal.Error{
+		Raw: []internal.RawXMLValue{
+			*elem,
+		},
+	}
+	return &internal.DAVError{
+		Code: 409,
+		Msg:  fmt.Sprintf("precondition not met: %s", string(err)),
+		Err:  e,
+	}
 }
