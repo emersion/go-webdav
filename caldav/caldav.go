@@ -27,19 +27,30 @@ type CalendarCompRequest struct {
 }
 
 type CompFilter struct {
-	Name       string
-	Start, End time.Time
-	Props      []PropFilter
-	Comps      []CompFilter
+	Name         string
+	IsNotDefined bool
+	Start, End   time.Time
+	Props        []PropFilter
+	Comps        []CompFilter
+}
+
+type ParamFilter struct {
+	Name         string
+	IsNotDefined bool
+	TextMatch    *TextMatch
 }
 
 type PropFilter struct {
-	Name      string
-	TextMatch *TextMatch
+	Name         string
+	IsNotDefined bool
+	Start, End   time.Time
+	TextMatch    *TextMatch
+	ParamFilter  []ParamFilter
 }
 
 type TextMatch struct {
-	Text string
+	Text            string
+	NegateCondition bool
 }
 
 type CalendarQuery struct {

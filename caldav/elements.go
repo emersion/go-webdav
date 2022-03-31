@@ -21,7 +21,8 @@ var (
 	calendarQueryName    = xml.Name{namespace, "calendar-query"}
 	calendarMultigetName = xml.Name{namespace, "calendar-multiget"}
 
-	calendarName = xml.Name{namespace, "calendar"}
+	calendarName     = xml.Name{namespace, "calendar"}
+	calendarDataName = xml.Name{namespace, "calendar-data"}
 )
 
 // https://tools.ietf.org/html/rfc4791#section-6.2.1
@@ -98,19 +99,49 @@ type compFilter struct {
 
 // https://tools.ietf.org/html/rfc4791#section-9.7.2
 type propFilter struct {
-	XMLName      xml.Name   `xml:"urn:ietf:params:xml:ns:caldav prop-filter"`
+	XMLName      xml.Name      `xml:"urn:ietf:params:xml:ns:caldav prop-filter"`
+	Name         string        `xml:"name,attr"`
+	IsNotDefined *struct{}     `xml:"is-not-defined,omitempty"`
+	TimeRange    *timeRange    `xml:"time-range,omitempty"`
+	TextMatch    *textMatch    `xml:"text-match,omitempty"`
+	ParamFilter  []paramFilter `xml:"param-filter,omitempty"`
+}
+
+// https://tools.ietf.org/html/rfc4791#section-9.7.3
+type paramFilter struct {
+	XMLName      xml.Name   `xml:"urn:ietf:params:xml:ns:caldav param-filter"`
 	Name         string     `xml:"name,attr"`
 	IsNotDefined *struct{}  `xml:"is-not-defined,omitempty"`
-	TimeRange    *timeRange `xml:"time-range,omitempty"`
 	TextMatch    *textMatch `xml:"text-match,omitempty"`
-	// TODO: param-filter
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.7.5
 type textMatch struct {
-	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav text-match"`
-	Text    string   `xml:",chardata"`
-	// TODO: collation, negate-condition
+	XMLName         xml.Name        `xml:"urn:ietf:params:xml:ns:caldav text-match"`
+	Text            string          `xml:",chardata"`
+	Collation       string          `xml:"collation,attr,omitempty"`
+	NegateCondition negateCondition `xml:"negate-condition,attr,omitempty"`
+}
+
+type negateCondition bool
+
+func (nc *negateCondition) UnmarshalText(b []byte) error {
+	switch s := string(b); s {
+	case "yes":
+		*nc = true
+	case "no":
+		*nc = false
+	default:
+		return fmt.Errorf("caldav: invalid negate-condition value: %q", s)
+	}
+	return nil
+}
+
+func (nc negateCondition) MarshalText() ([]byte, error) {
+	if nc {
+		return []byte("yes"), nil
+	}
+	return nil, nil
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.9

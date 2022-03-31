@@ -69,17 +69,53 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
 	return internal.HTTPErrorf(http.StatusBadRequest, "caldav: expected calendar-query or calendar-multiget element in REPORT request")
 }
 
-func decodePropFilter(el *propFilter) (*PropFilter, error) {
-	pf := &PropFilter{Name: el.Name}
+func decodeParamFilter(el *paramFilter) (*ParamFilter, error) {
+	pf := &ParamFilter{Name: el.Name}
+	if el.IsNotDefined != nil {
+		if el.TextMatch != nil {
+			return nil, fmt.Errorf("caldav: failed to parse param-filter: if is-not-defined is provided, text-match can't be provided")
+		}
+		pf.IsNotDefined = true
+	}
 	if el.TextMatch != nil {
 		pf.TextMatch = &TextMatch{Text: el.TextMatch.Text}
 	}
-	// TODO: IsNotDefined, TimeRange
+	return pf, nil
+}
+
+func decodePropFilter(el *propFilter) (*PropFilter, error) {
+	pf := &PropFilter{Name: el.Name}
+	if el.IsNotDefined != nil {
+		if el.TextMatch != nil || el.TimeRange != nil || len(el.ParamFilter) > 0 {
+			return nil, fmt.Errorf("caldav: failed to parse prop-filter: if is-not-defined is provided, text-match, time-range, or param-filter can't be provided")
+		}
+		pf.IsNotDefined = true
+	}
+	if el.TextMatch != nil {
+		pf.TextMatch = &TextMatch{Text: el.TextMatch.Text}
+	}
+	if el.TimeRange != nil {
+		pf.Start = time.Time(el.TimeRange.Start)
+		pf.End = time.Time(el.TimeRange.End)
+	}
+	for _, paramEl := range el.ParamFilter {
+		paramFi, err := decodeParamFilter(&paramEl)
+		if err != nil {
+			return nil, err
+		}
+		pf.ParamFilter = append(pf.ParamFilter, *paramFi)
+	}
 	return pf, nil
 }
 
 func decodeCompFilter(el *compFilter) (*CompFilter, error) {
 	cf := &CompFilter{Name: el.Name}
+	if el.IsNotDefined != nil {
+		if el.TimeRange != nil || len(el.PropFilters) > 0 || len(el.CompFilters) > 0 {
+			return nil, fmt.Errorf("caldav: failed to parse comp-filter: if is-not-defined is provided, time-range, prop-filter, or comp-filter can't be provided")
+		}
+		cf.IsNotDefined = true
+	}
 	if el.TimeRange != nil {
 		cf.Start = time.Time(el.TimeRange.Start)
 		cf.End = time.Time(el.TimeRange.End)
@@ -98,7 +134,6 @@ func decodeCompFilter(el *compFilter) (*CompFilter, error) {
 		}
 		cf.Comps = append(cf.Comps, *child)
 	}
-	// TODO: IsNotDefined
 	return cf, nil
 }
 
