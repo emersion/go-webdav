@@ -10,10 +10,11 @@ import (
 )
 
 type Calendar struct {
-	Path            string
-	Name            string
-	Description     string
-	MaxResourceSize int64
+	Path                  string
+	Name                  string
+	Description           string
+	MaxResourceSize       int64
+	SupportedComponentSet []string
 }
 
 type CalendarCompRequest struct {

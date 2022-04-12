@@ -55,6 +55,7 @@ func (c *Client) FindCalendars(calendarHomeSet string) ([]Calendar, error) {
 		internal.DisplayNameName,
 		calendarDescriptionName,
 		maxResourceSizeName,
+		supportedCalendarComponentSetName,
 	)
 	ms, err := c.ic.Propfind(calendarHomeSet, internal.DepthOne, propfind)
 	if err != nil {
@@ -94,11 +95,22 @@ func (c *Client) FindCalendars(calendarHomeSet string) ([]Calendar, error) {
 			return nil, fmt.Errorf("carddav: max-resource-size must be a positive integer")
 		}
 
+		var supportedCompSet supportedCalendarComponentSet
+		if err := resp.DecodeProp(&supportedCompSet); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
+		compNames := make([]string, 0, len(supportedCompSet.Comp))
+		for _, comp := range supportedCompSet.Comp {
+			compNames = append(compNames, comp.Name)
+		}
+
 		l = append(l, Calendar{
-			Path:            path,
-			Name:            dispName.Name,
-			Description:     desc.Description,
-			MaxResourceSize: maxResSize.Size,
+			Path:                  path,
+			Name:                  dispName.Name,
+			Description:           desc.Description,
+			MaxResourceSize:       maxResSize.Size,
+			SupportedComponentSet: compNames,
 		})
 	}
 
