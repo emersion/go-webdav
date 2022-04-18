@@ -342,7 +342,8 @@ type ETag string
 func (etag *ETag) UnmarshalText(b []byte) error {
 	s, err := strconv.Unquote(string(b))
 	if err != nil {
-		return fmt.Errorf("webdav: failed to unquote ETag: %v", err)
+		*etag = ETag(b)
+		return nil
 	}
 	*etag = ETag(s)
 	return nil
