@@ -134,6 +134,14 @@ func NewOKResponse(path string) *Response {
 	}
 }
 
+func NewNotFoundResponse(path string) *Response {
+	href := Href{Path: path}
+	return &Response{
+		Hrefs:  []Href{href},
+		Status: &Status{Code: http.StatusNotFound},
+	}
+}
+
 func (resp *Response) Path() (string, error) {
 	err := resp.Status.Err()
 	var path string

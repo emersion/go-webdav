@@ -207,6 +207,11 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 		if err != nil {
 			return err // TODO: create internal.Response with error
 		}
+		if ao == nil {
+			resp := internal.NewNotFoundResponse(href.Path)
+			resps = append(resps, *resp)
+			break
+		}
 
 		b := backend{h.Backend}
 		propfind := internal.Propfind{
@@ -269,6 +274,9 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
+	if ao == nil {
+		return &internal.HTTPError{Code: http.StatusNotFound}
+	}
 
 	w.Header().Set("Content-Type", vcard.MIMEType)
 	if ao.ETag != "" {
@@ -319,12 +327,16 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		if err != nil {
 			return nil, err
 		}
-
-		resp, err := b.propfindAddressObject(propfind, ao)
-		if err != nil {
-			return nil, err
+		if ao == nil {
+			resp := internal.NewNotFoundResponse(r.URL.Path)
+			resps = append(resps, *resp)
+		} else {
+			resp, err := b.propfindAddressObject(propfind, ao)
+			if err != nil {
+				return nil, err
+			}
+			resps = append(resps, *resp)
 		}
-		resps = append(resps, *resp)
 	}
 
 	return internal.NewMultistatus(resps...), nil
