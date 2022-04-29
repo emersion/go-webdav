@@ -2,6 +2,7 @@ package internal
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -131,6 +132,27 @@ func NewOKResponse(path string) *Response {
 	return &Response{
 		Hrefs:  []Href{href},
 		Status: &Status{Code: http.StatusOK},
+	}
+}
+
+func NewErrorResponse(path string, err error) *Response {
+	code := http.StatusInternalServerError
+	var httpErr *HTTPError
+	if errors.As(err, &httpErr) {
+		code = httpErr.Code
+	}
+
+	var errElt *Error
+	if !errors.As(err, &errElt) {
+		errElt = &Error{}
+	}
+
+	href := Href{Path: path}
+	return &Response{
+		Hrefs:               []Href{href},
+		Status:              &Status{Code: code},
+		ResponseDescription: err.Error(),
+		Error:               errElt,
 	}
 }
 
