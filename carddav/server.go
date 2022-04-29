@@ -205,7 +205,9 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 	for _, href := range multiget.Hrefs {
 		ao, err := h.Backend.GetAddressObject(ctx, href.Path, &dataReq)
 		if err != nil {
-			return err // TODO: create internal.Response with error
+			resp := internal.NewErrorResponse(href.Path, err)
+			resps = append(resps, *resp)
+			continue
 		}
 
 		b := backend{h.Backend}
