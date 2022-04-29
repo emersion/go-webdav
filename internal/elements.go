@@ -108,7 +108,7 @@ func (ms *Multistatus) Get(p string) (*Response, error) {
 		resp := &ms.Responses[i]
 		for _, h := range resp.Hrefs {
 			if path.Clean(h.Path) == p {
-				return resp, resp.Status.Err()
+				return resp, resp.Err()
 			}
 		}
 	}
@@ -156,8 +156,28 @@ func NewErrorResponse(path string, err error) *Response {
 	}
 }
 
+func (resp *Response) Err() error {
+	if resp.Status == nil || resp.Status.Code/100 == 2 {
+		return nil
+	}
+
+	var err error = resp.Error
+	if resp.ResponseDescription != "" {
+		if err != nil {
+			err = fmt.Errorf("%v (%w)", resp.ResponseDescription, err)
+		} else {
+			err = fmt.Errorf("%v", resp.ResponseDescription)
+		}
+	}
+
+	return &HTTPError{
+		Code: resp.Status.Code,
+		Err:  err,
+	}
+}
+
 func (resp *Response) Path() (string, error) {
-	err := resp.Status.Err()
+	err := resp.Err()
 	var path string
 	if len(resp.Hrefs) == 1 {
 		path = resp.Hrefs[0].Path
@@ -174,7 +194,7 @@ func (resp *Response) DecodeProp(values ...interface{}) error {
 		if err != nil {
 			return err
 		}
-		if err := resp.Status.Err(); err != nil {
+		if err := resp.Err(); err != nil {
 			return err
 		}
 		for _, propstat := range resp.Propstats {
