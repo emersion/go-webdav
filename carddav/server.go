@@ -367,7 +367,7 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 		}
 	}
 
-	return internal.NewPropfindResponse("/", propfind, props)
+	return internal.NewPropfindResponse(ab.Path, propfind, props)
 }
 
 func (b *backend) propfindAddressObject(propfind *internal.Propfind, ao *AddressObject) (*internal.Response, error) {
