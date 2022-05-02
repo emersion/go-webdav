@@ -276,7 +276,7 @@ func (b *backend) propfindCalendar(propfind *internal.Propfind, cal *Calendar) (
 
 	// TODO: CALDAV:calendar-timezone, CALDAV:supported-calendar-component-set, CALDAV:min-date-time, CALDAV:max-date-time, CALDAV:max-instances, CALDAV:max-attendees-per-instance
 
-	return internal.NewPropfindResponse("/", propfind, props)
+	return internal.NewPropfindResponse(cal.Path, propfind, props)
 }
 
 func (b *backend) propfindCalendarObject(propfind *internal.Propfind, co *CalendarObject) (*internal.Response, error) {
