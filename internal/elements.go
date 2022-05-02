@@ -143,9 +143,7 @@ func NewErrorResponse(path string, err error) *Response {
 	}
 
 	var errElt *Error
-	if !errors.As(err, &errElt) {
-		errElt = &Error{}
-	}
+	errors.As(err, &errElt)
 
 	href := Href{Path: path}
 	return &Response{
