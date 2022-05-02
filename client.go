@@ -3,6 +3,7 @@ package webdav
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"time"
 
@@ -74,13 +75,13 @@ var fileInfoPropfind = internal.NewPropNamePropfind(
 	internal.GetETagName,
 )
 
-func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
+func fileInfoFromResponse(resp *internal.Response) (*fileInfo, error) {
 	path, err := resp.Path()
 	if err != nil {
 		return nil, err
 	}
 
-	fi := &FileInfo{Path: path}
+	fi := FileInfo{Path: path}
 
 	var resType internal.ResourceType
 	if err := resp.DecodeProp(&resType); err != nil {
@@ -116,10 +117,10 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 	}
 	fi.ModTime = time.Time(getMod.LastModified)
 
-	return fi, nil
+	return &fileInfo{fi}, nil
 }
 
-func (c *Client) Stat(name string) (*FileInfo, error) {
+func (c *Client) Stat(name string) (fs.FileInfo, error) {
 	resp, err := c.ic.PropfindFlat(name, fileInfoPropfind)
 	if err != nil {
 		return nil, err
@@ -141,24 +142,24 @@ func (c *Client) Open(name string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func (c *Client) Readdir(name string, recursive bool) ([]FileInfo, error) {
+func (c *Client) ReadDir(name string) ([]fs.DirEntry, error) {
 	depth := internal.DepthOne
-	if recursive {
+	/*if recursive {
 		depth = internal.DepthInfinity
-	}
+	}*/
 
 	ms, err := c.ic.Propfind(name, depth, fileInfoPropfind)
 	if err != nil {
 		return nil, err
 	}
 
-	l := make([]FileInfo, 0, len(ms.Responses))
+	l := make([]fs.DirEntry, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		fi, err := fileInfoFromResponse(&resp)
 		if err != nil {
 			return l, err
 		}
-		l = append(l, *fi)
+		l = append(l, fi)
 	}
 
 	return l, nil
