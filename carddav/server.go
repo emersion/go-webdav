@@ -469,14 +469,10 @@ const (
 func NewPreconditionError(err PreconditionType) error {
 	name := xml.Name{"urn:ietf:params:xml:ns:carddav", string(err)}
 	elem := internal.NewRawXMLElement(name, nil, nil)
-	e := internal.Error{
-		Raw: []internal.RawXMLValue{
-			*elem,
-		},
-	}
-	return &internal.DAVError{
+	return &internal.HTTPError{
 		Code: 409,
-		Msg:  fmt.Sprintf("precondition not met: %s", string(err)),
-		Err:  e,
+		Err: &internal.Error{
+			Raw: []internal.RawXMLValue{*elem},
+		},
 	}
 }

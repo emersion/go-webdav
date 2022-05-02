@@ -2,6 +2,7 @@ package internal
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"mime"
 	"net/http"
@@ -10,16 +11,19 @@ import (
 )
 
 func ServeError(w http.ResponseWriter, err error) {
-	if davErr, ok := err.(*DAVError); ok {
-		w.WriteHeader(davErr.Code)
-		ServeXML(w).Encode(davErr.Err)
+	code := http.StatusInternalServerError
+	var httpErr *HTTPError
+	if errors.As(err, &httpErr) {
+		code = httpErr.Code
+	}
+
+	var errElt *Error
+	if errors.As(err, &errElt) {
+		w.WriteHeader(code)
+		ServeXML(w).Encode(errElt)
 		return
 	}
 
-	code := http.StatusInternalServerError
-	if httpErr, ok := err.(*HTTPError); ok {
-		code = httpErr.Code
-	}
 	http.Error(w, err.Error(), code)
 }
 
