@@ -66,6 +66,41 @@ func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	return prop.Href.Path, nil
 }
 
+func (c *Client) FindPrincipal(path string) (*Principal, error) {
+	propfind := internal.NewPropNamePropfind(
+		internal.ResourceTypeName,
+		internal.DisplayNameName,
+		principalURLName,
+	)
+	resp, err := c.ic.PropfindFlat(path, propfind)
+	if err != nil {
+		return nil, err
+	}
+
+	var resType internal.ResourceType
+	if err := resp.DecodeProp(&resType); err != nil {
+		return nil, err
+	}
+	if !resType.Is(principalName) {
+		return nil, fmt.Errorf("%q is not a principal resource", path)
+	}
+
+	var dispName internal.DisplayName
+	if err := resp.DecodeProp(&dispName); err != nil {
+		return nil, err
+	}
+
+	var principalURL principalURL
+	if err := resp.DecodeProp(&principalURL); err != nil {
+		return nil, err
+	}
+
+	return &Principal{
+		Path: principalURL.Href.Path,
+		Name: dispName.Name,
+	}, nil
+}
+
 var fileInfoPropfind = internal.NewPropNamePropfind(
 	internal.ResourceTypeName,
 	internal.GetContentLengthName,
