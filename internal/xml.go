@@ -28,6 +28,9 @@ func NewRawXMLElement(name xml.Name, attr []xml.Attr, children []RawXMLValue) *R
 // EncodeRawXMLElement encodes a value into a new RawXMLValue. The XML value
 // can only be used for marshalling.
 func EncodeRawXMLElement(v interface{}) (*RawXMLValue, error) {
+	if raw, ok := v.(*RawXMLValue); ok {
+		return raw, nil
+	}
 	return &RawXMLValue{out: v}, nil
 }
 
