@@ -40,6 +40,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hh.ServeHTTP(w, r)
 }
 
+// NewHTTPError creates a new error that is associated with an HTTP status code
+// and optionally an error that lead to it. Backends can use this functions to
+// return errors that convey some semantics (e.g. 404 not found, 403 access
+// denied, etc) while also providing an (optional) arbitrary error context
+// (intended for humans).
+func NewHTTPError(statusCode int, cause error) error {
+	return &internal.HTTPError{Code: statusCode, Err: cause}
+}
+
 type backend struct {
 	FileSystem FileSystem
 }
