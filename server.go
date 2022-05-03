@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/emersion/go-webdav/internal"
 )
@@ -233,4 +234,65 @@ func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (cr
 		return false, &internal.HTTPError{http.StatusPreconditionFailed, err}
 	}
 	return created, err
+}
+
+// ServePrincipal replies to a request on a principal URI.
+func ServePrincipal(w http.ResponseWriter, r *http.Request, principal *Principal) {
+	switch r.Method {
+	case http.MethodOptions:
+		caps := append([]string{"1", "3"})
+		allow := []string{http.MethodOptions, "PROPFIND"}
+		w.Header().Add("DAV", strings.Join(caps, ", "))
+		w.Header().Add("Allow", strings.Join(allow, ", "))
+		w.WriteHeader(http.StatusNoContent)
+	case "PROPFIND":
+		if err := servePrincipalPropfind(w, r, principal); err != nil {
+			internal.ServeError(w, err)
+		}
+	default:
+		http.Error(w, "unsupported method", http.StatusMethodNotAllowed)
+	}
+}
+
+func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, principal *Principal) error {
+	var propfind internal.Propfind
+	if err := internal.DecodeXMLRequest(r, &propfind); err != nil {
+		return err
+	}
+
+	// TODO: handle Depth
+
+	props := map[xml.Name]internal.PropfindFunc{
+		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+			return internal.NewResourceType(principalName), nil
+		},
+		internal.DisplayNameName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.DisplayName{Name: principal.Name}, nil
+		},
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			// TODO: allow serving a principal different from the current user's
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principal.Path}}, nil
+		},
+		principalAlternateURISetName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &principalAlternateURISet{}, nil // TODO: allow customizing
+		},
+		principalURLName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &principalURL{
+				Href: internal.Href{Path: principal.Path},
+			}, nil
+		},
+		groupMembershipName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &groupMembership{}, nil // TODO: allow customizing
+		},
+	}
+
+	// TODO: allow adding more props such as CardDAV/CalDAV home sets
+
+	resp, err := internal.NewPropfindResponse(r.URL.Path, &propfind, props)
+	if err != nil {
+		return err
+	}
+
+	ms := internal.NewMultistatus(*resp)
+	return internal.ServeMultistatus(w, ms)
 }

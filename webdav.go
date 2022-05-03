@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+// Principal is a DAV principal as defined in RFC 3744 section 2.
+type Principal struct {
+	Path string
+	Name string
+}
+
 type FileInfo struct {
 	Path     string
 	Size     int64
