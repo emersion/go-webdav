@@ -252,7 +252,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 
 	var dataReq AddressDataRequest
 	_, err = b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
-	if httpErr, ok := err.(*internal.HTTPError); ok && httpErr.Code == http.StatusNotFound {
+	if internal.IsNotFound(err) {
 		return caps, []string{http.MethodOptions, http.MethodPut}, nil
 	} else if err != nil {
 		return nil, nil, err

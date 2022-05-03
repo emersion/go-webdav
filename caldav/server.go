@@ -198,7 +198,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 
 	var dataReq CalendarCompRequest
 	_, err = b.Backend.GetCalendarObject(r.Context(), r.URL.Path, &dataReq)
-	if httpErr, ok := err.(*internal.HTTPError); ok && httpErr.Code == http.StatusNotFound {
+	if internal.IsNotFound(err) {
 		return caps, []string{http.MethodOptions, http.MethodPut}, nil
 	} else if err != nil {
 		return nil, nil, err

@@ -450,11 +450,10 @@ func (c *Client) SyncCollection(path string, query *SyncQuery) (*SyncResponse, e
 	ret := &SyncResponse{SyncToken: ms.SyncToken}
 	for _, resp := range ms.Responses {
 		p, err := resp.Path()
-		if err != nil {
-			if err, ok := err.(*internal.HTTPError); ok && err.Code == http.StatusNotFound {
-				ret.Deleted = append(ret.Deleted, p)
-				continue
-			}
+		if internal.IsNotFound(err) {
+			ret.Deleted = append(ret.Deleted, p)
+			continue
+		} else if err != nil {
 			return nil, err
 		}
 
