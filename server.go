@@ -236,8 +236,13 @@ func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (cr
 	return created, err
 }
 
+type ServePrincipalOptions struct {
+	Principal *Principal
+	Props     map[xml.Name]xml.Marshaler
+}
+
 // ServePrincipal replies to a request on a principal URI.
-func ServePrincipal(w http.ResponseWriter, r *http.Request, principal *Principal) {
+func ServePrincipal(w http.ResponseWriter, r *http.Request, options *ServePrincipalOptions) {
 	switch r.Method {
 	case http.MethodOptions:
 		caps := append([]string{"1", "3"})
@@ -246,7 +251,7 @@ func ServePrincipal(w http.ResponseWriter, r *http.Request, principal *Principal
 		w.Header().Add("Allow", strings.Join(allow, ", "))
 		w.WriteHeader(http.StatusNoContent)
 	case "PROPFIND":
-		if err := servePrincipalPropfind(w, r, principal); err != nil {
+		if err := servePrincipalPropfind(w, r, options); err != nil {
 			internal.ServeError(w, err)
 		}
 	default:
@@ -254,7 +259,9 @@ func ServePrincipal(w http.ResponseWriter, r *http.Request, principal *Principal
 	}
 }
 
-func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, principal *Principal) error {
+func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, options *ServePrincipalOptions) error {
+	principal := options.Principal
+
 	var propfind internal.Propfind
 	if err := internal.DecodeXMLRequest(r, &propfind); err != nil {
 		return err
@@ -286,7 +293,12 @@ func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, principal *P
 		},
 	}
 
-	// TODO: allow adding more props such as CardDAV/CalDAV home sets
+	for name, v := range options.Props {
+		v := v // capture variable
+		props[name] = func(*internal.RawXMLValue) (interface{}, error) {
+			return v, nil
+		}
+	}
 
 	resp, err := internal.NewPropfindResponse(r.URL.Path, &propfind, props)
 	if err != nil {

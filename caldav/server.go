@@ -14,6 +14,15 @@ import (
 
 // TODO: add support for multiple calendars
 
+// CalendarHomeSetXML returns the XML name and marshalable value for a
+// principal's calendar home set. It's designed to be used with
+// webdav.ServePrincipal.
+func CalendarHomeSetXML(path string) (xml.Name, xml.Marshaler) {
+	homeSet := &calendarHomeSet{Href: internal.Href{Path: path}}
+	v, _ := internal.EncodeRawXMLElement(homeSet)
+	return calendarHomeSetName, v
+}
+
 // Backend is a CalDAV server backend.
 type Backend interface {
 	Calendar(ctx context.Context) (*Calendar, error)

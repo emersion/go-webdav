@@ -14,6 +14,15 @@ import (
 
 // TODO: add support for multiple address books
 
+// AddressBookHomeSetXML returns the XML name and marshalable value for a
+// principal's address book home set. It's designed to be used with
+// webdav.ServePrincipal.
+func AddressBookHomeSetXML(path string) (xml.Name, xml.Marshaler) {
+	homeSet := &addressbookHomeSet{Href: internal.Href{Path: path}}
+	v, _ := internal.EncodeRawXMLElement(homeSet)
+	return addressBookHomeSetName, v
+}
+
 type PutAddressObjectOptions struct {
 	// IfNoneMatch indicates that the client does not want to overwrite
 	// an existing resource.
