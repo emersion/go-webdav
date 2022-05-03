@@ -25,6 +25,7 @@ func CalendarHomeSetXML(path string) (xml.Name, xml.Marshaler) {
 
 // Backend is a CalDAV server backend.
 type Backend interface {
+	CurrentUserPrincipal(ctx context.Context) (string, error)
 	Calendar(ctx context.Context) (*Calendar, error)
 	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
 	ListCalendarObjects(ctx context.Context, req *CalendarCompRequest) ([]CalendarObject, error)
@@ -225,7 +226,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			return nil, err
 		}
 
-		resp, err := b.propfindCalendar(propfind, cal)
+		resp, err := b.propfindCalendar(r.Context(), propfind, cal)
 		if err != nil {
 			return nil, err
 		}
@@ -239,7 +240,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 	return internal.NewMultistatus(resps...), nil
 }
 
-func (b *backend) propfindCalendar(propfind *internal.Propfind, cal *Calendar) (*internal.Response, error) {
+func (b *backend) propfindCalendar(ctx context.Context, propfind *internal.Propfind, cal *Calendar) (*internal.Response, error) {
 	props := map[xml.Name]internal.PropfindFunc{
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, calendarName), nil
@@ -263,7 +264,11 @@ func (b *backend) propfindCalendar(propfind *internal.Propfind, cal *Calendar) (
 		},
 		// TODO: this should be set on all resources
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: "/"}}, nil
+			path, err := b.Backend.CurrentUserPrincipal(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
 	}
 

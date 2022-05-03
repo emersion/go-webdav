@@ -34,6 +34,7 @@ type PutAddressObjectOptions struct {
 
 // Backend is a CardDAV server backend.
 type Backend interface {
+	CurrentUserPrincipal(ctx context.Context) (string, error)
 	AddressBook(ctx context.Context) (*AddressBook, error)
 	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
 	ListAddressObjects(ctx context.Context, req *AddressDataRequest) ([]AddressObject, error)
@@ -305,7 +306,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			return nil, err
 		}
 
-		resp, err := b.propfindAddressBook(propfind, ab)
+		resp, err := b.propfindAddressBook(r.Context(), propfind, ab)
 		if err != nil {
 			return nil, err
 		}
@@ -341,7 +342,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 	return internal.NewMultistatus(resps...), nil
 }
 
-func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBook) (*internal.Response, error) {
+func (b *backend) propfindAddressBook(ctx context.Context, propfind *internal.Propfind, ab *AddressBook) (*internal.Response, error) {
 	props := map[xml.Name]internal.PropfindFunc{
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, addressBookName), nil
@@ -362,7 +363,11 @@ func (b *backend) propfindAddressBook(propfind *internal.Propfind, ab *AddressBo
 		},
 		// TODO: this should be set on all resources
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: "/"}}, nil
+			path, err := b.Backend.CurrentUserPrincipal(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
 	}
 
