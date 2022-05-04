@@ -334,22 +334,7 @@ type GetLastModified struct {
 // https://tools.ietf.org/html/rfc4918#section-15.6
 type GetETag struct {
 	XMLName xml.Name `xml:"DAV: getetag"`
-	ETag    ETag     `xml:",chardata"`
-}
-
-type ETag string
-
-func (etag *ETag) UnmarshalText(b []byte) error {
-	*etag = ETag(b)
-	return nil
-}
-
-func (etag ETag) MarshalText() ([]byte, error) {
-	return []byte(etag.String()), nil
-}
-
-func (etag ETag) String() string {
-	return fmt.Sprintf("%q", string(etag))
+	ETag    string   `xml:",chardata"`
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.5

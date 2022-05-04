@@ -92,7 +92,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 		w.Header().Set("Last-Modified", fi.ModTime.UTC().Format(http.TimeFormat))
 	}
 	if fi.ETag != "" {
-		w.Header().Set("ETag", internal.ETag(fi.ETag).String())
+		w.Header().Set("ETag", fi.ETag)
 	}
 
 	if rs, ok := f.(io.ReadSeeker); ok {
@@ -173,7 +173,7 @@ func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*inte
 
 		if fi.ETag != "" {
 			props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
-				return &internal.GetETag{ETag: internal.ETag(fi.ETag)}, nil
+				return &internal.GetETag{ETag: fi.ETag}, nil
 			}
 		}
 	}
