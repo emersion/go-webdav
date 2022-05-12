@@ -1,9 +1,11 @@
 package caldav
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
+	"mime"
 	"net/http"
 	"time"
 
@@ -14,6 +16,16 @@ import (
 
 // TODO: add support for multiple calendars
 
+// TODO if nothing more Caldav-specific needs to be added this should be merged with carddav.PutAddressObjectOptions
+type PutCalendarObjectOptions struct {
+	// IfNoneMatch indicates that the client does not want to overwrite
+	// an existing resource.
+	IfNoneMatch bool
+	// IfMatch provides the ETag of the resource that the client intends
+	// to overwrite, can be ""
+	IfMatch string
+}
+
 // Backend is a CalDAV server backend.
 type Backend interface {
 	CalendarHomeSetPath(ctx context.Context) (string, error)
@@ -21,6 +33,7 @@ type Backend interface {
 	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
 	ListCalendarObjects(ctx context.Context, req *CalendarCompRequest) ([]CalendarObject, error)
 	QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error)
+	PutCalendarObject(ctx context.Context, path string, calendar *ical.Calendar, opts *PutCalendarObjectOptions) (loc string, err error)
 
 	webdav.UserPrincipalBackend
 }
@@ -167,7 +180,7 @@ func (h *Handler) handleQuery(r *http.Request, w http.ResponseWriter, query *cal
 			AllProp:  query.AllProp,
 			PropName: query.PropName,
 		}
-		resp, err := b.propfindCalendarObject(&propfind, &co)
+		resp, err := b.propfindCalendarObject(r.Context(), &propfind, &co)
 		if err != nil {
 			return err
 		}
@@ -201,7 +214,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 	}
 
 	if r.URL.Path == "/" || r.URL.Path == principalPath || r.URL.Path == homeSetPath {
-		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT"}, nil
+		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT", "DELETE", "MKCOL"}, nil
 	}
 
 	var dataReq CalendarCompRequest
@@ -223,7 +236,27 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 }
 
 func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
-	panic("TODO")
+	var dataReq CalendarCompRequest
+	if r.Method != http.MethodHead {
+		dataReq.AllProps = true
+	}
+	co, err := b.Backend.GetCalendarObject(r.Context(), r.URL.Path, &dataReq)
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", ical.MIMEType)
+	if co.ETag != "" {
+		w.Header().Set("ETag", internal.ETag(co.ETag).String())
+	}
+	if !co.ModTime.IsZero() {
+		w.Header().Set("Last-Modified", co.ModTime.UTC().Format(http.TimeFormat))
+	}
+
+	if r.Method != http.MethodHead {
+		return ical.NewEncoder(w).Encode(co.Data)
+	}
+	return nil
 }
 
 func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
@@ -333,8 +366,42 @@ func (b *backend) propfindCalendar(ctx context.Context, propfind *internal.Propf
 	return internal.NewPropfindResponse(cal.Path, propfind, props)
 }
 
-func (b *backend) propfindCalendarObject(propfind *internal.Propfind, co *CalendarObject) (*internal.Response, error) {
-	panic("TODO")
+func (b *backend) propfindCalendarObject(ctx context.Context, propfind *internal.Propfind, co *CalendarObject) (*internal.Response, error) {
+	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+	props := map[xml.Name]internal.PropfindFunc{
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+		},
+		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.GetContentType{Type: ical.MIMEType}, nil
+		},
+		// TODO: address-data can only be used in REPORT requests
+		calendarDataName: func(*internal.RawXMLValue) (interface{}, error) {
+			var buf bytes.Buffer
+			if err := ical.NewEncoder(&buf).Encode(co.Data); err != nil {
+				return nil, err
+			}
+
+			return &calendarDataResp{Data: buf.Bytes()}, nil
+		},
+	}
+
+	if !co.ModTime.IsZero() {
+		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.GetLastModified{LastModified: internal.Time(co.ModTime)}, nil
+		}
+	}
+
+	if co.ETag != "" {
+		props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.GetETag{ETag: internal.ETag(co.ETag)}, nil
+		}
+	}
+
+	return internal.NewPropfindResponse(co.Path, propfind, props)
 }
 
 func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*internal.Response, error) {
@@ -342,7 +409,37 @@ func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*
 }
 
 func (b *backend) Put(r *http.Request) (*internal.Href, error) {
-	panic("TODO")
+	if inm := r.Header.Get("If-None-Match"); inm != "" && inm != "*" {
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "invalid value for If-None-Match header")
+	}
+
+	opts := PutCalendarObjectOptions{
+		IfNoneMatch: r.Header.Get("If-None-Match") == "*",
+		IfMatch:     r.Header.Get("If-Match"),
+	}
+
+	t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "caldav: malformed Content-Type: %v", err)
+	}
+	if t != ical.MIMEType {
+		// TODO: send CALDAV:supported-calendar-data error
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "caldav: unsupported Content-Type %q", t)
+	}
+
+	// TODO: check CALDAV:max-resource-size precondition
+	cal, err := ical.NewDecoder(r.Body).Decode()
+	if err != nil {
+		// TODO: send CALDAV:valid-calendar-data error
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "caldav: failed to parse iCalendar: %v", err)
+	}
+
+	loc, err := b.Backend.PutCalendarObject(r.Context(), r.URL.Path, cal, &opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &internal.Href{Path: loc}, nil
 }
 
 func (b *backend) Delete(r *http.Request) error {
