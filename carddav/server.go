@@ -50,17 +50,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	principalPath, err := h.Backend.CurrentUserPrincipal(r.Context())
-	if err != nil {
-		http.Error(w, "carddav: failed to determine current user principal", http.StatusInternalServerError)
-		return
-	}
-
 	if r.URL.Path == "/.well-known/carddav" {
+		principalPath, err := h.Backend.CurrentUserPrincipal(r.Context())
+		if err != nil {
+			http.Error(w, "carddav: failed to determine current user principal", http.StatusInternalServerError)
+			return
+		}
+
 		http.Redirect(w, r, principalPath, http.StatusMovedPermanently)
 		return
 	}
 
+	var err error
 	switch r.Method {
 	case "REPORT":
 		err = h.handleReport(w, r)
@@ -368,6 +369,7 @@ func (b *backend) propfindUserPrincipal(ctx context.Context, propfind *internal.
 	if err != nil {
 		return nil, err
 	}
+
 	props := map[xml.Name]internal.PropfindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
@@ -380,13 +382,13 @@ func (b *backend) propfindUserPrincipal(ctx context.Context, propfind *internal.
 }
 
 func (b *backend) propfindAddressBook(ctx context.Context, propfind *internal.Propfind, ab *AddressBook) (*internal.Response, error) {
-	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
-	if err != nil {
-		return nil, err
-	}
 	props := map[xml.Name]internal.PropfindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+			path, err := b.Backend.CurrentUserPrincipal(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, addressBookName), nil
@@ -417,13 +419,13 @@ func (b *backend) propfindAddressBook(ctx context.Context, propfind *internal.Pr
 }
 
 func (b *backend) propfindAddressObject(ctx context.Context, propfind *internal.Propfind, ao *AddressObject) (*internal.Response, error) {
-	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
-	if err != nil {
-		return nil, err
-	}
 	props := map[xml.Name]internal.PropfindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+			path, err := b.Backend.CurrentUserPrincipal(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
 		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetContentType{Type: vcard.MIMEType}, nil
