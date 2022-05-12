@@ -261,13 +261,13 @@ type UserPrincipalBackend interface {
 	CurrentUserPrincipal(ctx context.Context) (string, error)
 }
 
-type ServeUserPrincipalOptions struct {
-	UserPrincipalPath string
-	HomeSets          []BackendSuppliedHomeSet
+type ServePrincipalOptions struct {
+	CurrentUserPrincipalPath string
+	HomeSets                 []BackendSuppliedHomeSet
 }
 
-// ServeUserPrincipal replies to requests for the user principal URL
-func ServeUserPrincipal(w http.ResponseWriter, r *http.Request, options *ServeUserPrincipalOptions) {
+// ServePrincipal replies to requests for a principal URL.
+func ServePrincipal(w http.ResponseWriter, r *http.Request, options *ServePrincipalOptions) {
 	switch r.Method {
 	case http.MethodOptions:
 		caps := []string{"1", "3"}
@@ -276,7 +276,7 @@ func ServeUserPrincipal(w http.ResponseWriter, r *http.Request, options *ServeUs
 		w.Header().Add("Allow", strings.Join(allow, ", "))
 		w.WriteHeader(http.StatusNoContent)
 	case "PROPFIND":
-		if err := serveUserPrincipalPropfind(w, r, options); err != nil {
+		if err := servePrincipalPropfind(w, r, options); err != nil {
 			internal.ServeError(w, err)
 		}
 	default:
@@ -284,7 +284,7 @@ func ServeUserPrincipal(w http.ResponseWriter, r *http.Request, options *ServeUs
 	}
 }
 
-func serveUserPrincipalPropfind(w http.ResponseWriter, r *http.Request, options *ServeUserPrincipalOptions) error {
+func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, options *ServePrincipalOptions) error {
 	var propfind internal.Propfind
 	if err := internal.DecodeXMLRequest(r, &propfind); err != nil {
 		return err
@@ -294,7 +294,7 @@ func serveUserPrincipalPropfind(w http.ResponseWriter, r *http.Request, options 
 			return internal.NewResourceType(principalName), nil
 		},
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: options.UserPrincipalPath}}, nil
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: options.CurrentUserPrincipalPath}}, nil
 		},
 	}
 
