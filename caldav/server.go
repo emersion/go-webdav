@@ -297,6 +297,9 @@ func (b *backend) propfindCalendar(ctx context.Context, propfind *internal.Propf
 		internal.DisplayNameName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.DisplayName{Name: cal.Name}, nil
 		},
+		calendarDescriptionName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &calendarDescription{Description: cal.Description}, nil
+		},
 		supportedCalendarDataName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &supportedCalendarData{
 				Types: []calendarDataType{
