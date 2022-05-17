@@ -117,8 +117,9 @@ type CalendarMultiGet struct {
 }
 
 type CalendarObject struct {
-	Path    string
-	ModTime time.Time
-	ETag    string
-	Data    *ical.Calendar
+	Path          string
+	ModTime       time.Time
+	ContentLength int64
+	ETag          string
+	Data          *ical.Calendar
 }
