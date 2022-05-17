@@ -344,6 +344,8 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		return nil, err
 	}
 
+	var compReq CalendarCompRequest
+
 	var resps []internal.Response
 
 	if r.URL.Path == principalPath {
@@ -365,7 +367,18 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		resps = append(resps, *resp)
 
 		if depth != internal.DepthZero {
-			// TODO
+			cos, err := b.Backend.ListCalendarObjects(r.Context(), &compReq)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, co := range cos {
+				resp, err := b.propfindCalendarObject(r.Context(), propfind, &co)
+				if err != nil {
+					return nil, err
+				}
+				resps = append(resps, *resp)
+			}
 		}
 	} else {
 		// TODO
