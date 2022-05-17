@@ -465,6 +465,11 @@ func (b *backend) propfindCalendarObject(ctx context.Context, propfind *internal
 		},
 	}
 
+	if co.ContentLength > 0 {
+		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.GetContentLength{Length: co.ContentLength}, nil
+		}
+	}
 	if !co.ModTime.IsZero() {
 		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetLastModified{LastModified: internal.Time(co.ModTime)}, nil
