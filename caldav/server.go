@@ -344,8 +344,6 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		return nil, err
 	}
 
-	var compReq CalendarCompRequest
-
 	var resps []internal.Response
 
 	if r.URL.Path == principalPath {
@@ -367,6 +365,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		resps = append(resps, *resp)
 
 		if depth != internal.DepthZero {
+			var compReq CalendarCompRequest
 			cos, err := b.Backend.ListCalendarObjects(r.Context(), &compReq)
 			if err != nil {
 				return nil, err
@@ -381,7 +380,17 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			}
 		}
 	} else {
-		// TODO
+		var compReq CalendarCompRequest
+		co, err := b.Backend.GetCalendarObject(r.Context(), r.URL.Path, &compReq)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := b.propfindCalendarObject(r.Context(), propfind, co)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
 	}
 
 	return internal.NewMultistatus(resps...), nil
