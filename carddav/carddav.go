@@ -100,10 +100,11 @@ type AddressBookMultiGet struct {
 }
 
 type AddressObject struct {
-	Path    string
-	ModTime time.Time
-	ETag    string
-	Card    vcard.Card
+	Path          string
+	ModTime       time.Time
+	ContentLength int64
+	ETag          string
+	Card          vcard.Card
 }
 
 //SyncQuery is the query struct represents a sync-collection request

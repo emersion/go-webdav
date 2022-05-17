@@ -441,6 +441,11 @@ func (b *backend) propfindAddressObject(ctx context.Context, propfind *internal.
 		},
 	}
 
+	if ao.ContentLength > 0 {
+		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.GetContentLength{Length: ao.ContentLength}, nil
+		}
+	}
 	if !ao.ModTime.IsZero() {
 		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.GetLastModified{LastModified: internal.Time(ao.ModTime)}, nil
