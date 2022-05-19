@@ -64,11 +64,7 @@ END:VCARD`)
 			name: "no-limit-query",
 			query: &AddressBookQuery{
 				DataRequest: AddressDataRequest{
-					Props: []string{
-						vcard.FieldFormattedName,
-						vcard.FieldEmail,
-						vcard.FieldUID,
-					},
+					AllProp: true,
 				},
 				PropFilters: []PropFilter{
 					{
@@ -84,11 +80,7 @@ END:VCARD`)
 			name: "limit-1-query",
 			query: &AddressBookQuery{
 				DataRequest: AddressDataRequest{
-					Props: []string{
-						vcard.FieldFormattedName,
-						vcard.FieldEmail,
-						vcard.FieldUID,
-					},
+					AllProp: true,
 				},
 				Limit: 1,
 				PropFilters: []PropFilter{
@@ -105,11 +97,7 @@ END:VCARD`)
 			name: "limit-4-query",
 			query: &AddressBookQuery{
 				DataRequest: AddressDataRequest{
-					Props: []string{
-						vcard.FieldFormattedName,
-						vcard.FieldEmail,
-						vcard.FieldUID,
-					},
+					AllProp: true,
 				},
 				Limit: 4,
 				PropFilters: []PropFilter{
@@ -126,11 +114,7 @@ END:VCARD`)
 			name: "email-match",
 			query: &AddressBookQuery{
 				DataRequest: AddressDataRequest{
-					Props: []string{
-						vcard.FieldFormattedName,
-						vcard.FieldEmail,
-						vcard.FieldUID,
-					},
+					AllProp: true,
 				},
 				PropFilters: []PropFilter{
 					{
@@ -146,11 +130,7 @@ END:VCARD`)
 			name: "email-match-any",
 			query: &AddressBookQuery{
 				DataRequest: AddressDataRequest{
-					Props: []string{
-						vcard.FieldFormattedName,
-						vcard.FieldEmail,
-						vcard.FieldUID,
-					},
+					AllProp: true,
 				},
 				PropFilters: []PropFilter{
 					{
@@ -169,11 +149,7 @@ END:VCARD`)
 			name: "email-match-all",
 			query: &AddressBookQuery{
 				DataRequest: AddressDataRequest{
-					Props: []string{
-						vcard.FieldFormattedName,
-						vcard.FieldEmail,
-						vcard.FieldUID,
-					},
+					AllProp: true,
 				},
 				PropFilters: []PropFilter{{
 					Name: vcard.FieldEmail,
@@ -189,11 +165,7 @@ END:VCARD`)
 			name: "email-no-match",
 			query: &AddressBookQuery{
 				DataRequest: AddressDataRequest{
-					Props: []string{
-						vcard.FieldFormattedName,
-						vcard.FieldEmail,
-						vcard.FieldUID,
-					},
+					AllProp: true,
 				},
 				PropFilters: []PropFilter{
 					{
