@@ -46,6 +46,11 @@ N:Gopher;Carla;;;
 EMAIL;PID=1.1:carla@example.com
 CLIENTPIDMAP:1;urn:uuid:53e374d9-337e-4727-8803-a1e9c14e0553
 END:VCARD`)
+	carlaFiltered := newAO(`BEGIN:VCARD
+VERSION:4.0
+UID:urn:uuid:4fbe8971-0bc3-424c-9c26-36c3e1eff6b3
+EMAIL;PID=1.1:carla@example.com
+END:VCARD`)
 
 	for _, tc := range []struct {
 		name  string
@@ -176,6 +181,45 @@ END:VCARD`)
 			},
 			addrs: []AddressObject{alice, bob, carla},
 			want:  []AddressObject{},
+		},
+		{
+			name: "email-match-filter-properties",
+			query: &AddressBookQuery{
+				DataRequest: AddressDataRequest{
+					Props: []string{
+						vcard.FieldVersion,
+						vcard.FieldUID,
+						vcard.FieldEmail,
+					},
+				},
+				PropFilters: []PropFilter{
+					{
+						Name:        vcard.FieldEmail,
+						TextMatches: []TextMatch{{Text: "carla"}},
+					},
+				},
+			},
+			addrs: []AddressObject{alice, bob, carla},
+			want:  []AddressObject{carlaFiltered},
+		},
+		{
+			name: "email-match-filter-properties-always-returns-version",
+			query: &AddressBookQuery{
+				DataRequest: AddressDataRequest{
+					Props: []string{
+						vcard.FieldUID,
+						vcard.FieldEmail,
+					},
+				},
+				PropFilters: []PropFilter{
+					{
+						Name:        vcard.FieldEmail,
+						TextMatches: []TextMatch{{Text: "carla"}},
+					},
+				},
+			},
+			addrs: []AddressObject{alice, bob, carla},
+			want:  []AddressObject{carlaFiltered},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

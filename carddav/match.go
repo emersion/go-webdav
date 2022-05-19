@@ -7,6 +7,34 @@ import (
 	"github.com/emersion/go-vcard"
 )
 
+func filterProperties(req AddressDataRequest, ao AddressObject) AddressObject {
+	if req.AllProp || len(req.Props) == 0 {
+		return ao
+	}
+
+	if len(ao.Card) == 0 {
+		panic("request to process empty vCard")
+	}
+
+	result := AddressObject{
+		Path:    ao.Path,
+		ModTime: ao.ModTime,
+		ETag:    ao.ETag,
+	}
+
+	result.Card = make(vcard.Card)
+	// result would be invalid w/o version
+	result.Card[vcard.FieldVersion] = ao.Card[vcard.FieldVersion]
+	for _, prop := range req.Props {
+		value, ok := ao.Card[prop]
+		if ok {
+			result.Card[prop] = value
+		}
+	}
+
+	return result
+}
+
 // Filter returns the filtered list of address objects matching the provided query.
 // A nil query will return the full list of address objects.
 func Filter(query *AddressBookQuery, aos []AddressObject) ([]AddressObject, error) {
@@ -29,9 +57,7 @@ func Filter(query *AddressBookQuery, aos []AddressObject) ([]AddressObject, erro
 			continue
 		}
 
-		// TODO properties are not currently filtered even if requested
-
-		out = append(out, ao)
+		out = append(out, filterProperties(query.DataRequest, ao))
 		if len(out) >= n {
 			break
 		}
