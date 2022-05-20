@@ -322,7 +322,8 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			return nil, err
 		}
 		resps = append(resps, *resp)
-	} else if r.URL.Path == homeSetPath {
+	}
+	if r.URL.Path == homeSetPath || (r.URL.Path == principalPath && depth != internal.DepthZero) {
 		ab, err := b.Backend.AddressBook(r.Context())
 		if err != nil {
 			return nil, err
@@ -334,7 +335,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		}
 		resps = append(resps, *resp)
 
-		if depth != internal.DepthZero {
+		if (r.URL.Path == homeSetPath && depth != internal.DepthZero) || depth == internal.DepthInfinity {
 			aos, err := b.Backend.ListAddressObjects(r.Context(), &dataReq)
 			if err != nil {
 				return nil, err
@@ -348,7 +349,8 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 				resps = append(resps, *resp)
 			}
 		}
-	} else {
+	}
+	if r.URL.Path != principalPath && r.URL.Path != homeSetPath {
 		ao, err := b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
 		if err != nil {
 			return nil, err
@@ -372,10 +374,17 @@ func (b *backend) propfindUserPrincipal(ctx context.Context, propfind *internal.
 
 	props := map[xml.Name]internal.PropfindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+			path, err := b.Backend.CurrentUserPrincipal(ctx)
+			if err != nil {
+				return nil, err
+			}
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
 		addressBookHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &addressbookHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
+		},
+		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+			return internal.NewResourceType(internal.CollectionName, webdav.PrincipalName), nil
 		},
 	}
 	return internal.NewPropfindResponse(principalPath, propfind, props)
