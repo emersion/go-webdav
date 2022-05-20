@@ -57,7 +57,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		http.Redirect(w, r, principalPath, http.StatusMovedPermanently)
+		http.Redirect(w, r, principalPath, http.StatusPermanentRedirect)
 		return
 	}
 
