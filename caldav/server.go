@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/emersion/go-ical"
@@ -321,6 +322,9 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	w.Header().Set("Content-Type", ical.MIMEType)
+	if co.ContentLength > 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(co.ContentLength, 10))
+	}
 	if co.ETag != "" {
 		w.Header().Set("ETag", internal.ETag(co.ETag).String())
 	}
