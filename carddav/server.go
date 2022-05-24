@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"mime"
 	"net/http"
+	"strconv"
 
 	"github.com/emersion/go-vcard"
 	"github.com/emersion/go-webdav"
@@ -289,6 +290,9 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	w.Header().Set("Content-Type", vcard.MIMEType)
+	if ao.ContentLength > 0 {
+		w.Header().Set("Content-Length", strconv.FormatInt(ao.ContentLength, 10))
+	}
 	if ao.ETag != "" {
 		w.Header().Set("ETag", internal.ETag(ao.ETag).String())
 	}
