@@ -246,6 +246,11 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 			return nil, err
 		}
 
+		var getContentLength internal.GetContentLength
+		if err := resp.DecodeProp(&getContentLength); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
 		r := bytes.NewReader(addrData.Data)
 		card, err := vcard.NewDecoder(r).Decode()
 		if err != nil {
@@ -253,10 +258,11 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 		}
 
 		addrs = append(addrs, AddressObject{
-			Path:    path,
-			ModTime: time.Time(getLastMod.LastModified),
-			ETag:    string(getETag.ETag),
-			Card:    card,
+			Path:          path,
+			ModTime:       time.Time(getLastMod.LastModified),
+			ContentLength: getContentLength.Length,
+			ETag:          string(getETag.ETag),
+			Card:          card,
 		})
 	}
 
@@ -344,6 +350,13 @@ func populateAddressObject(ao *AddressObject, resp *http.Response) error {
 			return err
 		}
 		ao.ETag = etag
+	}
+	if contentLength := resp.Header.Get("Content-Length"); contentLength != "" {
+		n, err := strconv.ParseInt(contentLength, 10, 64)
+		if err != nil {
+			return err
+		}
+		ao.ContentLength = n
 	}
 	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
 		t, err := http.ParseTime(lastModified)
