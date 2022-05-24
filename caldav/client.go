@@ -15,7 +15,13 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
-// Client provides access to a remote CardDAV server.
+// Discover performs a DNS-based CalDAV service discovery as described in
+// RFC 6764 section 6. It returns the URL to the CalDAV server.
+func Discover(host string) (string, error) {
+	return internal.Discover("caldav", host)
+}
+
+// Client provides access to a remote CalDAV server.
 type Client struct {
 	*webdav.Client
 
@@ -92,7 +98,7 @@ func (c *Client) FindCalendars(calendarHomeSet string) ([]Calendar, error) {
 			return nil, err
 		}
 		if maxResSize.Size < 0 {
-			return nil, fmt.Errorf("carddav: max-resource-size must be a positive integer")
+			return nil, fmt.Errorf("caldav: max-resource-size must be a positive integer")
 		}
 
 		var supportedCompSet supportedCalendarComponentSet

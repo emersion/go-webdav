@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"mime"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -17,35 +16,9 @@ import (
 )
 
 // Discover performs a DNS-based CardDAV service discovery as described in
-// RFC 6352 section 11. It returns the URL to the CardDAV server.
-func Discover(domain string) (string, error) {
-	// Only lookup carddavs (not carddav), plaintext connections are insecure
-	_, addrs, err := net.LookupSRV("carddavs", "tcp", domain)
-	if dnsErr, ok := err.(*net.DNSError); ok {
-		if dnsErr.IsTemporary {
-			return "", err
-		}
-	} else if err != nil {
-		return "", err
-	}
-
-	if len(addrs) == 0 {
-		return "", fmt.Errorf("carddav: domain doesn't have an SRV record")
-	}
-	addr := addrs[0]
-
-	target := strings.TrimSuffix(addr.Target, ".")
-	if target == "" {
-		return "", fmt.Errorf("carddav: empty target in SRV record")
-	}
-
-	u := url.URL{Scheme: "https"}
-	if addr.Port == 443 {
-		u.Host = target
-	} else {
-		u.Host = fmt.Sprintf("%v:%v", target, addr.Port)
-	}
-	return u.String(), nil
+// RFC 6764 section 6. It returns the URL to the CardDAV server.
+func Discover(host string) (string, error) {
+	return internal.Discover("carddav", host)
 }
 
 // Client provides access to a remote CardDAV server.
