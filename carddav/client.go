@@ -430,7 +430,8 @@ func (c *Client) PutAddressObject(path string, card vcard.Card) (*AddressObject,
 	return ao, nil
 }
 
-// SyncCollection do a sync-collection operation on resource(path), it returns a SyncResponse
+// SyncCollection performs a collection synchronization operation on the
+// specified resource, as defined in RFC 6578.
 func (c *Client) SyncCollection(path string, query *SyncQuery) (*SyncResponse, error) {
 	var limit *internal.Limit
 	if query.Limit > 0 {
