@@ -39,6 +39,7 @@ func Discover(domain string) (string, error) {
 		return "", fmt.Errorf("carddav: empty target in SRV record")
 	}
 
+	// TODO: perform a TXT lookup, check for a "path" key in the response
 	u := url.URL{Scheme: "https"}
 	if addr.Port == 443 {
 		u.Host = target
