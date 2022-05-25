@@ -50,6 +50,8 @@ func NewClient(c HTTPClient, endpoint string) (*Client, error) {
 func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	propfind := internal.NewPropNamePropfind(internal.CurrentUserPrincipalName)
 
+	// TODO: consider retrying on the root URI "/" if this fails, as suggested
+	// by the RFC?
 	resp, err := c.ic.PropfindFlat("", propfind)
 	if err != nil {
 		return "", err
