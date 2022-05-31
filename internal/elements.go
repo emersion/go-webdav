@@ -14,14 +14,14 @@ import (
 const Namespace = "DAV:"
 
 var (
-	ResourceTypeName     = xml.Name{"DAV:", "resourcetype"}
-	DisplayNameName      = xml.Name{"DAV:", "displayname"}
-	GetContentLengthName = xml.Name{"DAV:", "getcontentlength"}
-	GetContentTypeName   = xml.Name{"DAV:", "getcontenttype"}
-	GetLastModifiedName  = xml.Name{"DAV:", "getlastmodified"}
-	GetETagName          = xml.Name{"DAV:", "getetag"}
+	ResourceTypeName     = xml.Name{Namespace, "resourcetype"}
+	DisplayNameName      = xml.Name{Namespace, "displayname"}
+	GetContentLengthName = xml.Name{Namespace, "getcontentlength"}
+	GetContentTypeName   = xml.Name{Namespace, "getcontenttype"}
+	GetLastModifiedName  = xml.Name{Namespace, "getlastmodified"}
+	GetETagName          = xml.Name{Namespace, "getetag"}
 
-	CurrentUserPrincipalName = xml.Name{"DAV:", "current-user-principal"}
+	CurrentUserPrincipalName = xml.Name{Namespace, "current-user-principal"}
 )
 
 type Status struct {
