@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -99,21 +98,6 @@ type Multistatus struct {
 
 func NewMultistatus(resps ...Response) *Multistatus {
 	return &Multistatus{Responses: resps}
-}
-
-func (ms *Multistatus) Get(p string) (*Response, error) {
-	// Clean the path to avoid issues with trailing slashes
-	p = path.Clean(p)
-	for i := range ms.Responses {
-		resp := &ms.Responses[i]
-		for _, h := range resp.Hrefs {
-			if path.Clean(h.Path) == p {
-				return resp, resp.Err()
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("webdav: missing response for path %q", p)
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.24
