@@ -177,7 +177,7 @@ func (resp *Response) DecodeProp(values ...interface{}) error {
 			return err
 		}
 		if err := resp.Err(); err != nil {
-			return err
+			return newPropError(name, err)
 		}
 		for _, propstat := range resp.Propstats {
 			raw := propstat.Prop.Get(name)
@@ -185,14 +185,24 @@ func (resp *Response) DecodeProp(values ...interface{}) error {
 				continue
 			}
 			if err := propstat.Status.Err(); err != nil {
-				return err
+				return newPropError(name, err)
 			}
-			return raw.Decode(v)
+			if err := raw.Decode(v); err != nil {
+				return newPropError(name, err)
+			}
+			return nil
 		}
-		return HTTPErrorf(http.StatusNotFound, "missing property %s", name)
+		return newPropError(name, &HTTPError{
+			Code: http.StatusNotFound,
+			Err:  fmt.Errorf("missing property"),
+		})
 	}
 
 	return nil
+}
+
+func newPropError(name xml.Name, err error) error {
+	return fmt.Errorf("property <%v %v>: %w", name.Space, name.Local, err)
 }
 
 func (resp *Response) EncodeProp(code int, v interface{}) error {
