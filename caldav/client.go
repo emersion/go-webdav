@@ -35,8 +35,8 @@ func NewClient(c webdav.HTTPClient, endpoint string) (*Client, error) {
 }
 
 func (c *Client) FindCalendarHomeSet(principal string) (string, error) {
-	propfind := internal.NewPropNamePropfind(calendarHomeSetName)
-	resp, err := c.ic.PropfindFlat(principal, propfind)
+	propfind := internal.NewPropNamePropFind(calendarHomeSetName)
+	resp, err := c.ic.PropFindFlat(principal, propfind)
 	if err != nil {
 		return "", err
 	}
@@ -50,14 +50,14 @@ func (c *Client) FindCalendarHomeSet(principal string) (string, error) {
 }
 
 func (c *Client) FindCalendars(calendarHomeSet string) ([]Calendar, error) {
-	propfind := internal.NewPropNamePropfind(
+	propfind := internal.NewPropNamePropFind(
 		internal.ResourceTypeName,
 		internal.DisplayNameName,
 		calendarDescriptionName,
 		maxResourceSizeName,
 		supportedCalendarComponentSetName,
 	)
-	ms, err := c.ic.Propfind(calendarHomeSet, internal.DepthOne, propfind)
+	ms, err := c.ic.PropFind(calendarHomeSet, internal.DepthOne, propfind)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func encodeCompFilter(filter *CompFilter) *compFilter {
 	return &encoded
 }
 
-func decodeCalendarObjectList(ms *internal.Multistatus) ([]CalendarObject, error) {
+func decodeCalendarObjectList(ms *internal.MultiStatus) ([]CalendarObject, error) {
 	addrs := make([]CalendarObject, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		path, err := resp.Path()

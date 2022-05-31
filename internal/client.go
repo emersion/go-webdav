@@ -111,7 +111,7 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func (c *Client) DoMultiStatus(req *http.Request) (*Multistatus, error) {
+func (c *Client) DoMultiStatus(req *http.Request) (*MultiStatus, error) {
 	resp, err := c.Do(req)
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (c *Client) DoMultiStatus(req *http.Request) (*Multistatus, error) {
 	}
 
 	// TODO: the response can be quite large, support streaming Response elements
-	var ms Multistatus
+	var ms MultiStatus
 	if err := xml.NewDecoder(resp.Body).Decode(&ms); err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (c *Client) DoMultiStatus(req *http.Request) (*Multistatus, error) {
 	return &ms, nil
 }
 
-func (c *Client) Propfind(path string, depth Depth, propfind *Propfind) (*Multistatus, error) {
+func (c *Client) PropFind(path string, depth Depth, propfind *PropFind) (*MultiStatus, error) {
 	req, err := c.NewXMLRequest("PROPFIND", path, propfind)
 	if err != nil {
 		return nil, err
@@ -143,8 +143,8 @@ func (c *Client) Propfind(path string, depth Depth, propfind *Propfind) (*Multis
 }
 
 // PropfindFlat performs a PROPFIND request with a zero depth.
-func (c *Client) PropfindFlat(path string, propfind *Propfind) (*Response, error) {
-	ms, err := c.Propfind(path, DepthZero, propfind)
+func (c *Client) PropFindFlat(path string, propfind *PropFind) (*Response, error) {
+	ms, err := c.PropFind(path, DepthZero, propfind)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (c *Client) Options(path string) (classes map[string]bool, methods map[stri
 }
 
 // SyncCollection perform a `sync-collection` REPORT operation on a resource
-func (c *Client) SyncCollection(path, syncToken string, level Depth, limit *Limit, prop *Prop) (*Multistatus, error) {
+func (c *Client) SyncCollection(path, syncToken string, level Depth, limit *Limit, prop *Prop) (*MultiStatus, error) {
 	q := SyncCollectionQuery{
 		SyncToken: syncToken,
 		SyncLevel: level.String(),

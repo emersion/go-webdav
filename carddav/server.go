@@ -170,7 +170,7 @@ func (h *Handler) handleQuery(ctx context.Context, w http.ResponseWriter, query 
 	if query.Limit != nil {
 		q.Limit = int(query.Limit.NResults)
 		if q.Limit <= 0 {
-			return internal.ServeMultistatus(w, internal.NewMultistatus())
+			return internal.ServeMultiStatus(w, internal.NewMultiStatus())
 		}
 	}
 
@@ -182,20 +182,20 @@ func (h *Handler) handleQuery(ctx context.Context, w http.ResponseWriter, query 
 	var resps []internal.Response
 	for _, ao := range aos {
 		b := backend{h.Backend}
-		propfind := internal.Propfind{
+		propfind := internal.PropFind{
 			Prop:     query.Prop,
 			AllProp:  query.AllProp,
 			PropName: query.PropName,
 		}
-		resp, err := b.propfindAddressObject(ctx, &propfind, &ao)
+		resp, err := b.propFindAddressObject(ctx, &propfind, &ao)
 		if err != nil {
 			return err
 		}
 		resps = append(resps, *resp)
 	}
 
-	ms := internal.NewMultistatus(resps...)
-	return internal.ServeMultistatus(w, ms)
+	ms := internal.NewMultiStatus(resps...)
+	return internal.ServeMultiStatus(w, ms)
 }
 
 func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, multiget *addressbookMultiget) error {
@@ -222,20 +222,20 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 		}
 
 		b := backend{h.Backend}
-		propfind := internal.Propfind{
+		propfind := internal.PropFind{
 			Prop:     multiget.Prop,
 			AllProp:  multiget.AllProp,
 			PropName: multiget.PropName,
 		}
-		resp, err := b.propfindAddressObject(ctx, &propfind, ao)
+		resp, err := b.propFindAddressObject(ctx, &propfind, ao)
 		if err != nil {
 			return err
 		}
 		resps = append(resps, *resp)
 	}
 
-	ms := internal.NewMultistatus(resps...)
-	return internal.ServeMultistatus(w, ms)
+	ms := internal.NewMultiStatus(resps...)
+	return internal.ServeMultiStatus(w, ms)
 }
 
 type backend struct {
@@ -306,7 +306,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
+func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth internal.Depth) (*internal.MultiStatus, error) {
 	homeSetPath, err := b.Backend.AddressbookHomeSetPath(r.Context())
 	if err != nil {
 		return nil, err
@@ -321,7 +321,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 	var resps []internal.Response
 
 	if r.URL.Path == principalPath {
-		resp, err := b.propfindUserPrincipal(r.Context(), propfind, homeSetPath)
+		resp, err := b.propFindUserPrincipal(r.Context(), propfind, homeSetPath)
 		if err != nil {
 			return nil, err
 		}
@@ -332,7 +332,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			return nil, err
 		}
 
-		resp, err := b.propfindAddressBook(r.Context(), propfind, ab)
+		resp, err := b.propFindAddressBook(r.Context(), propfind, ab)
 		if err != nil {
 			return nil, err
 		}
@@ -345,7 +345,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			}
 
 			for _, ao := range aos {
-				resp, err := b.propfindAddressObject(r.Context(), propfind, &ao)
+				resp, err := b.propFindAddressObject(r.Context(), propfind, &ao)
 				if err != nil {
 					return nil, err
 				}
@@ -358,23 +358,23 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			return nil, err
 		}
 
-		resp, err := b.propfindAddressObject(r.Context(), propfind, ao)
+		resp, err := b.propFindAddressObject(r.Context(), propfind, ao)
 		if err != nil {
 			return nil, err
 		}
 		resps = append(resps, *resp)
 	}
 
-	return internal.NewMultistatus(resps...), nil
+	return internal.NewMultiStatus(resps...), nil
 }
 
-func (b *backend) propfindUserPrincipal(ctx context.Context, propfind *internal.Propfind, homeSetPath string) (*internal.Response, error) {
+func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.PropFind, homeSetPath string) (*internal.Response, error) {
 	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	props := map[xml.Name]internal.PropfindFunc{
+	props := map[xml.Name]internal.PropFindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
@@ -382,11 +382,11 @@ func (b *backend) propfindUserPrincipal(ctx context.Context, propfind *internal.
 			return &addressbookHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
 		},
 	}
-	return internal.NewPropfindResponse(principalPath, propfind, props)
+	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
 
-func (b *backend) propfindAddressBook(ctx context.Context, propfind *internal.Propfind, ab *AddressBook) (*internal.Response, error) {
-	props := map[xml.Name]internal.PropfindFunc{
+func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.PropFind, ab *AddressBook) (*internal.Response, error) {
+	props := map[xml.Name]internal.PropFindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			path, err := b.Backend.CurrentUserPrincipal(ctx)
 			if err != nil {
@@ -419,11 +419,11 @@ func (b *backend) propfindAddressBook(ctx context.Context, propfind *internal.Pr
 		}
 	}
 
-	return internal.NewPropfindResponse(ab.Path, propfind, props)
+	return internal.NewPropFindResponse(ab.Path, propfind, props)
 }
 
-func (b *backend) propfindAddressObject(ctx context.Context, propfind *internal.Propfind, ao *AddressObject) (*internal.Response, error) {
-	props := map[xml.Name]internal.PropfindFunc{
+func (b *backend) propFindAddressObject(ctx context.Context, propfind *internal.PropFind, ao *AddressObject) (*internal.Response, error) {
+	props := map[xml.Name]internal.PropFindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			path, err := b.Backend.CurrentUserPrincipal(ctx)
 			if err != nil {
@@ -462,10 +462,10 @@ func (b *backend) propfindAddressObject(ctx context.Context, propfind *internal.
 		}
 	}
 
-	return internal.NewPropfindResponse(ao.Path, propfind, props)
+	return internal.NewPropFindResponse(ao.Path, propfind, props)
 }
 
-func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*internal.Response, error) {
+func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*internal.Response, error) {
 	homeSetPath, err := b.Backend.AddressbookHomeSetPath(r.Context())
 	if err != nil {
 		return nil, err
