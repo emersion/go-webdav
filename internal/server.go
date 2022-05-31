@@ -45,7 +45,7 @@ func ServeXML(w http.ResponseWriter) *xml.Encoder {
 	return xml.NewEncoder(w)
 }
 
-func ServeMultistatus(w http.ResponseWriter, ms *Multistatus) error {
+func ServeMultiStatus(w http.ResponseWriter, ms *MultiStatus) error {
 	// TODO: streaming
 	w.WriteHeader(http.StatusMultiStatus)
 	return ServeXML(w).Encode(ms)
@@ -54,8 +54,8 @@ func ServeMultistatus(w http.ResponseWriter, ms *Multistatus) error {
 type Backend interface {
 	Options(r *http.Request) (caps []string, allow []string, err error)
 	HeadGet(w http.ResponseWriter, r *http.Request) error
-	Propfind(r *http.Request, pf *Propfind, depth Depth) (*Multistatus, error)
-	Proppatch(r *http.Request, pu *Propertyupdate) (*Response, error)
+	PropFind(r *http.Request, pf *PropFind, depth Depth) (*MultiStatus, error)
+	PropPatch(r *http.Request, pu *PropertyUpdate) (*Response, error)
 	Put(r *http.Request) (*Href, error)
 	Delete(r *http.Request) error
 	Mkcol(r *http.Request) error
@@ -130,7 +130,7 @@ func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
-	var propfind Propfind
+	var propfind PropFind
 	if err := DecodeXMLRequest(r, &propfind); err != nil {
 		return err
 	}
@@ -144,17 +144,17 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	ms, err := h.Backend.Propfind(r, &propfind, depth)
+	ms, err := h.Backend.PropFind(r, &propfind, depth)
 	if err != nil {
 		return err
 	}
 
-	return ServeMultistatus(w, ms)
+	return ServeMultiStatus(w, ms)
 }
 
-type PropfindFunc func(raw *RawXMLValue) (interface{}, error)
+type PropFindFunc func(raw *RawXMLValue) (interface{}, error)
 
-func NewPropfindResponse(path string, propfind *Propfind, props map[xml.Name]PropfindFunc) (*Response, error) {
+func NewPropFindResponse(path string, propfind *PropFind, props map[xml.Name]PropFindFunc) (*Response, error) {
 	resp := NewOKResponse(path)
 
 	if _, ok := props[ResourceTypeName]; !ok {
@@ -224,18 +224,18 @@ func NewPropfindResponse(path string, propfind *Propfind, props map[xml.Name]Pro
 }
 
 func (h *Handler) handleProppatch(w http.ResponseWriter, r *http.Request) error {
-	var update Propertyupdate
+	var update PropertyUpdate
 	if err := DecodeXMLRequest(r, &update); err != nil {
 		return err
 	}
 
-	resp, err := h.Backend.Proppatch(r, &update)
+	resp, err := h.Backend.PropPatch(r, &update)
 	if err != nil {
 		return err
 	}
 
-	ms := NewMultistatus(*resp)
-	return ServeMultistatus(w, ms)
+	ms := NewMultiStatus(*resp)
+	return ServeMultiStatus(w, ms)
 }
 
 func parseDestination(h http.Header) (*Href, error) {

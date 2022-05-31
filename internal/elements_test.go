@@ -20,7 +20,7 @@ const exampleDeleteMultistatusStr = `<?xml version="1.0" encoding="utf-8" ?>
 
 func TestResponse_Err_error(t *testing.T) {
 	r := strings.NewReader(exampleDeleteMultistatusStr)
-	var ms Multistatus
+	var ms MultiStatus
 	if err := xml.NewDecoder(r).Decode(&ms); err != nil {
 		t.Fatalf("Decode() = %v", err)
 	}

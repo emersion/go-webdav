@@ -81,8 +81,8 @@ func (c *Client) HasSupport() error {
 }
 
 func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
-	propfind := internal.NewPropNamePropfind(addressBookHomeSetName)
-	resp, err := c.ic.PropfindFlat(principal, propfind)
+	propfind := internal.NewPropNamePropFind(addressBookHomeSetName)
+	resp, err := c.ic.PropFindFlat(principal, propfind)
 	if err != nil {
 		return "", err
 	}
@@ -104,14 +104,14 @@ func decodeSupportedAddressData(supported *supportedAddressData) []AddressDataTy
 }
 
 func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, error) {
-	propfind := internal.NewPropNamePropfind(
+	propfind := internal.NewPropNamePropFind(
 		internal.ResourceTypeName,
 		internal.DisplayNameName,
 		addressBookDescriptionName,
 		maxResourceSizeName,
 		supportedAddressDataName,
 	)
-	ms, err := c.ic.Propfind(addressBookHomeSet, internal.DepthOne, propfind)
+	ms, err := c.ic.PropFind(addressBookHomeSet, internal.DepthOne, propfind)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func encodeTextMatch(tm *TextMatch) *textMatch {
 	}
 }
 
-func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
+func decodeAddressList(ms *internal.MultiStatus) ([]AddressObject, error) {
 	addrs := make([]AddressObject, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		path, err := resp.Path()

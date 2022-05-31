@@ -89,22 +89,22 @@ func (h *Href) UnmarshalText(b []byte) error {
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.16
-type Multistatus struct {
+type MultiStatus struct {
 	XMLName             xml.Name   `xml:"DAV: multistatus"`
 	Responses           []Response `xml:"response"`
 	ResponseDescription string     `xml:"responsedescription,omitempty"`
 	SyncToken           string     `xml:"sync-token,omitempty"`
 }
 
-func NewMultistatus(resps ...Response) *Multistatus {
-	return &Multistatus{Responses: resps}
+func NewMultiStatus(resps ...Response) *MultiStatus {
+	return &MultiStatus{Responses: resps}
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.24
 type Response struct {
 	XMLName             xml.Name   `xml:"DAV: response"`
 	Hrefs               []Href     `xml:"href"`
-	Propstats           []Propstat `xml:"propstat,omitempty"`
+	PropStats           []PropStat `xml:"propstat,omitempty"`
 	ResponseDescription string     `xml:"responsedescription,omitempty"`
 	Status              *Status    `xml:"status,omitempty"`
 	Error               *Error     `xml:"error,omitempty"`
@@ -179,7 +179,7 @@ func (resp *Response) DecodeProp(values ...interface{}) error {
 		if err := resp.Err(); err != nil {
 			return newPropError(name, err)
 		}
-		for _, propstat := range resp.Propstats {
+		for _, propstat := range resp.PropStats {
 			raw := propstat.Prop.Get(name)
 			if raw == nil {
 				continue
@@ -211,15 +211,15 @@ func (resp *Response) EncodeProp(code int, v interface{}) error {
 		return err
 	}
 
-	for i := range resp.Propstats {
-		propstat := &resp.Propstats[i]
+	for i := range resp.PropStats {
+		propstat := &resp.PropStats[i]
 		if propstat.Status.Code == code {
 			propstat.Prop.Raw = append(propstat.Prop.Raw, *raw)
 			return nil
 		}
 	}
 
-	resp.Propstats = append(resp.Propstats, Propstat{
+	resp.PropStats = append(resp.PropStats, PropStat{
 		Status: Status{Code: code},
 		Prop:   Prop{Raw: []RawXMLValue{*raw}},
 	})
@@ -233,7 +233,7 @@ type Location struct {
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.22
-type Propstat struct {
+type PropStat struct {
 	XMLName             xml.Name `xml:"DAV: propstat"`
 	Prop                Prop     `xml:"prop"`
 	Status              Status   `xml:"status"`
@@ -284,7 +284,7 @@ func (p *Prop) Decode(v interface{}) error {
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.20
-type Propfind struct {
+type PropFind struct {
 	XMLName  xml.Name  `xml:"DAV: propfind"`
 	Prop     *Prop     `xml:"prop,omitempty"`
 	AllProp  *struct{} `xml:"allprop,omitempty"`
@@ -300,8 +300,8 @@ func xmlNamesToRaw(names []xml.Name) []RawXMLValue {
 	return l
 }
 
-func NewPropNamePropfind(names ...xml.Name) *Propfind {
-	return &Propfind{Prop: &Prop{Raw: xmlNamesToRaw(names)}}
+func NewPropNamePropFind(names ...xml.Name) *PropFind {
+	return &PropFind{Prop: &Prop{Raw: xmlNamesToRaw(names)}}
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.8
@@ -329,7 +329,7 @@ func (t *ResourceType) Is(name xml.Name) bool {
 	return false
 }
 
-var CollectionName = xml.Name{"DAV:", "collection"}
+var CollectionName = xml.Name{Namespace, "collection"}
 
 // https://tools.ietf.org/html/rfc4918#section-15.4
 type GetContentLength struct {
@@ -415,7 +415,7 @@ type CurrentUserPrincipal struct {
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.19
-type Propertyupdate struct {
+type PropertyUpdate struct {
 	XMLName xml.Name `xml:"DAV: propertyupdate"`
 	Remove  []Remove `xml:"remove"`
 	Set     []Set    `xml:"set"`

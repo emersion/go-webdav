@@ -215,21 +215,21 @@ func (h *Handler) handleQuery(r *http.Request, w http.ResponseWriter, query *cal
 	var resps []internal.Response
 	for _, co := range cos {
 		b := backend{h.Backend}
-		propfind := internal.Propfind{
+		propfind := internal.PropFind{
 			Prop:     query.Prop,
 			AllProp:  query.AllProp,
 			PropName: query.PropName,
 		}
-		resp, err := b.propfindCalendarObject(r.Context(), &propfind, &co)
+		resp, err := b.propFindCalendarObject(r.Context(), &propfind, &co)
 		if err != nil {
 			return err
 		}
 		resps = append(resps, *resp)
 	}
 
-	ms := internal.NewMultistatus(resps...)
+	ms := internal.NewMultiStatus(resps...)
 
-	return internal.ServeMultistatus(w, ms)
+	return internal.ServeMultiStatus(w, ms)
 }
 
 func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, multiget *calendarMultiget) error {
@@ -256,20 +256,20 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 		}
 
 		b := backend{h.Backend}
-		propfind := internal.Propfind{
+		propfind := internal.PropFind{
 			Prop:     multiget.Prop,
 			AllProp:  multiget.AllProp,
 			PropName: multiget.PropName,
 		}
-		resp, err := b.propfindCalendarObject(ctx, &propfind, co)
+		resp, err := b.propFindCalendarObject(ctx, &propfind, co)
 		if err != nil {
 			return err
 		}
 		resps = append(resps, *resp)
 	}
 
-	ms := internal.NewMultistatus(resps...)
-	return internal.ServeMultistatus(w, ms)
+	ms := internal.NewMultiStatus(resps...)
+	return internal.ServeMultiStatus(w, ms)
 }
 
 type backend struct {
@@ -338,7 +338,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
+func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth internal.Depth) (*internal.MultiStatus, error) {
 	homeSetPath, err := b.Backend.CalendarHomeSetPath(r.Context())
 	if err != nil {
 		return nil, err
@@ -351,7 +351,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 	var resps []internal.Response
 
 	if r.URL.Path == principalPath {
-		resp, err := b.propfindUserPrincipal(r.Context(), propfind, homeSetPath)
+		resp, err := b.propFindUserPrincipal(r.Context(), propfind, homeSetPath)
 		if err != nil {
 			return nil, err
 		}
@@ -362,7 +362,7 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 			return nil, err
 		}
 
-		resp, err := b.propfindCalendar(r.Context(), propfind, cal)
+		resp, err := b.propFindCalendar(r.Context(), propfind, cal)
 		if err != nil {
 			return nil, err
 		}
@@ -375,16 +375,16 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		// TODO
 	}
 
-	return internal.NewMultistatus(resps...), nil
+	return internal.NewMultiStatus(resps...), nil
 }
 
-func (b *backend) propfindUserPrincipal(ctx context.Context, propfind *internal.Propfind, homeSetPath string) (*internal.Response, error) {
+func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.PropFind, homeSetPath string) (*internal.Response, error) {
 	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	props := map[xml.Name]internal.PropfindFunc{
+	props := map[xml.Name]internal.PropFindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
@@ -392,11 +392,11 @@ func (b *backend) propfindUserPrincipal(ctx context.Context, propfind *internal.
 			return &calendarHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
 		},
 	}
-	return internal.NewPropfindResponse(principalPath, propfind, props)
+	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
 
-func (b *backend) propfindCalendar(ctx context.Context, propfind *internal.Propfind, cal *Calendar) (*internal.Response, error) {
-	props := map[xml.Name]internal.PropfindFunc{
+func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropFind, cal *Calendar) (*internal.Response, error) {
+	props := map[xml.Name]internal.PropFindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			path, err := b.Backend.CurrentUserPrincipal(ctx)
 			if err != nil {
@@ -443,11 +443,11 @@ func (b *backend) propfindCalendar(ctx context.Context, propfind *internal.Propf
 
 	// TODO: CALDAV:calendar-timezone, CALDAV:supported-calendar-component-set, CALDAV:min-date-time, CALDAV:max-date-time, CALDAV:max-instances, CALDAV:max-attendees-per-instance
 
-	return internal.NewPropfindResponse(cal.Path, propfind, props)
+	return internal.NewPropFindResponse(cal.Path, propfind, props)
 }
 
-func (b *backend) propfindCalendarObject(ctx context.Context, propfind *internal.Propfind, co *CalendarObject) (*internal.Response, error) {
-	props := map[xml.Name]internal.PropfindFunc{
+func (b *backend) propFindCalendarObject(ctx context.Context, propfind *internal.PropFind, co *CalendarObject) (*internal.Response, error) {
+	props := map[xml.Name]internal.PropFindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			path, err := b.Backend.CurrentUserPrincipal(ctx)
 			if err != nil {
@@ -486,10 +486,10 @@ func (b *backend) propfindCalendarObject(ctx context.Context, propfind *internal
 		}
 	}
 
-	return internal.NewPropfindResponse(co.Path, propfind, props)
+	return internal.NewPropFindResponse(co.Path, propfind, props)
 }
 
-func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*internal.Response, error) {
+func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*internal.Response, error) {
 	panic("TODO")
 }
 

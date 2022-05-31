@@ -117,7 +117,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
+func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth internal.Depth) (*internal.MultiStatus, error) {
 	// TODO: use partial error Response on error
 
 	fi, err := b.FileSystem.Stat(r.URL.Path)
@@ -136,14 +136,14 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 
 		resps = make([]internal.Response, len(children))
 		for i, child := range children {
-			resp, err := b.propfindFile(propfind, &child)
+			resp, err := b.propFindFile(propfind, &child)
 			if err != nil {
 				return nil, err
 			}
 			resps[i] = *resp
 		}
 	} else {
-		resp, err := b.propfindFile(propfind, fi)
+		resp, err := b.propFindFile(propfind, fi)
 		if err != nil {
 			return nil, err
 		}
@@ -151,11 +151,11 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		resps = []internal.Response{*resp}
 	}
 
-	return internal.NewMultistatus(resps...), nil
+	return internal.NewMultiStatus(resps...), nil
 }
 
-func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*internal.Response, error) {
-	props := make(map[xml.Name]internal.PropfindFunc)
+func (b *backend) propFindFile(propfind *internal.PropFind, fi *FileInfo) (*internal.Response, error) {
+	props := make(map[xml.Name]internal.PropFindFunc)
 
 	props[internal.ResourceTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
 		var types []xml.Name
@@ -189,10 +189,10 @@ func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*inte
 		}
 	}
 
-	return internal.NewPropfindResponse(fi.Path, propfind, props)
+	return internal.NewPropFindResponse(fi.Path, propfind, props)
 }
 
-func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*internal.Response, error) {
+func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*internal.Response, error) {
 	// TODO: return a failed Response instead
 	return nil, internal.HTTPErrorf(http.StatusForbidden, "webdav: PROPPATCH is unsupported")
 }
@@ -285,11 +285,11 @@ func ServePrincipal(w http.ResponseWriter, r *http.Request, options *ServePrinci
 }
 
 func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, options *ServePrincipalOptions) error {
-	var propfind internal.Propfind
+	var propfind internal.PropFind
 	if err := internal.DecodeXMLRequest(r, &propfind); err != nil {
 		return err
 	}
-	props := map[xml.Name]internal.PropfindFunc{
+	props := map[xml.Name]internal.PropFindFunc{
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(principalName), nil
 		},
@@ -307,11 +307,11 @@ func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, options *Ser
 		}
 	}
 
-	resp, err := internal.NewPropfindResponse(r.URL.Path, &propfind, props)
+	resp, err := internal.NewPropFindResponse(r.URL.Path, &propfind, props)
 	if err != nil {
 		return err
 	}
 
-	ms := internal.NewMultistatus(*resp)
-	return internal.ServeMultistatus(w, ms)
+	ms := internal.NewMultiStatus(*resp)
+	return internal.ServeMultiStatus(w, ms)
 }

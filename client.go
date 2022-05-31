@@ -48,11 +48,11 @@ func NewClient(c HTTPClient, endpoint string) (*Client, error) {
 }
 
 func (c *Client) FindCurrentUserPrincipal() (string, error) {
-	propfind := internal.NewPropNamePropfind(internal.CurrentUserPrincipalName)
+	propfind := internal.NewPropNamePropFind(internal.CurrentUserPrincipalName)
 
 	// TODO: consider retrying on the root URI "/" if this fails, as suggested
 	// by the RFC?
-	resp, err := c.ic.PropfindFlat("", propfind)
+	resp, err := c.ic.PropFindFlat("", propfind)
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +68,7 @@ func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	return prop.Href.Path, nil
 }
 
-var fileInfoPropfind = internal.NewPropNamePropfind(
+var fileInfoPropFind = internal.NewPropNamePropFind(
 	internal.ResourceTypeName,
 	internal.GetContentLengthName,
 	internal.GetLastModifiedName,
@@ -122,7 +122,7 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 }
 
 func (c *Client) Stat(name string) (*FileInfo, error) {
-	resp, err := c.ic.PropfindFlat(name, fileInfoPropfind)
+	resp, err := c.ic.PropFindFlat(name, fileInfoPropFind)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +149,7 @@ func (c *Client) Readdir(name string, recursive bool) ([]FileInfo, error) {
 		depth = internal.DepthInfinity
 	}
 
-	ms, err := c.ic.Propfind(name, depth, fileInfoPropfind)
+	ms, err := c.ic.PropFind(name, depth, fileInfoPropFind)
 	if err != nil {
 		return nil, err
 	}
