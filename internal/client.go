@@ -149,7 +149,11 @@ func (c *Client) PropfindFlat(path string, propfind *Propfind) (*Response, error
 		return nil, err
 	}
 
-	return ms.Get(c.ResolveHref(path).Path)
+	// If the client followed a redirect, the Href might be different from the request path
+	if len(ms.Responses) != 1 {
+		return nil, fmt.Errorf("PROPFIND with Depth: 0 returned %d responses", len(ms.Responses))
+	}
+	return &ms.Responses[0], nil
 }
 
 func parseCommaSeparatedSet(values []string, upper bool) map[string]bool {
