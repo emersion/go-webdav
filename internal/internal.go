@@ -2,6 +2,7 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -84,7 +85,11 @@ func HTTPErrorFromError(err error) *HTTPError {
 }
 
 func IsNotFound(err error) bool {
-	return HTTPErrorFromError(err).Code == http.StatusNotFound
+	var httpErr *HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.Code == http.StatusNotFound
+	}
+	return false
 }
 
 func HTTPErrorf(code int, format string, a ...interface{}) *HTTPError {
