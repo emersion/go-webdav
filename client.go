@@ -193,8 +193,13 @@ func (c *Client) Create(name string) (io.WriteCloser, error) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := c.ic.Do(req)
-		done <- err
+		resp, err := c.ic.Do(req)
+		if err != nil {
+			done <- err
+			return
+		}
+		resp.Body.Close()
+		done <- nil
 	}()
 
 	return &fileWriter{pw, done}, nil
@@ -206,8 +211,12 @@ func (c *Client) RemoveAll(name string) error {
 		return err
 	}
 
-	_, err = c.ic.Do(req)
-	return err
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }
 
 func (c *Client) Mkdir(name string) error {
@@ -216,8 +225,12 @@ func (c *Client) Mkdir(name string) error {
 		return err
 	}
 
-	_, err = c.ic.Do(req)
-	return err
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }
 
 func (c *Client) CopyAll(name, dest string, overwrite bool) error {
@@ -229,8 +242,12 @@ func (c *Client) CopyAll(name, dest string, overwrite bool) error {
 	req.Header.Set("Destination", c.ic.ResolveHref(dest).String())
 	req.Header.Set("Overwrite", internal.FormatOverwrite(overwrite))
 
-	_, err = c.ic.Do(req)
-	return err
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }
 
 func (c *Client) MoveAll(name, dest string, overwrite bool) error {
@@ -242,6 +259,10 @@ func (c *Client) MoveAll(name, dest string, overwrite bool) error {
 	req.Header.Set("Destination", c.ic.ResolveHref(dest).String())
 	req.Header.Set("Overwrite", internal.FormatOverwrite(overwrite))
 
-	_, err = c.ic.Do(req)
-	return err
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }
