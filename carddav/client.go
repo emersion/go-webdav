@@ -46,6 +46,7 @@ func Discover(domain string) (string, error) {
 	} else {
 		u.Host = fmt.Sprintf("%v:%v", target, addr.Port)
 	}
+	u.Path = "/.well-known/carddav"
 	return u.String(), nil
 }
 
