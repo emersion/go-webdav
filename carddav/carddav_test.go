@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -32,6 +34,10 @@ END:VCARD`
 	addressBookPathKey      = "test:addressBookPath"
 )
 
+var (
+	validFilenameRegex = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]+(.[a-zA-Z]+)?$`)
+)
+
 func (*testBackend) CurrentUserPrincipal(ctx context.Context) (string, error) {
 	r := ctx.Value(currentUserPrincipalKey).(string)
 	return r, nil
@@ -40,6 +46,44 @@ func (*testBackend) CurrentUserPrincipal(ctx context.Context) (string, error) {
 func (*testBackend) AddressbookHomeSetPath(ctx context.Context) (string, error) {
 	r := ctx.Value(homeSetPathKey).(string)
 	return r, nil
+}
+
+func (t *testBackend) CardDAVResourceType(ctx context.Context, resourcePath string) (ResourceType, error) {
+	p := path.Clean(resourcePath)
+	if p != "/" && strings.HasSuffix(resourcePath, "/") {
+		p += "/"
+	}
+	var result ResourceType = 0
+
+	principalPath, err := t.CurrentUserPrincipal(ctx)
+	if err != nil {
+		return result, err
+	}
+	homeSetPath, err := t.AddressbookHomeSetPath(ctx)
+	if err != nil {
+		return result, err
+	}
+	ab, err := t.AddressBook(ctx)
+	if err != nil {
+		return result, err
+	}
+
+	if p == principalPath {
+		result |= ResourceTypeUserPrincipal
+	}
+	if p == homeSetPath {
+		result |= ResourceTypeAddressBookHomeSet
+	}
+	if p == ab.Path {
+		result |= ResourceTypeAddressBook
+	}
+	if strings.HasPrefix(p, ab.Path) {
+		path := strings.TrimPrefix(p, ab.Path)
+		if validFilenameRegex.MatchString(path) {
+			result |= ResourceTypeAddressObject
+		}
+	}
+	return result, nil
 }
 
 func (*testBackend) AddressBook(ctx context.Context) (*AddressBook, error) {
@@ -96,13 +140,12 @@ func TestAddressBookDiscovery(t *testing.T) {
 		homeSetPath          string
 		addressBookPath      string
 	}{
-		// TODO this used to work, but is currently broken.
-		//{
-		//	name:  "all-at-root",
-		//	currentUserPrincipal: "/",
-		//	homeSetPath: "/",
-		//	addressBookPath: "/",
-		//},
+		{
+			name:                 "all-at-root",
+			currentUserPrincipal: "/",
+			homeSetPath:          "/",
+			addressBookPath:      "/",
+		},
 		{
 			name:                 "simple-home-set-path",
 			currentUserPrincipal: "/",

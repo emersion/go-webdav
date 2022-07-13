@@ -25,8 +25,18 @@ type PutAddressObjectOptions struct {
 	IfMatch string
 }
 
+type ResourceType int
+
+const (
+	ResourceTypeUserPrincipal      ResourceType = 1 << iota
+	ResourceTypeAddressBookHomeSet ResourceType = 1 << iota
+	ResourceTypeAddressBook        ResourceType = 1 << iota
+	ResourceTypeAddressObject      ResourceType = 1 << iota
+)
+
 // Backend is a CardDAV server backend.
 type Backend interface {
+	CardDAVResourceType(ctx context.Context, path string) (ResourceType, error)
 	AddressbookHomeSetPath(ctx context.Context) (string, error)
 	AddressBook(ctx context.Context) (*AddressBook, error)
 	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
@@ -307,110 +317,156 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth internal.Depth) (*internal.MultiStatus, error) {
-	homeSetPath, err := b.Backend.AddressbookHomeSetPath(r.Context())
-	if err != nil {
-		return nil, err
-	}
-	principalPath, err := b.Backend.CurrentUserPrincipal(r.Context())
-	if err != nil {
-		return nil, err
-	}
-
-	var dataReq AddressDataRequest
-
 	var resps []internal.Response
 
-	if r.URL.Path == principalPath {
-		resp, err := b.propFindUserPrincipal(r.Context(), propfind, homeSetPath)
-		if err != nil {
-			return nil, err
-		}
-		resps = append(resps, *resp)
-	} else if r.URL.Path == homeSetPath {
-		ab, err := b.Backend.AddressBook(r.Context())
+	// Get the response for this very path
+	resp, err := b.propFindResponse(r.Context(), propfind, r.URL.Path)
+	if err != nil {
+		return nil, err
+	}
+	resps = append(resps, *resp)
+
+	// Depth handling...
+	if depth != internal.DepthZero {
+		// Figure out the type of resource at the _current_ path
+		resType, err := b.Backend.CardDAVResourceType(r.Context(), r.URL.Path)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := b.propFindAddressBook(r.Context(), propfind, ab)
-		if err != nil {
-			return nil, err
-		}
-		resps = append(resps, *resp)
-
-		if depth != internal.DepthZero {
-			aos, err := b.Backend.ListAddressObjects(r.Context(), &dataReq)
-			if err != nil {
-				return nil, err
+		if (resType & ResourceTypeUserPrincipal) > 0 {
+			// Only handle depth here if user principal path != home set path
+			// If they are the same, the next if statement will handle it
+			if resType&ResourceTypeAddressBookHomeSet == 0 {
+				homeSetPath, err := b.Backend.AddressbookHomeSetPath(r.Context())
+				if err != nil {
+					return nil, err
+				}
+				resp, err := b.propFindResponse(r.Context(), propfind, homeSetPath)
+				resps = append(resps, *resp)
 			}
+			// TODO handle depth infinity...
+		}
 
-			for _, ao := range aos {
-				resp, err := b.propFindAddressObject(r.Context(), propfind, &ao)
+		if (resType & ResourceTypeAddressBookHomeSet) > 0 {
+			// If the home set path is also the addressbook path, the address objects will be handled below.
+			// But if not _and_ depth is infinity, add address objects.
+			if (resType&ResourceTypeAddressBook) == 0 && depth == internal.DepthInfinity {
+				aoResps, err := b.propFindAllAddressObjects(r.Context(), propfind)
+				if err != nil {
+					return nil, err
+				}
+				resps = append(resps, aoResps...)
+			}
+			// Add address book if it is a real child of this path
+			if (resType & ResourceTypeAddressBook) == 0 {
+				ab, err := b.Backend.AddressBook(r.Context())
+				if err != nil {
+					return nil, err
+				}
+				resp, err := b.propFindResponse(r.Context(), propfind, ab.Path)
 				if err != nil {
 					return nil, err
 				}
 				resps = append(resps, *resp)
 			}
 		}
-	} else {
-		ao, err := b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
-		if err != nil {
-			return nil, err
+		if (resType & ResourceTypeAddressBook) > 0 {
+			aoResps, err := b.propFindAllAddressObjects(r.Context(), propfind)
+			if err != nil {
+				return nil, err
+			}
+			resps = append(resps, aoResps...)
 		}
-
-		resp, err := b.propFindAddressObject(r.Context(), propfind, ao)
-		if err != nil {
-			return nil, err
-		}
-		resps = append(resps, *resp)
 	}
 
 	return internal.NewMultiStatus(resps...), nil
 }
 
-func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.PropFind, homeSetPath string) (*internal.Response, error) {
-	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
+func (b *backend) propFindResponse(ctx context.Context, propfind *internal.PropFind, path string) (*internal.Response, error) {
+	resType, err := b.Backend.CardDAVResourceType(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
-		},
-		addressBookHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &addressbookHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
-		},
+	// This is the only type that cannot overlap with others
+	if (resType & ResourceTypeAddressObject) > 0 {
+		var dataReq AddressDataRequest
+		ao, err := b.Backend.GetAddressObject(ctx, path, &dataReq)
+		if err != nil {
+			return nil, err
+		}
+		return b.propFindAddressObject(ctx, propfind, ao)
 	}
-	return internal.NewPropFindResponse(principalPath, propfind, props)
+
+	props := make(map[xml.Name]internal.PropFindFunc)
+
+	// Order is important. If user principal path, home set path, and
+	// address book path are all the same (a supported configuration), we
+	// want the resource type to be the one for the address book.
+	if (resType & ResourceTypeUserPrincipal) > 0 {
+		homeSetPath, err := b.Backend.AddressbookHomeSetPath(ctx)
+		if err != nil {
+			return nil, err
+		}
+		b.propFindAddPropsForUserPrincipal(ctx, props, path, homeSetPath)
+	}
+	if (resType & ResourceTypeAddressBookHomeSet) > 0 {
+		b.propFindAddPropsForHomeSet(ctx, props)
+	}
+	if (resType & ResourceTypeAddressBook) > 0 {
+		ab, err := b.Backend.AddressBook(ctx)
+		if err != nil {
+			return nil, err
+		}
+		b.propFindAddPropsForAddressBook(ctx, props, ab)
+	}
+
+	return internal.NewPropFindResponse(path, propfind, props)
 }
 
-func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.PropFind, ab *AddressBook) (*internal.Response, error) {
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			path, err := b.Backend.CurrentUserPrincipal(ctx)
-			if err != nil {
-				return nil, err
-			}
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
-		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(internal.CollectionName, addressBookName), nil
-		},
-		internal.DisplayNameName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.DisplayName{Name: ab.Name}, nil
-		},
-		addressBookDescriptionName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &addressbookDescription{Description: ab.Description}, nil
-		},
-		supportedAddressDataName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &supportedAddressData{
-				Types: []addressDataType{
-					{ContentType: vcard.MIMEType, Version: "3.0"},
-					{ContentType: vcard.MIMEType, Version: "4.0"},
-				},
-			}, nil
-		},
+func (b *backend) propFindAddPropsForUserPrincipal(ctx context.Context, props map[xml.Name]internal.PropFindFunc, principalPath, homeSetPath string) {
+	props[internal.CurrentUserPrincipalName] = func(*internal.RawXMLValue) (interface{}, error) {
+		return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+	}
+	props[addressBookHomeSetName] = func(*internal.RawXMLValue) (interface{}, error) {
+		return &addressbookHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
+	}
+	props[internal.ResourceTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
+		return internal.NewResourceType(internal.CollectionName), nil
+	}
+}
+
+func (b *backend) propFindAddPropsForHomeSet(ctx context.Context, props map[xml.Name]internal.PropFindFunc) {
+	props[internal.ResourceTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
+		return internal.NewResourceType(internal.CollectionName), nil
+	}
+}
+
+func (b *backend) propFindAddPropsForAddressBook(ctx context.Context, props map[xml.Name]internal.PropFindFunc, ab *AddressBook) {
+	props[internal.CurrentUserPrincipalName] = func(*internal.RawXMLValue) (interface{}, error) {
+		path, err := b.Backend.CurrentUserPrincipal(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
+	}
+	props[internal.ResourceTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
+		return internal.NewResourceType(internal.CollectionName, addressBookName), nil
+	}
+	props[internal.DisplayNameName] = func(*internal.RawXMLValue) (interface{}, error) {
+		return &internal.DisplayName{Name: ab.Name}, nil
+	}
+	props[addressBookDescriptionName] = func(*internal.RawXMLValue) (interface{}, error) {
+		return &addressbookDescription{Description: ab.Description}, nil
+	}
+	props[supportedAddressDataName] = func(*internal.RawXMLValue) (interface{}, error) {
+		return &supportedAddressData{
+			Types: []addressDataType{
+				{ContentType: vcard.MIMEType, Version: "3.0"},
+				{ContentType: vcard.MIMEType, Version: "4.0"},
+			},
+		}, nil
 	}
 
 	if ab.MaxResourceSize > 0 {
@@ -418,8 +474,24 @@ func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.Pr
 			return &maxResourceSize{Size: ab.MaxResourceSize}, nil
 		}
 	}
+}
 
-	return internal.NewPropFindResponse(ab.Path, propfind, props)
+func (b *backend) propFindAllAddressObjects(ctx context.Context, propfind *internal.PropFind) ([]internal.Response, error) {
+	var dataReq AddressDataRequest
+	aos, err := b.Backend.ListAddressObjects(ctx, &dataReq)
+	if err != nil {
+		return nil, err
+	}
+
+	var resps []internal.Response
+	for _, ao := range aos {
+		resp, err := b.propFindAddressObject(ctx, propfind, &ao)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
+	}
+	return resps, nil
 }
 
 func (b *backend) propFindAddressObject(ctx context.Context, propfind *internal.PropFind, ao *AddressObject) (*internal.Response, error) {
