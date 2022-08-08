@@ -2,6 +2,7 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -84,7 +85,11 @@ func HTTPErrorFromError(err error) *HTTPError {
 }
 
 func IsNotFound(err error) bool {
-	return HTTPErrorFromError(err).Code == http.StatusNotFound
+	var httpErr *HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.Code == http.StatusNotFound
+	}
+	return false
 }
 
 func HTTPErrorf(code int, format string, a ...interface{}) *HTTPError {
@@ -100,13 +105,6 @@ func (err *HTTPError) Error() string {
 	}
 }
 
-// DAVError is a XML error with HTTP status and a human readable message
-type DAVError struct {
-	Code int
-	Msg  string
-	Err  Error
-}
-
-func (err *DAVError) Error() string {
-	return err.Msg
+func (err *HTTPError) Unwrap() error {
+	return err.Err
 }

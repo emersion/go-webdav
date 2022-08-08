@@ -35,8 +35,8 @@ func NewClient(c webdav.HTTPClient, endpoint string) (*Client, error) {
 }
 
 func (c *Client) FindCalendarHomeSet(principal string) (string, error) {
-	propfind := internal.NewPropNamePropfind(calendarHomeSetName)
-	resp, err := c.ic.PropfindFlat(principal, propfind)
+	propfind := internal.NewPropNamePropFind(calendarHomeSetName)
+	resp, err := c.ic.PropFindFlat(principal, propfind)
 	if err != nil {
 		return "", err
 	}
@@ -50,14 +50,14 @@ func (c *Client) FindCalendarHomeSet(principal string) (string, error) {
 }
 
 func (c *Client) FindCalendars(calendarHomeSet string) ([]Calendar, error) {
-	propfind := internal.NewPropNamePropfind(
+	propfind := internal.NewPropNamePropFind(
 		internal.ResourceTypeName,
 		internal.DisplayNameName,
 		calendarDescriptionName,
 		maxResourceSizeName,
 		supportedCalendarComponentSetName,
 	)
-	ms, err := c.ic.Propfind(calendarHomeSet, internal.DepthOne, propfind)
+	ms, err := c.ic.PropFind(calendarHomeSet, internal.DepthOne, propfind)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func encodeCompFilter(filter *CompFilter) *compFilter {
 	return &encoded
 }
 
-func decodeCalendarObjectList(ms *internal.Multistatus) ([]CalendarObject, error) {
+func decodeCalendarObjectList(ms *internal.MultiStatus) ([]CalendarObject, error) {
 	addrs := make([]CalendarObject, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		path, err := resp.Path()
@@ -191,6 +191,11 @@ func decodeCalendarObjectList(ms *internal.Multistatus) ([]CalendarObject, error
 			return nil, err
 		}
 
+		var getContentLength internal.GetContentLength
+		if err := resp.DecodeProp(&getContentLength); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
 		r := bytes.NewReader(calData.Data)
 		data, err := ical.NewDecoder(r).Decode()
 		if err != nil {
@@ -198,10 +203,11 @@ func decodeCalendarObjectList(ms *internal.Multistatus) ([]CalendarObject, error
 		}
 
 		addrs = append(addrs, CalendarObject{
-			Path:    path,
-			ModTime: time.Time(getLastMod.LastModified),
-			ETag:    string(getETag.ETag),
-			Data:    data,
+			Path:          path,
+			ModTime:       time.Time(getLastMod.LastModified),
+			ContentLength: getContentLength.Length,
+			ETag:          string(getETag.ETag),
+			Data:          data,
 		})
 	}
 
@@ -276,6 +282,13 @@ func populateCalendarObject(co *CalendarObject, resp *http.Response) error {
 			return err
 		}
 		co.ETag = etag
+	}
+	if contentLength := resp.Header.Get("Content-Length"); contentLength != "" {
+		n, err := strconv.ParseInt(contentLength, 10, 64)
+		if err != nil {
+			return err
+		}
+		co.ContentLength = n
 	}
 	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
 		t, err := http.ParseTime(lastModified)

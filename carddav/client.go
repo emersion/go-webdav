@@ -39,12 +39,14 @@ func Discover(domain string) (string, error) {
 		return "", fmt.Errorf("carddav: empty target in SRV record")
 	}
 
+	// TODO: perform a TXT lookup, check for a "path" key in the response
 	u := url.URL{Scheme: "https"}
 	if addr.Port == 443 {
 		u.Host = target
 	} else {
 		u.Host = fmt.Sprintf("%v:%v", target, addr.Port)
 	}
+	u.Path = "/.well-known/carddav"
 	return u.String(), nil
 }
 
@@ -80,8 +82,8 @@ func (c *Client) HasSupport() error {
 }
 
 func (c *Client) FindAddressBookHomeSet(principal string) (string, error) {
-	propfind := internal.NewPropNamePropfind(addressBookHomeSetName)
-	resp, err := c.ic.PropfindFlat(principal, propfind)
+	propfind := internal.NewPropNamePropFind(addressBookHomeSetName)
+	resp, err := c.ic.PropFindFlat(principal, propfind)
 	if err != nil {
 		return "", err
 	}
@@ -103,14 +105,14 @@ func decodeSupportedAddressData(supported *supportedAddressData) []AddressDataTy
 }
 
 func (c *Client) FindAddressBooks(addressBookHomeSet string) ([]AddressBook, error) {
-	propfind := internal.NewPropNamePropfind(
+	propfind := internal.NewPropNamePropFind(
 		internal.ResourceTypeName,
 		internal.DisplayNameName,
 		addressBookDescriptionName,
 		maxResourceSizeName,
 		supportedAddressDataName,
 	)
-	ms, err := c.ic.Propfind(addressBookHomeSet, internal.DepthOne, propfind)
+	ms, err := c.ic.PropFind(addressBookHomeSet, internal.DepthOne, propfind)
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +225,7 @@ func encodeTextMatch(tm *TextMatch) *textMatch {
 	}
 }
 
-func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
+func decodeAddressList(ms *internal.MultiStatus) ([]AddressObject, error) {
 	addrs := make([]AddressObject, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		path, err := resp.Path()
@@ -246,6 +248,11 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 			return nil, err
 		}
 
+		var getContentLength internal.GetContentLength
+		if err := resp.DecodeProp(&getContentLength); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
 		r := bytes.NewReader(addrData.Data)
 		card, err := vcard.NewDecoder(r).Decode()
 		if err != nil {
@@ -253,10 +260,11 @@ func decodeAddressList(ms *internal.Multistatus) ([]AddressObject, error) {
 		}
 
 		addrs = append(addrs, AddressObject{
-			Path:    path,
-			ModTime: time.Time(getLastMod.LastModified),
-			ETag:    string(getETag.ETag),
-			Card:    card,
+			Path:          path,
+			ModTime:       time.Time(getLastMod.LastModified),
+			ContentLength: getContentLength.Length,
+			ETag:          string(getETag.ETag),
+			Card:          card,
 		})
 	}
 
@@ -345,6 +353,13 @@ func populateAddressObject(ao *AddressObject, resp *http.Response) error {
 		}
 		ao.ETag = etag
 	}
+	if contentLength := resp.Header.Get("Content-Length"); contentLength != "" {
+		n, err := strconv.ParseInt(contentLength, 10, 64)
+		if err != nil {
+			return err
+		}
+		ao.ContentLength = n
+	}
 	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
 		t, err := http.ParseTime(lastModified)
 		if err != nil {
@@ -430,7 +445,8 @@ func (c *Client) PutAddressObject(path string, card vcard.Card) (*AddressObject,
 	return ao, nil
 }
 
-// SyncCollection do a sync-collection operation on resource(path), it returns a SyncResponse
+// SyncCollection performs a collection synchronization operation on the
+// specified resource, as defined in RFC 6578.
 func (c *Client) SyncCollection(path string, query *SyncQuery) (*SyncResponse, error) {
 	var limit *internal.Limit
 	if query.Limit > 0 {

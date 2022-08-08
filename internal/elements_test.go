@@ -18,14 +18,20 @@ const exampleDeleteMultistatusStr = `<?xml version="1.0" encoding="utf-8" ?>
   </d:response>
 </d:multistatus>`
 
-func TestMultistatus_Get_error(t *testing.T) {
+func TestResponse_Err_error(t *testing.T) {
 	r := strings.NewReader(exampleDeleteMultistatusStr)
-	var ms Multistatus
+	var ms MultiStatus
 	if err := xml.NewDecoder(r).Decode(&ms); err != nil {
 		t.Fatalf("Decode() = %v", err)
 	}
 
-	_, err := ms.Get("/container/resource3")
+	if len(ms.Responses) != 1 {
+		t.Fatalf("expected 1 <response>, got %v", len(ms.Responses))
+	}
+
+	resp := ms.Responses[0]
+
+	err := resp.Err()
 	if err == nil {
 		t.Errorf("Multistatus.Get() returned a nil error, expected non-nil")
 	} else if httpErr, ok := err.(*HTTPError); !ok {

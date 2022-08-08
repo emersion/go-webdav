@@ -48,9 +48,11 @@ func NewClient(c HTTPClient, endpoint string) (*Client, error) {
 }
 
 func (c *Client) FindCurrentUserPrincipal() (string, error) {
-	propfind := internal.NewPropNamePropfind(internal.CurrentUserPrincipalName)
+	propfind := internal.NewPropNamePropFind(internal.CurrentUserPrincipalName)
 
-	resp, err := c.ic.PropfindFlat("", propfind)
+	// TODO: consider retrying on the root URI "/" if this fails, as suggested
+	// by the RFC?
+	resp, err := c.ic.PropFindFlat("", propfind)
 	if err != nil {
 		return "", err
 	}
@@ -66,7 +68,7 @@ func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	return prop.Href.Path, nil
 }
 
-var fileInfoPropfind = internal.NewPropNamePropfind(
+var fileInfoPropFind = internal.NewPropNamePropFind(
 	internal.ResourceTypeName,
 	internal.GetContentLengthName,
 	internal.GetLastModifiedName,
@@ -120,7 +122,7 @@ func fileInfoFromResponse(resp *internal.Response) (*FileInfo, error) {
 }
 
 func (c *Client) Stat(name string) (*FileInfo, error) {
-	resp, err := c.ic.PropfindFlat(name, fileInfoPropfind)
+	resp, err := c.ic.PropFindFlat(name, fileInfoPropFind)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +149,7 @@ func (c *Client) Readdir(name string, recursive bool) ([]FileInfo, error) {
 		depth = internal.DepthInfinity
 	}
 
-	ms, err := c.ic.Propfind(name, depth, fileInfoPropfind)
+	ms, err := c.ic.PropFind(name, depth, fileInfoPropFind)
 	if err != nil {
 		return nil, err
 	}
@@ -191,8 +193,13 @@ func (c *Client) Create(name string) (io.WriteCloser, error) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := c.ic.Do(req)
-		done <- err
+		resp, err := c.ic.Do(req)
+		if err != nil {
+			done <- err
+			return
+		}
+		resp.Body.Close()
+		done <- nil
 	}()
 
 	return &fileWriter{pw, done}, nil
@@ -204,8 +211,12 @@ func (c *Client) RemoveAll(name string) error {
 		return err
 	}
 
-	_, err = c.ic.Do(req)
-	return err
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }
 
 func (c *Client) Mkdir(name string) error {
@@ -214,8 +225,12 @@ func (c *Client) Mkdir(name string) error {
 		return err
 	}
 
-	_, err = c.ic.Do(req)
-	return err
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }
 
 func (c *Client) CopyAll(name, dest string, overwrite bool) error {
@@ -227,8 +242,12 @@ func (c *Client) CopyAll(name, dest string, overwrite bool) error {
 	req.Header.Set("Destination", c.ic.ResolveHref(dest).String())
 	req.Header.Set("Overwrite", internal.FormatOverwrite(overwrite))
 
-	_, err = c.ic.Do(req)
-	return err
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }
 
 func (c *Client) MoveAll(name, dest string, overwrite bool) error {
@@ -240,6 +259,10 @@ func (c *Client) MoveAll(name, dest string, overwrite bool) error {
 	req.Header.Set("Destination", c.ic.ResolveHref(dest).String())
 	req.Header.Set("Overwrite", internal.FormatOverwrite(overwrite))
 
-	_, err = c.ic.Do(req)
-	return err
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }

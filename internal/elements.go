@@ -2,10 +2,10 @@ package internal
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -14,14 +14,14 @@ import (
 const Namespace = "DAV:"
 
 var (
-	ResourceTypeName     = xml.Name{"DAV:", "resourcetype"}
-	DisplayNameName      = xml.Name{"DAV:", "displayname"}
-	GetContentLengthName = xml.Name{"DAV:", "getcontentlength"}
-	GetContentTypeName   = xml.Name{"DAV:", "getcontenttype"}
-	GetLastModifiedName  = xml.Name{"DAV:", "getlastmodified"}
-	GetETagName          = xml.Name{"DAV:", "getetag"}
+	ResourceTypeName     = xml.Name{Namespace, "resourcetype"}
+	DisplayNameName      = xml.Name{Namespace, "displayname"}
+	GetContentLengthName = xml.Name{Namespace, "getcontentlength"}
+	GetContentTypeName   = xml.Name{Namespace, "getcontenttype"}
+	GetLastModifiedName  = xml.Name{Namespace, "getlastmodified"}
+	GetETagName          = xml.Name{Namespace, "getetag"}
 
-	CurrentUserPrincipalName = xml.Name{"DAV:", "current-user-principal"}
+	CurrentUserPrincipalName = xml.Name{Namespace, "current-user-principal"}
 )
 
 type Status struct {
@@ -89,37 +89,22 @@ func (h *Href) UnmarshalText(b []byte) error {
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.16
-type Multistatus struct {
+type MultiStatus struct {
 	XMLName             xml.Name   `xml:"DAV: multistatus"`
 	Responses           []Response `xml:"response"`
 	ResponseDescription string     `xml:"responsedescription,omitempty"`
 	SyncToken           string     `xml:"sync-token,omitempty"`
 }
 
-func NewMultistatus(resps ...Response) *Multistatus {
-	return &Multistatus{Responses: resps}
-}
-
-func (ms *Multistatus) Get(p string) (*Response, error) {
-	// Clean the path to avoid issues with trailing slashes
-	p = path.Clean(p)
-	for i := range ms.Responses {
-		resp := &ms.Responses[i]
-		for _, h := range resp.Hrefs {
-			if path.Clean(h.Path) == p {
-				return resp, resp.Status.Err()
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("webdav: missing response for path %q", p)
+func NewMultiStatus(resps ...Response) *MultiStatus {
+	return &MultiStatus{Responses: resps}
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.24
 type Response struct {
 	XMLName             xml.Name   `xml:"DAV: response"`
 	Hrefs               []Href     `xml:"href"`
-	Propstats           []Propstat `xml:"propstat,omitempty"`
+	PropStats           []PropStat `xml:"propstat,omitempty"`
 	ResponseDescription string     `xml:"responsedescription,omitempty"`
 	Status              *Status    `xml:"status,omitempty"`
 	Error               *Error     `xml:"error,omitempty"`
@@ -134,8 +119,47 @@ func NewOKResponse(path string) *Response {
 	}
 }
 
+func NewErrorResponse(path string, err error) *Response {
+	code := http.StatusInternalServerError
+	var httpErr *HTTPError
+	if errors.As(err, &httpErr) {
+		code = httpErr.Code
+	}
+
+	var errElt *Error
+	errors.As(err, &errElt)
+
+	href := Href{Path: path}
+	return &Response{
+		Hrefs:               []Href{href},
+		Status:              &Status{Code: code},
+		ResponseDescription: err.Error(),
+		Error:               errElt,
+	}
+}
+
+func (resp *Response) Err() error {
+	if resp.Status == nil || resp.Status.Code/100 == 2 {
+		return nil
+	}
+
+	var err error = resp.Error
+	if resp.ResponseDescription != "" {
+		if err != nil {
+			err = fmt.Errorf("%v (%w)", resp.ResponseDescription, err)
+		} else {
+			err = fmt.Errorf("%v", resp.ResponseDescription)
+		}
+	}
+
+	return &HTTPError{
+		Code: resp.Status.Code,
+		Err:  err,
+	}
+}
+
 func (resp *Response) Path() (string, error) {
-	err := resp.Status.Err()
+	err := resp.Err()
 	var path string
 	if len(resp.Hrefs) == 1 {
 		path = resp.Hrefs[0].Path
@@ -152,23 +176,33 @@ func (resp *Response) DecodeProp(values ...interface{}) error {
 		if err != nil {
 			return err
 		}
-		if err := resp.Status.Err(); err != nil {
-			return err
+		if err := resp.Err(); err != nil {
+			return newPropError(name, err)
 		}
-		for _, propstat := range resp.Propstats {
+		for _, propstat := range resp.PropStats {
 			raw := propstat.Prop.Get(name)
 			if raw == nil {
 				continue
 			}
 			if err := propstat.Status.Err(); err != nil {
-				return err
+				return newPropError(name, err)
 			}
-			return raw.Decode(v)
+			if err := raw.Decode(v); err != nil {
+				return newPropError(name, err)
+			}
+			return nil
 		}
-		return HTTPErrorf(http.StatusNotFound, "missing property %s", name)
+		return newPropError(name, &HTTPError{
+			Code: http.StatusNotFound,
+			Err:  fmt.Errorf("missing property"),
+		})
 	}
 
 	return nil
+}
+
+func newPropError(name xml.Name, err error) error {
+	return fmt.Errorf("property <%v %v>: %w", name.Space, name.Local, err)
 }
 
 func (resp *Response) EncodeProp(code int, v interface{}) error {
@@ -177,15 +211,15 @@ func (resp *Response) EncodeProp(code int, v interface{}) error {
 		return err
 	}
 
-	for i := range resp.Propstats {
-		propstat := &resp.Propstats[i]
+	for i := range resp.PropStats {
+		propstat := &resp.PropStats[i]
 		if propstat.Status.Code == code {
 			propstat.Prop.Raw = append(propstat.Prop.Raw, *raw)
 			return nil
 		}
 	}
 
-	resp.Propstats = append(resp.Propstats, Propstat{
+	resp.PropStats = append(resp.PropStats, PropStat{
 		Status: Status{Code: code},
 		Prop:   Prop{Raw: []RawXMLValue{*raw}},
 	})
@@ -199,7 +233,7 @@ type Location struct {
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.22
-type Propstat struct {
+type PropStat struct {
 	XMLName             xml.Name `xml:"DAV: propstat"`
 	Prop                Prop     `xml:"prop"`
 	Status              Status   `xml:"status"`
@@ -250,7 +284,7 @@ func (p *Prop) Decode(v interface{}) error {
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.20
-type Propfind struct {
+type PropFind struct {
 	XMLName  xml.Name  `xml:"DAV: propfind"`
 	Prop     *Prop     `xml:"prop,omitempty"`
 	AllProp  *struct{} `xml:"allprop,omitempty"`
@@ -266,8 +300,8 @@ func xmlNamesToRaw(names []xml.Name) []RawXMLValue {
 	return l
 }
 
-func NewPropNamePropfind(names ...xml.Name) *Propfind {
-	return &Propfind{Prop: &Prop{Raw: xmlNamesToRaw(names)}}
+func NewPropNamePropFind(names ...xml.Name) *PropFind {
+	return &PropFind{Prop: &Prop{Raw: xmlNamesToRaw(names)}}
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.8
@@ -295,7 +329,7 @@ func (t *ResourceType) Is(name xml.Name) bool {
 	return false
 }
 
-var CollectionName = xml.Name{"DAV:", "collection"}
+var CollectionName = xml.Name{Namespace, "collection"}
 
 // https://tools.ietf.org/html/rfc4918#section-15.4
 type GetContentLength struct {
@@ -362,7 +396,7 @@ type CurrentUserPrincipal struct {
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.19
-type Propertyupdate struct {
+type PropertyUpdate struct {
 	XMLName xml.Name `xml:"DAV: propertyupdate"`
 	Remove  []Remove `xml:"remove"`
 	Set     []Set    `xml:"set"`

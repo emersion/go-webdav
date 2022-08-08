@@ -31,6 +31,10 @@ type calendarHomeSet struct {
 	Href    internal.Href `xml:"DAV: href"`
 }
 
+func (a *calendarHomeSet) GetXMLName() xml.Name {
+	return calendarHomeSetName
+}
+
 // https://tools.ietf.org/html/rfc4791#section-5.2.1
 type calendarDescription struct {
 	XMLName     xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-description"`

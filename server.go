@@ -1,11 +1,13 @@
 package webdav
 
 import (
+	"context"
 	"encoding/xml"
 	"io"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/emersion/go-webdav/internal"
 )
@@ -38,6 +40,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	b := backend{h.FileSystem}
 	hh := internal.Handler{&b}
 	hh.ServeHTTP(w, r)
+}
+
+// NewHTTPError creates a new error that is associated with an HTTP status code
+// and optionally an error that lead to it. Backends can use this functions to
+// return errors that convey some semantics (e.g. 404 not found, 403 access
+// denied, etc) while also providing an (optional) arbitrary error context
+// (intended for humans).
+func NewHTTPError(statusCode int, cause error) error {
+	return &internal.HTTPError{Code: statusCode, Err: cause}
 }
 
 type backend struct {
@@ -106,7 +117,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth internal.Depth) (*internal.Multistatus, error) {
+func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth internal.Depth) (*internal.MultiStatus, error) {
 	// TODO: use partial error Response on error
 
 	fi, err := b.FileSystem.Stat(r.URL.Path)
@@ -125,14 +136,14 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 
 		resps = make([]internal.Response, len(children))
 		for i, child := range children {
-			resp, err := b.propfindFile(propfind, &child)
+			resp, err := b.propFindFile(propfind, &child)
 			if err != nil {
 				return nil, err
 			}
 			resps[i] = *resp
 		}
 	} else {
-		resp, err := b.propfindFile(propfind, fi)
+		resp, err := b.propFindFile(propfind, fi)
 		if err != nil {
 			return nil, err
 		}
@@ -140,11 +151,11 @@ func (b *backend) Propfind(r *http.Request, propfind *internal.Propfind, depth i
 		resps = []internal.Response{*resp}
 	}
 
-	return internal.NewMultistatus(resps...), nil
+	return internal.NewMultiStatus(resps...), nil
 }
 
-func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*internal.Response, error) {
-	props := make(map[xml.Name]internal.PropfindFunc)
+func (b *backend) propFindFile(propfind *internal.PropFind, fi *FileInfo) (*internal.Response, error) {
+	props := make(map[xml.Name]internal.PropFindFunc)
 
 	props[internal.ResourceTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
 		var types []xml.Name
@@ -178,10 +189,10 @@ func (b *backend) propfindFile(propfind *internal.Propfind, fi *FileInfo) (*inte
 		}
 	}
 
-	return internal.NewPropfindResponse(fi.Path, propfind, props)
+	return internal.NewPropFindResponse(fi.Path, propfind, props)
 }
 
-func (b *backend) Proppatch(r *http.Request, update *internal.Propertyupdate) (*internal.Response, error) {
+func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*internal.Response, error) {
 	// TODO: return a failed Response instead
 	return nil, internal.HTTPErrorf(http.StatusForbidden, "webdav: PROPPATCH is unsupported")
 }
@@ -233,4 +244,74 @@ func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (cr
 		return false, &internal.HTTPError{http.StatusPreconditionFailed, err}
 	}
 	return created, err
+}
+
+// BackendSuppliedHomeSet represents either a CalDAV calendar-home-set or a
+// CardDAV addressbook-home-set. It should only be created via
+// `caldav.NewCalendarHomeSet()` or `carddav.NewAddressbookHomeSet()`. Only to
+// be used server-side, for listing a user's home sets as determined by the
+// (external) backend.
+type BackendSuppliedHomeSet interface {
+	GetXMLName() xml.Name
+}
+
+// UserPrincipalBackend can determine the current user's principal URL for a
+// given request context.
+type UserPrincipalBackend interface {
+	CurrentUserPrincipal(ctx context.Context) (string, error)
+}
+
+type ServePrincipalOptions struct {
+	CurrentUserPrincipalPath string
+	HomeSets                 []BackendSuppliedHomeSet
+}
+
+// ServePrincipal replies to requests for a principal URL.
+func ServePrincipal(w http.ResponseWriter, r *http.Request, options *ServePrincipalOptions) {
+	switch r.Method {
+	case http.MethodOptions:
+		caps := []string{"1", "3"}
+		allow := []string{http.MethodOptions, "PROPFIND"}
+		w.Header().Add("DAV", strings.Join(caps, ", "))
+		w.Header().Add("Allow", strings.Join(allow, ", "))
+		w.WriteHeader(http.StatusNoContent)
+	case "PROPFIND":
+		if err := servePrincipalPropfind(w, r, options); err != nil {
+			internal.ServeError(w, err)
+		}
+	default:
+		http.Error(w, "unsupported method", http.StatusMethodNotAllowed)
+	}
+}
+
+func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, options *ServePrincipalOptions) error {
+	var propfind internal.PropFind
+	if err := internal.DecodeXMLRequest(r, &propfind); err != nil {
+		return err
+	}
+	props := map[xml.Name]internal.PropFindFunc{
+		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+			return internal.NewResourceType(principalName), nil
+		},
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: options.CurrentUserPrincipalPath}}, nil
+		},
+	}
+
+	// TODO: handle Depth and more properties
+
+	for _, homeSet := range options.HomeSets {
+		hs := homeSet // capture variable for closure
+		props[homeSet.GetXMLName()] = func(*internal.RawXMLValue) (interface{}, error) {
+			return hs, nil
+		}
+	}
+
+	resp, err := internal.NewPropFindResponse(r.URL.Path, &propfind, props)
+	if err != nil {
+		return err
+	}
+
+	ms := internal.NewMultiStatus(*resp)
+	return internal.ServeMultiStatus(w, ms)
 }
