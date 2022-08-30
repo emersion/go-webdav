@@ -69,6 +69,17 @@ type Calendar struct {
 	SupportedComponentSet []string
 }
 
+type TimeRange struct {
+	Start, End time.Time
+}
+
+type CalendarDataRequest struct {
+	Comp            CalendarCompRequest
+	Expand          *TimeRange
+	LimitRecurrence *TimeRange
+	LimitFreeBusy   *TimeRange
+}
+
 type CalendarCompRequest struct {
 	Name string
 
@@ -107,13 +118,13 @@ type TextMatch struct {
 }
 
 type CalendarQuery struct {
-	CompRequest CalendarCompRequest
+	DataRequest CalendarDataRequest
 	CompFilter  CompFilter
 }
 
 type CalendarMultiGet struct {
 	Paths       []string
-	CompRequest CalendarCompRequest
+	DataRequest CalendarDataRequest
 }
 
 type CalendarObject struct {
