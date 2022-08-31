@@ -253,6 +253,24 @@ END:VCALENDAR`)
 			addrs: []CalendarObject{event1, event2, event3, todo1},
 			want:  []CalendarObject{event1},
 		},
+		{
+			// Query a time range that only returns a result if recurrence is properly evaluated.
+			name: "recurring events in time range",
+			query: &CalendarQuery{
+				CompFilter: CompFilter{
+					Name: "VCALENDAR",
+					Comps: []CompFilter{
+						CompFilter{
+							Name:  "VEVENT",
+							Start: toDate(t, "20060103T000000Z"),
+							End:   toDate(t, "20060104T000000Z"),
+						},
+					},
+				},
+			},
+			addrs: []CalendarObject{event1, event2, event3, todo1},
+			want:  []CalendarObject{event2},
+		},
 		// TODO add more examples
 	} {
 		t.Run(tc.name, func(t *testing.T) {

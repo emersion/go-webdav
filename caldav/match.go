@@ -127,9 +127,19 @@ func matchPropFilter(filter PropFilter, comp *ical.Component) (bool, error) {
 func matchCompTimeRange(start, end time.Time, comp *ical.Component) (bool, error) {
 	// See https://datatracker.ietf.org/doc/html/rfc4791#section-9.9
 
-	// TODO handle "infinity" values in query
-	// TODO handle recurring events
+	// evaluate recurring components
+	rset, err := comp.RecurrenceSet(start.Location())
+	if err != nil {
+		return false, err
+	}
+	if rset != nil {
+		// TODO we can only set inclusive to true or false, but really the
+		// start time is inclusive while the end time is not :/
+		return len(rset.Between(start, end, true)) > 0, nil
+	}
 
+	// TODO handle "infinity" values in query
+	// TODO handle more than just events
 	if comp.Name != ical.CompEvent {
 		return false, nil
 	}
