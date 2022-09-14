@@ -54,7 +54,7 @@ func ValidateCalendarObject(cal *ical.Calendar) (eventType string, uid string, e
 		if uid == "" {
 			uid = compUID
 		}
-		if uid != compUID {
+		if compUID != "" && uid != compUID {
 			return "", "", fmt.Errorf("conflicting UID values in calendar: %s, %s", uid, compUID)
 		}
 	}
