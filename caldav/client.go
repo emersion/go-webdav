@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/emersion/go-ical"
+
 	"github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/internal"
 )
@@ -23,7 +24,7 @@ type Client struct {
 }
 
 func NewClient(c webdav.HTTPClient, endpoint string) (*Client, error) {
-	wc, err := webdav.NewClient(c, endpoint)
+	wc, err := webdav.NewClient(c, endpoint, webdav.WithAccountType("caldav"))
 	if err != nil {
 		return nil, err
 	}

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/emersion/go-vcard"
+
 	"github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/internal"
 )
@@ -58,7 +59,7 @@ type Client struct {
 }
 
 func NewClient(c webdav.HTTPClient, endpoint string) (*Client, error) {
-	wc, err := webdav.NewClient(c, endpoint)
+	wc, err := webdav.NewClient(c, endpoint, webdav.WithAccountType("carddav"))
 	if err != nil {
 		return nil, err
 	}

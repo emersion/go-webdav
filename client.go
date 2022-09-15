@@ -29,34 +29,55 @@ func (c *basicAuthHTTPClient) Do(req *http.Request) (*http.Response, error) {
 // used.
 func HTTPClientWithBasicAuth(c HTTPClient, username, password string) HTTPClient {
 	if c == nil {
-		c = http.DefaultClient
+		c = internal.NoRedirectHttpClient
 	}
 	return &basicAuthHTTPClient{c, username, password}
 }
 
 // Client provides access to a remote WebDAV filesystem.
 type Client struct {
-	ic *internal.Client
+	ic          *internal.Client
+	accountType string
 }
 
-func NewClient(c HTTPClient, endpoint string) (*Client, error) {
+type Option = func(c *Client)
+
+func WithAccountType(accountType string) Option {
+	return func(c *Client) {
+		c.accountType = accountType
+	}
+}
+
+func NewClient(c HTTPClient, endpoint string, options ...Option) (*Client, error) {
 	ic, err := internal.NewClient(c, endpoint)
 	if err != nil {
 		return nil, err
 	}
-	return &Client{ic}, nil
+	client := &Client{ic: ic, accountType: "caldav"}
+	for _, opt := range options {
+		opt(client)
+	}
+	return client, nil
 }
 
 func (c *Client) FindCurrentUserPrincipal() (string, error) {
 	propfind := internal.NewPropNamePropFind(internal.CurrentUserPrincipalName)
 
-	// TODO: consider retrying on the root URI "/" if this fails, as suggested
-	// by the RFC?
-	resp, err := c.ic.PropFindFlat("", propfind)
+	var fallbackPath = []string{fmt.Sprintf(".well-known/%s", c.accountType), ""}
+	var (
+		resp *internal.Response
+		err  error
+	)
+	for _, path := range fallbackPath {
+		resp, err = c.ic.PropFindFlat(path, propfind)
+		if err != nil {
+			continue
+		}
+		break
+	}
 	if err != nil {
 		return "", err
 	}
-
 	var prop internal.CurrentUserPrincipal
 	if err := resp.DecodeProp(&prop); err != nil {
 		return "", err

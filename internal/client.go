@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"mime"
@@ -12,6 +13,15 @@ import (
 	"strings"
 	"unicode"
 )
+
+type redirectError struct {
+	Location string
+	Path     string
+}
+
+func (r redirectError) Error() string {
+	return "redirect: " + r.Location
+}
 
 // HTTPClient performs HTTP requests. It's implemented by *http.Client.
 type HTTPClient interface {
@@ -23,9 +33,18 @@ type Client struct {
 	endpoint *url.URL
 }
 
+var (
+	NoRedirectHttpClient = &http.Client{
+		Transport: http.DefaultTransport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return &redirectError{Location: req.URL.String(), Path: req.URL.Path}
+		},
+	}
+)
+
 func NewClient(c HTTPClient, endpoint string) (*Client, error) {
 	if c == nil {
-		c = http.DefaultClient
+		c = NoRedirectHttpClient
 	}
 
 	u, err := url.Parse(endpoint)
@@ -142,9 +161,26 @@ func (c *Client) PropFind(path string, depth Depth, propfind *PropFind) (*MultiS
 	return c.DoMultiStatus(req)
 }
 
-// PropfindFlat performs a PROPFIND request with a zero depth.
+// PropFindFlat performs a PROPFIND request with a zero depth.
 func (c *Client) PropFindFlat(path string, propfind *PropFind) (*Response, error) {
-	ms, err := c.PropFind(path, DepthZero, propfind)
+	propfindRetry := func(depth Depth, propfind *PropFind) (*MultiStatus, error) {
+		for {
+			ms, err := c.PropFind(path, DepthZero, propfind)
+			if err != nil {
+				var uErr *url.Error
+				if errors.As(err, &uErr) {
+					var rErr *redirectError
+					if errors.As(uErr.Err, &rErr) {
+						path = rErr.Path
+						continue
+					}
+				}
+				return nil, err
+			}
+			return ms, err
+		}
+	}
+	ms, err := propfindRetry(DepthZero, propfind)
 	if err != nil {
 		return nil, err
 	}
