@@ -364,7 +364,20 @@ func (c *Client) PutCalendarObject(path string, cal *ical.Calendar) (*CalendarOb
 
 	co := &CalendarObject{Path: path}
 	if err := populateCalendarObject(co, resp); err != nil {
-		return nil, err
+		return c.GetCalendarObject(path)
 	}
 	return co, nil
+}
+
+func (c *Client) DeleteCalendarObject(path string) error {
+	req, err := c.ic.NewRequest(http.MethodDelete, path, bytes.NewReader(nil))
+	if err != nil {
+		return err
+	}
+	resp, err := c.ic.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
 }
