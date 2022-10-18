@@ -348,6 +348,8 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 		return nil, err
 	}
 
+	var dataReq CalendarCompRequest
+
 	var resps []internal.Response
 
 	if r.URL.Path == principalPath {
@@ -369,10 +371,30 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 		resps = append(resps, *resp)
 
 		if depth != internal.DepthZero {
-			// TODO
+			cos, err := b.Backend.ListCalendarObjects(r.Context(), &dataReq)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, co := range cos {
+				resp, err := b.propFindCalendarObject(r.Context(), propfind, &co)
+				if err != nil {
+					return nil, err
+				}
+				resps = append(resps, *resp)
+			}
 		}
 	} else {
-		// TODO
+		co, err := b.Backend.GetCalendarObject(r.Context(), r.URL.Path, &dataReq)
+		if err != nil {
+			return nil, err
+		}
+
+		resp, err := b.propFindCalendarObject(r.Context(), propfind, co)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
 	}
 
 	return internal.NewMultiStatus(resps...), nil
