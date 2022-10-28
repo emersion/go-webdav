@@ -532,15 +532,15 @@ func (b *backend) Delete(r *http.Request) error {
 }
 
 func (b *backend) Mkcol(r *http.Request) error {
-	panic("TODO")
+	return internal.HTTPErrorf(http.StatusForbidden, "caldav: calendar creation unsupported")
 }
 
 func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {
-	panic("TODO")
+	return false, internal.HTTPErrorf(http.StatusNotImplemented, "caldav: COPY not implemented")
 }
 
 func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (created bool, err error) {
-	panic("TODO")
+	return false, internal.HTTPErrorf(http.StatusNotImplemented, "caldav: MOVE not implemented")
 }
 
 // https://datatracker.ietf.org/doc/html/rfc4791#section-5.3.2.1
