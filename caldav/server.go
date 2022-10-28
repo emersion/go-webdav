@@ -490,7 +490,43 @@ func (b *backend) propFindCalendarObject(ctx context.Context, propfind *internal
 }
 
 func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*internal.Response, error) {
-	panic("TODO")
+	homeSetPath, err := b.Backend.CalendarHomeSetPath(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	resp := internal.NewOKResponse(r.URL.Path)
+
+	if r.URL.Path == homeSetPath {
+		// TODO: support PROPPATCH for calendars
+		for _, prop := range update.Remove {
+			emptyVal := internal.NewRawXMLElement(prop.Prop.XMLName, nil, nil)
+			if err := resp.EncodeProp(http.StatusNotImplemented, emptyVal); err != nil {
+				return nil, err
+			}
+		}
+		for _, prop := range update.Set {
+			emptyVal := internal.NewRawXMLElement(prop.Prop.XMLName, nil, nil)
+			if err := resp.EncodeProp(http.StatusNotImplemented, emptyVal); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		for _, prop := range update.Remove {
+			emptyVal := internal.NewRawXMLElement(prop.Prop.XMLName, nil, nil)
+			if err := resp.EncodeProp(http.StatusMethodNotAllowed, emptyVal); err != nil {
+				return nil, err
+			}
+		}
+		for _, prop := range update.Set {
+			emptyVal := internal.NewRawXMLElement(prop.Prop.XMLName, nil, nil)
+			if err := resp.EncodeProp(http.StatusMethodNotAllowed, emptyVal); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return resp, nil
 }
 
 func (b *backend) Put(r *http.Request) (*internal.Href, error) {
