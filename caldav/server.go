@@ -35,6 +35,7 @@ type Backend interface {
 	ListCalendarObjects(ctx context.Context, req *CalendarCompRequest) ([]CalendarObject, error)
 	QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error)
 	PutCalendarObject(ctx context.Context, path string, calendar *ical.Calendar, opts *PutCalendarObjectOptions) (loc string, err error)
+	DeleteCalendarObject(ctx context.Context, path string) error
 
 	webdav.UserPrincipalBackend
 }
@@ -528,7 +529,7 @@ func (b *backend) Put(r *http.Request) (*internal.Href, error) {
 }
 
 func (b *backend) Delete(r *http.Request) error {
-	panic("TODO")
+	return b.Backend.DeleteCalendarObject(r.Context(), r.URL.Path)
 }
 
 func (b *backend) Mkcol(r *http.Request) error {
