@@ -21,10 +21,10 @@ import (
 type PutAddressObjectOptions struct {
 	// IfNoneMatch indicates that the client does not want to overwrite
 	// an existing resource.
-	IfNoneMatch bool
+	IfNoneMatch webdav.ConditionalMatch
 	// IfMatch provides the ETag of the resource that the client intends
 	// to overwrite, can be ""
-	IfMatch string
+	IfMatch webdav.ConditionalMatch
 }
 
 // Backend is a CardDAV server backend.
@@ -631,13 +631,12 @@ func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*
 }
 
 func (b *backend) Put(r *http.Request) (*internal.Href, error) {
-	if inm := r.Header.Get("If-None-Match"); inm != "" && inm != "*" {
-		return nil, internal.HTTPErrorf(http.StatusBadRequest, "invalid value for If-None-Match header")
-	}
+	ifNoneMatch := webdav.ConditionalMatch(r.Header.Get("If-None-Match"))
+	ifMatch := webdav.ConditionalMatch(r.Header.Get("If-Match"))
 
 	opts := PutAddressObjectOptions{
-		IfNoneMatch: r.Header.Get("If-None-Match") == "*",
-		IfMatch:     r.Header.Get("If-Match"),
+		IfNoneMatch: ifNoneMatch,
+		IfMatch:     ifMatch,
 	}
 
 	t, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
