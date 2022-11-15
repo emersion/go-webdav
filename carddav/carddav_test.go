@@ -27,9 +27,9 @@ CLIENTPIDMAP:1;urn:uuid:53e374d9-337e-4727-8803-a1e9c14e0551
 END:VCARD`
 	alicePath = "urn:uuid:4fbe8971-0bc3-424c-9c26-36c3e1eff6b1.vcf"
 
-	currentUserPrincipalKey = "test:currentUserPrincipal"
-	homeSetPathKey          = "test:homeSetPath"
-	addressBookPathKey      = "test:addressBookPath"
+	currentUserPrincipalKey = contextKey("test:currentUserPrincipal")
+	homeSetPathKey          = contextKey("test:homeSetPath")
+	addressBookPathKey      = contextKey("test:addressBookPath")
 )
 
 func (*testBackend) CurrentUserPrincipal(ctx context.Context) (string, error) {
