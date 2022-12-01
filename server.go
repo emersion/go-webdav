@@ -261,9 +261,12 @@ type UserPrincipalBackend interface {
 	CurrentUserPrincipal(ctx context.Context) (string, error)
 }
 
+type Capability string
+
 type ServePrincipalOptions struct {
 	CurrentUserPrincipalPath string
 	HomeSets                 []BackendSuppliedHomeSet
+	Capabilities             []Capability
 }
 
 // ServePrincipal replies to requests for a principal URL.
@@ -271,7 +274,10 @@ func ServePrincipal(w http.ResponseWriter, r *http.Request, options *ServePrinci
 	switch r.Method {
 	case http.MethodOptions:
 		caps := []string{"1", "3"}
-		allow := []string{http.MethodOptions, "PROPFIND"}
+		for _, c := range options.Capabilities {
+			caps = append(caps, string(c))
+		}
+		allow := []string{http.MethodOptions, "PROPFIND", "REPORT", "DELETE", "MKCOL"}
 		w.Header().Add("DAV", strings.Join(caps, ", "))
 		w.Header().Add("Allow", strings.Join(allow, ", "))
 		w.WriteHeader(http.StatusNoContent)

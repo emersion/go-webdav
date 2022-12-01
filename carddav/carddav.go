@@ -11,6 +11,8 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
+var CapabilityAddressBook = webdav.Capability("addressbook")
+
 func NewAddressBookHomeSet(path string) webdav.BackendSuppliedHomeSet {
 	return &addressbookHomeSet{Href: internal.Href{Path: path}}
 }
