@@ -12,6 +12,8 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
+var CapabilityCalendar = webdav.Capability("calendar-access")
+
 func NewCalendarHomeSet(path string) webdav.BackendSuppliedHomeSet {
 	return &calendarHomeSet{Href: internal.Href{Path: path}}
 }
