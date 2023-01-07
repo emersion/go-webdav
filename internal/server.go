@@ -131,8 +131,13 @@ func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) error {
 
 func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 	var propfind PropFind
-	if err := DecodeXMLRequest(r, &propfind); err != nil {
-		return err
+	
+	if r.ContentLength == 0 {
+		propfind.AllProp = &struct{}{}
+	} else {
+		if err := DecodeXMLRequest(r, &propfind); err != nil {
+			return err
+		}
 	}
 
 	depth := DepthInfinity
