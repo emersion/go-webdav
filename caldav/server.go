@@ -525,10 +525,16 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 			}, nil
 		},
 		supportedCalendarComponentSetName: func(*internal.RawXMLValue) (interface{}, error) {
+			components := []comp{}
+			if cal.SupportedComponentSet != nil {
+				for _, name := range cal.SupportedComponentSet {
+					components = append(components, comp{Name: name})
+				}
+			} else {
+				components = append(components, comp{Name: ical.CompEvent})
+			}
 			return &supportedCalendarComponentSet{
-				Comp: []comp{
-					{Name: ical.CompEvent},
-				},
+				Comp: components,
 			}, nil
 		},
 	}
