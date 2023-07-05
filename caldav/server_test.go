@@ -50,6 +50,37 @@ func TestPropFindSupportedCalendarComponent(t *testing.T) {
 	}
 }
 
+var propFindUserPrincipal = `
+<?xml version="1.0" encoding="UTF-8"?>
+<A:propfind xmlns:A="DAV:">
+  <A:prop>
+    <A:current-user-principal/>
+    <A:principal-URL/>
+    <A:resourcetype/>
+  </A:prop>
+</A:propfind>
+`
+
+func TestPropFindCurrentUserPrincipal(t *testing.T) {
+	req := httptest.NewRequest("PROPFIND", "/", strings.NewReader(propFindUserPrincipal))
+	req.Header.Set("Content-Type", "application/xml")
+	w := httptest.NewRecorder()
+	calendar := &Calendar{}
+	handler := Handler{Backend: testBackend{calendar: calendar}}
+	handler.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+	data, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	resp := string(data)
+	if !strings.Contains(resp, `<current-user-principal xmlns="DAV:"><href>/user/</href></current-user-principal>`) {
+		t.Errorf("No user-principal returned when doing a PROPFIND against root, response:\n%s", resp)
+	}
+}
+
 type testBackend struct {
 	calendar *Calendar
 }
@@ -59,11 +90,11 @@ func (t testBackend) Calendar(ctx context.Context) (*Calendar, error) {
 }
 
 func (t testBackend) CalendarHomeSetPath(ctx context.Context) (string, error) {
-	return "", nil
+	return "/user/calendars/", nil
 }
 
 func (t testBackend) CurrentUserPrincipal(ctx context.Context) (string, error) {
-	return "", nil
+	return "/user/", nil
 }
 
 func (t testBackend) DeleteCalendarObject(ctx context.Context, path string) error {
