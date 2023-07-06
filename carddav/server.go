@@ -338,6 +338,12 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 	var resps []internal.Response
 
 	switch resType {
+	case resourceTypeRoot:
+		resp, err := b.propFindRoot(r.Context(), propfind)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
 	case resourceTypeUserPrincipal:
 		principalPath, err := b.Backend.CurrentUserPrincipal(r.Context())
 		if err != nil {
@@ -418,6 +424,23 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 	}
 
 	return internal.NewMultiStatus(resps...), nil
+}
+
+func (b *backend) propFindRoot(ctx context.Context, propfind *internal.PropFind) (*internal.Response, error) {
+	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	props := map[xml.Name]internal.PropFindFunc{
+		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
+		},
+		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+			return internal.NewResourceType(internal.CollectionName), nil
+		},
+	}
+	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
 
 func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.PropFind) (*internal.Response, error) {
