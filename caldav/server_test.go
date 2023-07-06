@@ -61,7 +61,7 @@ var propFindUserPrincipal = `
 </A:propfind>
 `
 
-func TestPropFindCurrentUserPrincipal(t *testing.T) {
+func TestPropFindRoot(t *testing.T) {
 	req := httptest.NewRequest("PROPFIND", "/", strings.NewReader(propFindUserPrincipal))
 	req.Header.Set("Content-Type", "application/xml")
 	w := httptest.NewRecorder()
