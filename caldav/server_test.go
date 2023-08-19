@@ -120,8 +120,8 @@ func TestMultiCalendarBackend(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler := Handler{Backend: testBackend{
 		calendars: calendars,
-		objectMap: map[*Calendar][]CalendarObject{
-			calendarB: []CalendarObject{object},
+		objectMap: map[string][]CalendarObject{
+			calendarB.Path: []CalendarObject{object},
 		},
 	}}
 	handler.ServeHTTP(w, req)
@@ -179,11 +179,11 @@ func TestMultiCalendarBackend(t *testing.T) {
 
 type testBackend struct {
 	calendars []*Calendar
-	objectMap map[*Calendar][]CalendarObject
+	objectMap map[string][]CalendarObject
 }
 
-func (t testBackend) Calendar(ctx context.Context) (*Calendar, error) {
-	return t.calendars[0], nil
+func (t testBackend) Calendars(ctx context.Context) ([]*Calendar, error) {
+	return t.calendars, nil
 }
 
 func (t testBackend) CalendarHomeSetPath(ctx context.Context) (string, error) {
@@ -213,19 +213,10 @@ func (t testBackend) PutCalendarObject(ctx context.Context, path string, calenda
 	return "", nil
 }
 
-func (t testBackend) ListCalendarObjects(ctx context.Context, req *CalendarCompRequest) ([]CalendarObject, error) {
-	return nil, nil
+func (t testBackend) ListCalendarObjects(ctx context.Context, path string, req *CalendarCompRequest) ([]CalendarObject, error) {
+	return t.objectMap[path], nil
 }
 
 func (t testBackend) QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error) {
 	return nil, nil
-}
-
-// MultiCalendarBackend
-func (t testBackend) Calendars(ctx context.Context) ([]*Calendar, error) {
-	return t.calendars, nil
-}
-
-func (t testBackend) ListCalendarObjectsForCalendar(ctx context.Context, cal *Calendar, req *CalendarCompRequest) ([]CalendarObject, error) {
-	return t.objectMap[cal], nil
 }
