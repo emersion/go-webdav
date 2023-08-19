@@ -33,7 +33,7 @@ func TestPropFindSupportedCalendarComponent(t *testing.T) {
 		req.Body = io.NopCloser(strings.NewReader(propFindSupportedCalendarComponentRequest))
 		req.Header.Set("Content-Type", "application/xml")
 		w := httptest.NewRecorder()
-		handler := Handler{Backend: testBackend{calendars: []*Calendar{calendar}}}
+		handler := Handler{Backend: testBackend{calendars: []Calendar{*calendar}}}
 		handler.ServeHTTP(w, req)
 
 		res := w.Result()
@@ -68,7 +68,7 @@ func TestPropFindRoot(t *testing.T) {
 	req.Header.Set("Content-Type", "application/xml")
 	w := httptest.NewRecorder()
 	calendar := &Calendar{}
-	handler := Handler{Backend: testBackend{calendars: []*Calendar{calendar}}}
+	handler := Handler{Backend: testBackend{calendars: []Calendar{*calendar}}}
 	handler.ServeHTTP(w, req)
 
 	res := w.Result()
@@ -94,9 +94,9 @@ var reportCalendarData = `
 `
 
 func TestMultiCalendarBackend(t *testing.T) {
-	calendarB := &Calendar{Path: "/user/calendars/b", SupportedComponentSet: []string{"VTODO"}}
-	calendars := []*Calendar{
-		&Calendar{Path: "/user/calendars/a"},
+	calendarB := Calendar{Path: "/user/calendars/b", SupportedComponentSet: []string{"VTODO"}}
+	calendars := []Calendar{
+		Calendar{Path: "/user/calendars/a"},
 		calendarB,
 	}
 	eventSummary := "This is a todo"
@@ -178,11 +178,11 @@ func TestMultiCalendarBackend(t *testing.T) {
 }
 
 type testBackend struct {
-	calendars []*Calendar
+	calendars []Calendar
 	objectMap map[string][]CalendarObject
 }
 
-func (t testBackend) Calendars(ctx context.Context) ([]*Calendar, error) {
+func (t testBackend) Calendars(ctx context.Context) ([]Calendar, error) {
 	return t.calendars, nil
 }
 

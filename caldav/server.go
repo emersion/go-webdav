@@ -30,7 +30,7 @@ type PutCalendarObjectOptions struct {
 // Backend is a CalDAV server backend.
 type Backend interface {
 	CalendarHomeSetPath(ctx context.Context) (string, error)
-	Calendars(ctx context.Context) ([]*Calendar, error)
+	Calendars(ctx context.Context) ([]Calendar, error)
 	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
 	ListCalendarObjects(ctx context.Context, path string, req *CalendarCompRequest) ([]CalendarObject, error)
 	QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error)
@@ -428,13 +428,13 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 		}
 		for _, ab := range abs {
 			if r.URL.Path == ab.Path {
-				resp, err := b.propFindCalendar(r.Context(), propfind, ab)
+				resp, err := b.propFindCalendar(r.Context(), propfind, &ab)
 				if err != nil {
 					return nil, err
 				}
 				resps = append(resps, *resp)
 				if depth != internal.DepthZero {
-					resps_, err := b.propFindAllCalendarObjects(r.Context(), propfind, ab)
+					resps_, err := b.propFindAllCalendarObjects(r.Context(), propfind, &ab)
 					if err != nil {
 						return nil, err
 					}
@@ -586,13 +586,13 @@ func (b *backend) propFindAllCalendars(ctx context.Context, propfind *internal.P
 
 	var resps []internal.Response
 	for _, ab := range abs {
-		resp, err := b.propFindCalendar(ctx, propfind, ab)
+		resp, err := b.propFindCalendar(ctx, propfind, &ab)
 		if err != nil {
 			return nil, err
 		}
 		resps = append(resps, *resp)
 		if recurse {
-			resps_, err := b.propFindAllCalendarObjects(ctx, propfind, ab)
+			resps_, err := b.propFindAllCalendarObjects(ctx, propfind, &ab)
 			if err != nil {
 				return nil, err
 			}
