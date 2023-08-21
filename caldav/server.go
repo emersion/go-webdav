@@ -30,7 +30,7 @@ type PutCalendarObjectOptions struct {
 // Backend is a CalDAV server backend.
 type Backend interface {
 	CalendarHomeSetPath(ctx context.Context) (string, error)
-	Calendars(ctx context.Context) ([]Calendar, error)
+	ListCalendars(ctx context.Context) ([]Calendar, error)
 	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
 	ListCalendarObjects(ctx context.Context, path string, req *CalendarCompRequest) ([]CalendarObject, error)
 	QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error)
@@ -422,7 +422,7 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 			}
 		}
 	case resourceTypeCalendar:
-		abs, err := b.Backend.Calendars(r.Context())
+		abs, err := b.Backend.ListCalendars(r.Context())
 		if err != nil {
 			return nil, err
 		}
@@ -579,7 +579,7 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 }
 
 func (b *backend) propFindAllCalendars(ctx context.Context, propfind *internal.PropFind, recurse bool) ([]internal.Response, error) {
-	abs, err := b.Backend.Calendars(ctx)
+	abs, err := b.Backend.ListCalendars(ctx)
 	if err != nil {
 		return nil, err
 	}
