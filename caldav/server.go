@@ -31,6 +31,7 @@ type PutCalendarObjectOptions struct {
 type Backend interface {
 	CalendarHomeSetPath(ctx context.Context) (string, error)
 	ListCalendars(ctx context.Context) ([]Calendar, error)
+	GetCalendar(ctx context.Context, path string) (*Calendar, error)
 	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
 	ListCalendarObjects(ctx context.Context, path string, req *CalendarCompRequest) ([]CalendarObject, error)
 	QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error)
@@ -422,25 +423,21 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 			}
 		}
 	case resourceTypeCalendar:
-		abs, err := b.Backend.ListCalendars(r.Context())
+		ab, err := b.Backend.GetCalendar(r.Context(), r.URL.Path)
 		if err != nil {
 			return nil, err
 		}
-		for _, ab := range abs {
-			if r.URL.Path == ab.Path {
-				resp, err := b.propFindCalendar(r.Context(), propfind, &ab)
-				if err != nil {
-					return nil, err
-				}
-				resps = append(resps, *resp)
-				if depth != internal.DepthZero {
-					resps_, err := b.propFindAllCalendarObjects(r.Context(), propfind, &ab)
-					if err != nil {
-						return nil, err
-					}
-					resps = append(resps, resps_...)
-				}
+		resp, err := b.propFindCalendar(r.Context(), propfind, ab)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
+		if depth != internal.DepthZero {
+			resps_, err := b.propFindAllCalendarObjects(r.Context(), propfind, ab)
+			if err != nil {
+				return nil, err
 			}
+			resps = append(resps, resps_...)
 		}
 	case resourceTypeCalendarObject:
 		ao, err := b.Backend.GetCalendarObject(r.Context(), r.URL.Path, &dataReq)

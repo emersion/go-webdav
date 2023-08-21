@@ -186,6 +186,15 @@ func (t testBackend) ListCalendars(ctx context.Context) ([]Calendar, error) {
 	return t.calendars, nil
 }
 
+func (t testBackend) GetCalendar(ctx context.Context, path string) (*Calendar, error) {
+	for _, cal := range t.calendars {
+		if cal.Path == path {
+			return &cal, nil
+		}
+	}
+	return nil, fmt.Errorf("Calendar for path: %s not found", path)
+}
+
 func (t testBackend) CalendarHomeSetPath(ctx context.Context) (string, error) {
 	return "/user/calendars/", nil
 }
