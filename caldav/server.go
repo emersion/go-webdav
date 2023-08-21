@@ -17,8 +17,6 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
-// TODO: add support for multiple calendars
-
 // TODO if nothing more Caldav-specific needs to be added this should be merged with carddav.PutAddressObjectOptions
 type PutCalendarObjectOptions struct {
 	// IfNoneMatch indicates that the client does not want to overwrite
@@ -32,9 +30,10 @@ type PutCalendarObjectOptions struct {
 // Backend is a CalDAV server backend.
 type Backend interface {
 	CalendarHomeSetPath(ctx context.Context) (string, error)
-	Calendar(ctx context.Context) (*Calendar, error)
+	ListCalendars(ctx context.Context) ([]Calendar, error)
+	GetCalendar(ctx context.Context, path string) (*Calendar, error)
 	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
-	ListCalendarObjects(ctx context.Context, req *CalendarCompRequest) ([]CalendarObject, error)
+	ListCalendarObjects(ctx context.Context, path string, req *CalendarCompRequest) ([]CalendarObject, error)
 	QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error)
 	PutCalendarObject(ctx context.Context, path string, calendar *ical.Calendar, opts *PutCalendarObjectOptions) (loc string, err error)
 	DeleteCalendarObject(ctx context.Context, path string) error
@@ -424,24 +423,21 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 			}
 		}
 	case resourceTypeCalendar:
-		// TODO for multiple calendars, look through all of them
-		ab, err := b.Backend.Calendar(r.Context())
+		ab, err := b.Backend.GetCalendar(r.Context(), r.URL.Path)
 		if err != nil {
 			return nil, err
 		}
-		if r.URL.Path == ab.Path {
-			resp, err := b.propFindCalendar(r.Context(), propfind, ab)
+		resp, err := b.propFindCalendar(r.Context(), propfind, ab)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
+		if depth != internal.DepthZero {
+			resps_, err := b.propFindAllCalendarObjects(r.Context(), propfind, ab)
 			if err != nil {
 				return nil, err
 			}
-			resps = append(resps, *resp)
-			if depth != internal.DepthZero {
-				resps_, err := b.propFindAllCalendarObjects(r.Context(), propfind, ab)
-				if err != nil {
-					return nil, err
-				}
-				resps = append(resps, resps_...)
-			}
+			resps = append(resps, resps_...)
 		}
 	case resourceTypeCalendarObject:
 		ao, err := b.Backend.GetCalendarObject(r.Context(), r.URL.Path, &dataReq)
@@ -580,22 +576,20 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 }
 
 func (b *backend) propFindAllCalendars(ctx context.Context, propfind *internal.PropFind, recurse bool) ([]internal.Response, error) {
-	// TODO iterate over all calendars once having multiple is supported
-	ab, err := b.Backend.Calendar(ctx)
+	abs, err := b.Backend.ListCalendars(ctx)
 	if err != nil {
 		return nil, err
 	}
-	abs := []*Calendar{ab}
 
 	var resps []internal.Response
 	for _, ab := range abs {
-		resp, err := b.propFindCalendar(ctx, propfind, ab)
+		resp, err := b.propFindCalendar(ctx, propfind, &ab)
 		if err != nil {
 			return nil, err
 		}
 		resps = append(resps, *resp)
 		if recurse {
-			resps_, err := b.propFindAllCalendarObjects(ctx, propfind, ab)
+			resps_, err := b.propFindAllCalendarObjects(ctx, propfind, &ab)
 			if err != nil {
 				return nil, err
 			}
@@ -650,7 +644,7 @@ func (b *backend) propFindCalendarObject(ctx context.Context, propfind *internal
 
 func (b *backend) propFindAllCalendarObjects(ctx context.Context, propfind *internal.PropFind, cal *Calendar) ([]internal.Response, error) {
 	var dataReq CalendarCompRequest
-	aos, err := b.Backend.ListCalendarObjects(ctx, &dataReq)
+	aos, err := b.Backend.ListCalendarObjects(ctx, cal.Path, &dataReq)
 	if err != nil {
 		return nil, err
 	}
