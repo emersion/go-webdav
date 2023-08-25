@@ -244,7 +244,7 @@ func (c *Client) MultiGetCalendar(path string, multiGet *CalendarMultiGet) ([]Ca
 
 	calendarMultiget := calendarMultiget{Prop: propReq}
 
-	if multiGet == nil || len(multiGet.Paths) == 0 {
+	if len(multiGet.Paths) == 0 {
 		href := internal.Href{Path: path}
 		calendarMultiget.Hrefs = []internal.Href{href}
 	} else {

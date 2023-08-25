@@ -313,7 +313,7 @@ func (c *Client) MultiGetAddressBook(path string, multiGet *AddressBookMultiGet)
 
 	addressbookMultiget := addressbookMultiget{Prop: propReq}
 
-	if multiGet == nil || len(multiGet.Paths) == 0 {
+	if len(multiGet.Paths) == 0 {
 		href := internal.Href{Path: path}
 		addressbookMultiget.Hrefs = []internal.Href{href}
 	} else {
