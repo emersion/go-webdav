@@ -80,7 +80,8 @@ func (h *Href) MarshalText() ([]byte, error) {
 }
 
 func (h *Href) UnmarshalText(b []byte) error {
-	u, err := url.Parse(string(b))
+	pathEscBytes := url.PathEscape(string(b))
+	u, err := url.Parse(pathEscBytes)
 	if err != nil {
 		return err
 	}
