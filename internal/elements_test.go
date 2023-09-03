@@ -63,3 +63,19 @@ func TestTimeRoundTrip(t *testing.T) {
 		t.Fatalf("invalid round-trip:\ngot= %s\nwant=%s", got, want)
 	}
 }
+
+func TestETagUnmarshalText(t *testing.T) {
+	quotedEtag := `"123"`
+
+	var got ETag
+	err := got.UnmarshalText([]byte(quotedEtag))
+	if err != nil {
+		t.Fatalf("UnmarshalText failed for ETag: %+v", err)
+	}
+
+	unquotedEtag := "123"
+	err = got.UnmarshalText([]byte(unquotedEtag))
+	if err != nil {
+		t.Fatalf("UnmarshalText failed for ETag: %+v", err)
+	}
+}
