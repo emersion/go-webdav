@@ -177,9 +177,11 @@ func (t *dateWithUTCTime) MarshalText() ([]byte, error) {
 
 // Request variant of https://tools.ietf.org/html/rfc4791#section-9.6
 type calendarDataReq struct {
-	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-data"`
-	Comp    *comp    `xml:"comp,omitempty"`
-	// TODO: expand, limit-recurrence-set, limit-freebusy-set
+	XMLName         xml.Name            `xml:"urn:ietf:params:xml:ns:caldav calendar-data"`
+	Comp            *comp               `xml:"comp,omitempty"`
+	Expand          *expand             `xml:"expand,omitempty`
+	LimitRecurrence *limitRecurrenceSet `xml:"limit-recurrence-set,omitempty`
+	LimitFreeBusy   *limitFreeBusySet   `xml:"limit-freebusy-set,omitempty`
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.6.1
@@ -199,6 +201,27 @@ type prop struct {
 	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav prop"`
 	Name    string   `xml:"name,attr"`
 	// TODO: novalue
+}
+
+// https://tools.ietf.org/html/rfc4791#section-9.6.5
+type expand struct {
+	XMLName xml.Name        `xml:"urn:ietf:params:xml:ns:caldav expand"`
+	Start   dateWithUTCTime `xml:"start,attr,omitempty"`
+	End     dateWithUTCTime `xml:"end,attr,omitempty"`
+}
+
+// https://tools.ietf.org/html/rfc4791#section-9.6.6
+type limitRecurrenceSet struct {
+	XMLName xml.Name        `xml:"urn:ietf:params:xml:ns:caldav limit-recurrence-set"`
+	Start   dateWithUTCTime `xml:"start,attr,omitempty"`
+	End     dateWithUTCTime `xml:"end,attr,omitempty"`
+}
+
+// https://tools.ietf.org/html/rfc4791#section-9.6.7
+type limitFreeBusySet struct {
+	XMLName xml.Name        `xml:"urn:ietf:params:xml:ns:caldav limit-freebusy-set"`
+	Start   dateWithUTCTime `xml:"start,attr,omitempty"`
+	End     dateWithUTCTime `xml:"end,attr,omitempty"`
 }
 
 // Response variant of https://tools.ietf.org/html/rfc4791#section-9.6

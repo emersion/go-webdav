@@ -141,17 +141,30 @@ func encodeCalendarCompReq(c *CalendarCompRequest) (*comp, error) {
 	return &encoded, nil
 }
 
-func encodeCalendarReq(c *CalendarCompRequest) (*internal.Prop, error) {
-	compReq, err := encodeCalendarCompReq(c)
+func encodeCalendarDataReq(d *CalendarDataRequest) (*calendarDataReq, error) {
+	encodedComp, err := encodeCalendarCompReq(&d.Comp)
 	if err != nil {
 		return nil, err
 	}
 
-	calDataReq := calendarDataReq{Comp: compReq}
+	encoded := calendarDataReq{
+		Comp: encodedComp,
+	}
+
+	// TODO expand, limit-recurrence, free-busy
+
+	return &encoded, nil
+}
+
+func encodeCalendarReq(c *CalendarDataRequest) (*internal.Prop, error) {
+	calDataReq, err := encodeCalendarDataReq(c)
+	if err != nil {
+		return nil, err
+	}
 
 	getLastModReq := internal.NewRawXMLElement(internal.GetLastModifiedName, nil, nil)
 	getETagReq := internal.NewRawXMLElement(internal.GetETagName, nil, nil)
-	return internal.EncodeProp(&calDataReq, getLastModReq, getETagReq)
+	return internal.EncodeProp(calDataReq, getLastModReq, getETagReq)
 }
 
 func encodeCompFilter(filter *CompFilter) *compFilter {
@@ -215,7 +228,7 @@ func decodeCalendarObjectList(ms *internal.MultiStatus) ([]CalendarObject, error
 }
 
 func (c *Client) QueryCalendar(calendar string, query *CalendarQuery) ([]CalendarObject, error) {
-	propReq, err := encodeCalendarReq(&query.CompRequest)
+	propReq, err := encodeCalendarReq(&query.DataRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +250,7 @@ func (c *Client) QueryCalendar(calendar string, query *CalendarQuery) ([]Calenda
 }
 
 func (c *Client) MultiGetCalendar(path string, multiGet *CalendarMultiGet) ([]CalendarObject, error) {
-	propReq, err := encodeCalendarReq(&multiGet.CompRequest)
+	propReq, err := encodeCalendarReq(&multiGet.DataRequest)
 	if err != nil {
 		return nil, err
 	}

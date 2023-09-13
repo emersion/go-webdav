@@ -194,24 +194,68 @@ func decodeComp(comp *comp) (*CalendarCompRequest, error) {
 	return req, nil
 }
 
-func decodeCalendarDataReq(calendarData *calendarDataReq) (*CalendarCompRequest, error) {
-	if calendarData.Comp == nil {
-		return &CalendarCompRequest{
-			AllProps: true,
-			AllComps: true,
-		}, nil
+func decodeCalendarDataReq(calendarData *calendarDataReq) (*CalendarDataRequest, error) {
+	if calendarData == nil {
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "caldav: unexpected missing calendar-data in request")
 	}
-	return decodeComp(calendarData.Comp)
+	if calendarData.Expand != nil && calendarData.LimitRecurrence != nil {
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "caldav: only one of expand or limit-recurrence-set can be specified in calendar-data")
+	}
+
+	var comp = &CalendarCompRequest{}
+	if calendarData.Comp != nil {
+		var err error
+		comp, err = decodeComp(calendarData.Comp)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	result := &CalendarDataRequest{
+		Comp: *comp,
+	}
+
+	if calendarData.Expand != nil {
+		result.Expand = &TimeRange{
+			Start: time.Time(calendarData.Expand.Start),
+			End:   time.Time(calendarData.Expand.End),
+		}
+	}
+	if calendarData.LimitRecurrence != nil {
+		result.Expand = &TimeRange{
+			Start: time.Time(calendarData.LimitRecurrence.Start),
+			End:   time.Time(calendarData.LimitRecurrence.End),
+		}
+	}
+	if calendarData.LimitFreeBusy != nil {
+		result.Expand = &TimeRange{
+			Start: time.Time(calendarData.LimitFreeBusy.Start),
+			End:   time.Time(calendarData.LimitFreeBusy.End),
+		}
+	}
+
+	return result, nil
 }
 
 func (h *Handler) handleQuery(r *http.Request, w http.ResponseWriter, query *calendarQuery) error {
 	var q CalendarQuery
-	// TODO: calendar-data in query.Prop
 	cf, err := decodeCompFilter(&query.Filter.CompFilter)
 	if err != nil {
 		return err
 	}
 	q.CompFilter = *cf
+
+	if query.Prop != nil {
+		var calendarData calendarDataReq
+		if err := query.Prop.Decode(&calendarData); err != nil && !internal.IsNotFound(err) {
+			return err
+		}
+		decoded, err := decodeCalendarDataReq(&calendarData)
+		if err != nil {
+			return err
+		}
+		q.DataRequest = *decoded
+	}
 
 	cos, err := h.Backend.QueryCalendarObjects(r.Context(), &q)
 	if err != nil {
@@ -242,7 +286,7 @@ func (h *Handler) handleQuery(r *http.Request, w http.ResponseWriter, query *cal
 }
 
 func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, multiget *calendarMultiget) error {
-	var dataReq CalendarCompRequest
+	var dataReq CalendarDataRequest
 	if multiget.Prop != nil {
 		var calendarData calendarDataReq
 		if err := multiget.Prop.Decode(&calendarData); err != nil && !internal.IsNotFound(err) {
@@ -257,7 +301,7 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 
 	var resps []internal.Response
 	for _, href := range multiget.Hrefs {
-		co, err := h.Backend.GetCalendarObject(ctx, href.Path, &dataReq)
+		co, err := h.Backend.GetCalendarObject(ctx, href.Path, &dataReq.Comp)
 		if err != nil {
 			resp := internal.NewErrorResponse(href.Path, err)
 			resps = append(resps, *resp)
