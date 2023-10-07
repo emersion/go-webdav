@@ -374,6 +374,10 @@ type GetETag struct {
 type ETag string
 
 func (etag *ETag) UnmarshalText(b []byte) error {
+	if len(b) == 0 { // some servers return "" for eTag
+		return nil
+	}
+
 	s, err := strconv.Unquote(string(b))
 	if err != nil {
 		return fmt.Errorf("webdav: failed to unquote ETag: %v", err)
