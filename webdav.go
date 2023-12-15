@@ -16,3 +16,8 @@ type FileInfo struct {
 	MIMEType string
 	ETag     string
 }
+
+type CopyOptions struct {
+	NoRecursive bool
+	NoOverwrite bool
+}

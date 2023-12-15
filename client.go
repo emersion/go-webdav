@@ -247,16 +247,28 @@ func (c *Client) Mkdir(ctx context.Context, name string) error {
 	return nil
 }
 
-// CopyAll copies a file. If the file is a directory, all of its descendants
-// are recursively copied as well.
-func (c *Client) CopyAll(ctx context.Context, name, dest string, overwrite bool) error {
+// Copy copies a file.
+//
+// By default, if the file is a directory, all descendants are recursively
+// copied as well.
+func (c *Client) Copy(ctx context.Context, name, dest string, options *CopyOptions) error {
+	if options == nil {
+		options = new(CopyOptions)
+	}
+
 	req, err := c.ic.NewRequest("COPY", name, nil)
 	if err != nil {
 		return err
 	}
 
+	depth := internal.DepthInfinity
+	if options.NoRecursive {
+		depth = internal.DepthZero
+	}
+
 	req.Header.Set("Destination", c.ic.ResolveHref(dest).String())
-	req.Header.Set("Overwrite", internal.FormatOverwrite(overwrite))
+	req.Header.Set("Overwrite", internal.FormatOverwrite(!options.NoOverwrite))
+	req.Header.Set("Depth", depth.String())
 
 	resp, err := c.ic.Do(req.WithContext(ctx))
 	if err != nil {

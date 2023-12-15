@@ -20,7 +20,7 @@ type FileSystem interface {
 	Create(ctx context.Context, name string) (io.WriteCloser, error)
 	RemoveAll(ctx context.Context, name string) error
 	Mkdir(ctx context.Context, name string) error
-	Copy(ctx context.Context, name, dest string, recursive, overwrite bool) (created bool, err error)
+	Copy(ctx context.Context, name, dest string, options *CopyOptions) (created bool, err error)
 	MoveAll(ctx context.Context, name, dest string, overwrite bool) (created bool, err error)
 }
 
@@ -231,7 +231,11 @@ func (b *backend) Mkcol(r *http.Request) error {
 }
 
 func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {
-	created, err = b.FileSystem.Copy(r.Context(), r.URL.Path, dest.Path, recursive, overwrite)
+	options := CopyOptions{
+		NoRecursive: !recursive,
+		NoOverwrite: !overwrite,
+	}
+	created, err = b.FileSystem.Copy(r.Context(), r.URL.Path, dest.Path, &options)
 	if os.IsExist(err) {
 		return false, &internal.HTTPError{http.StatusPreconditionFailed, err}
 	}
