@@ -154,7 +154,7 @@ func copyRegularFile(src, dst string, perm os.FileMode) error {
 	return dstFile.Close()
 }
 
-func (fs LocalFileSystem) Copy(ctx context.Context, src, dst string, recursive, overwrite bool) (created bool, err error) {
+func (fs LocalFileSystem) Copy(ctx context.Context, src, dst string, options *CopyOptions) (created bool, err error) {
 	srcPath, err := fs.localPath(src)
 	if err != nil {
 		return false, err
@@ -179,7 +179,7 @@ func (fs LocalFileSystem) Copy(ctx context.Context, src, dst string, recursive, 
 		}
 		created = true
 	} else {
-		if !overwrite {
+		if options.NoOverwrite {
 			return false, os.ErrExist
 		}
 		if err := os.RemoveAll(dstPath); err != nil {
@@ -202,7 +202,7 @@ func (fs LocalFileSystem) Copy(ctx context.Context, src, dst string, recursive, 
 			}
 		}
 
-		if fi.IsDir() && !recursive {
+		if fi.IsDir() && options.NoRecursive {
 			return filepath.SkipDir
 		}
 		return nil
