@@ -359,7 +359,7 @@ func (c *Client) PutCalendarObject(path string, cal *ical.Calendar) (*CalendarOb
 	if err != nil {
 		return nil, err
 	}
-	resp.Body.Close()
+	defer resp.Body.Close()
 
 	co := &CalendarObject{Path: path}
 	if err := populateCalendarObject(co, resp); err != nil {
