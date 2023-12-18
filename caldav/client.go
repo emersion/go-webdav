@@ -268,29 +268,29 @@ func (c *Client) MultiGetCalendar(path string, multiGet *CalendarMultiGet) ([]Ca
 	return decodeCalendarObjectList(ms)
 }
 
-func populateCalendarObject(co *CalendarObject, resp *http.Response) error {
-	if loc := resp.Header.Get("Location"); loc != "" {
+func populateCalendarObject(co *CalendarObject, h http.Header) error {
+	if loc := h.Get("Location"); loc != "" {
 		u, err := url.Parse(loc)
 		if err != nil {
 			return err
 		}
 		co.Path = u.Path
 	}
-	if etag := resp.Header.Get("ETag"); etag != "" {
+	if etag := h.Get("ETag"); etag != "" {
 		etag, err := strconv.Unquote(etag)
 		if err != nil {
 			return err
 		}
 		co.ETag = etag
 	}
-	if contentLength := resp.Header.Get("Content-Length"); contentLength != "" {
+	if contentLength := h.Get("Content-Length"); contentLength != "" {
 		n, err := strconv.ParseInt(contentLength, 10, 64)
 		if err != nil {
 			return err
 		}
 		co.ContentLength = n
 	}
-	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
+	if lastModified := h.Get("Last-Modified"); lastModified != "" {
 		t, err := http.ParseTime(lastModified)
 		if err != nil {
 			return err
@@ -331,7 +331,7 @@ func (c *Client) GetCalendarObject(path string) (*CalendarObject, error) {
 		Path: resp.Request.URL.Path,
 		Data: cal,
 	}
-	if err := populateCalendarObject(co, resp); err != nil {
+	if err := populateCalendarObject(co, resp.Header); err != nil {
 		return nil, err
 	}
 	return co, nil
@@ -362,7 +362,7 @@ func (c *Client) PutCalendarObject(path string, cal *ical.Calendar) (*CalendarOb
 	resp.Body.Close()
 
 	co := &CalendarObject{Path: path}
-	if err := populateCalendarObject(co, resp); err != nil {
+	if err := populateCalendarObject(co, resp.Header); err != nil {
 		return nil, err
 	}
 	return co, nil

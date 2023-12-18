@@ -338,29 +338,29 @@ func (c *Client) MultiGetAddressBook(path string, multiGet *AddressBookMultiGet)
 	return decodeAddressList(ms)
 }
 
-func populateAddressObject(ao *AddressObject, resp *http.Response) error {
-	if loc := resp.Header.Get("Location"); loc != "" {
+func populateAddressObject(ao *AddressObject, h http.Header) error {
+	if loc := h.Get("Location"); loc != "" {
 		u, err := url.Parse(loc)
 		if err != nil {
 			return err
 		}
 		ao.Path = u.Path
 	}
-	if etag := resp.Header.Get("ETag"); etag != "" {
+	if etag := h.Get("ETag"); etag != "" {
 		etag, err := strconv.Unquote(etag)
 		if err != nil {
 			return err
 		}
 		ao.ETag = etag
 	}
-	if contentLength := resp.Header.Get("Content-Length"); contentLength != "" {
+	if contentLength := h.Get("Content-Length"); contentLength != "" {
 		n, err := strconv.ParseInt(contentLength, 10, 64)
 		if err != nil {
 			return err
 		}
 		ao.ContentLength = n
 	}
-	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
+	if lastModified := h.Get("Last-Modified"); lastModified != "" {
 		t, err := http.ParseTime(lastModified)
 		if err != nil {
 			return err
@@ -401,7 +401,7 @@ func (c *Client) GetAddressObject(path string) (*AddressObject, error) {
 		Path: resp.Request.URL.Path,
 		Card: card,
 	}
-	if err := populateAddressObject(ao, resp); err != nil {
+	if err := populateAddressObject(ao, resp.Header); err != nil {
 		return nil, err
 	}
 	return ao, nil
@@ -439,7 +439,7 @@ func (c *Client) PutAddressObject(path string, card vcard.Card) (*AddressObject,
 	resp.Body.Close()
 
 	ao := &AddressObject{Path: path}
-	if err := populateAddressObject(ao, resp); err != nil {
+	if err := populateAddressObject(ao, resp.Header); err != nil {
 		return nil, err
 	}
 	return ao, nil
