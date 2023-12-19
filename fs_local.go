@@ -1,6 +1,7 @@
 package webdav
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"mime"
@@ -14,6 +15,8 @@ import (
 )
 
 type LocalFileSystem string
+
+var _ FileSystem = LocalFileSystem("")
 
 func (fs LocalFileSystem) localPath(name string) (string, error) {
 	if (filepath.Separator != '/' && strings.IndexRune(name, filepath.Separator) >= 0) || strings.Contains(name, "\x00") {
@@ -34,7 +37,7 @@ func (fs LocalFileSystem) externalPath(name string) (string, error) {
 	return "/" + filepath.ToSlash(rel), nil
 }
 
-func (fs LocalFileSystem) Open(name string) (io.ReadCloser, error) {
+func (fs LocalFileSystem) Open(ctx context.Context, name string) (io.ReadCloser, error) {
 	p, err := fs.localPath(name)
 	if err != nil {
 		return nil, err
@@ -59,7 +62,7 @@ func fileInfoFromOS(p string, fi os.FileInfo) *FileInfo {
 	}
 }
 
-func (fs LocalFileSystem) Stat(name string) (*FileInfo, error) {
+func (fs LocalFileSystem) Stat(ctx context.Context, name string) (*FileInfo, error) {
 	p, err := fs.localPath(name)
 	if err != nil {
 		return nil, err
@@ -71,7 +74,7 @@ func (fs LocalFileSystem) Stat(name string) (*FileInfo, error) {
 	return fileInfoFromOS(name, fi), nil
 }
 
-func (fs LocalFileSystem) Readdir(name string, recursive bool) ([]FileInfo, error) {
+func (fs LocalFileSystem) ReadDir(ctx context.Context, name string, recursive bool) ([]FileInfo, error) {
 	path, err := fs.localPath(name)
 	if err != nil {
 		return nil, err
@@ -98,7 +101,7 @@ func (fs LocalFileSystem) Readdir(name string, recursive bool) ([]FileInfo, erro
 	return l, err
 }
 
-func (fs LocalFileSystem) Create(name string) (io.WriteCloser, error) {
+func (fs LocalFileSystem) Create(ctx context.Context, name string) (io.WriteCloser, error) {
 	p, err := fs.localPath(name)
 	if err != nil {
 		return nil, err
@@ -106,7 +109,7 @@ func (fs LocalFileSystem) Create(name string) (io.WriteCloser, error) {
 	return os.Create(p)
 }
 
-func (fs LocalFileSystem) RemoveAll(name string) error {
+func (fs LocalFileSystem) RemoveAll(ctx context.Context, name string) error {
 	p, err := fs.localPath(name)
 	if err != nil {
 		return err
@@ -121,7 +124,7 @@ func (fs LocalFileSystem) RemoveAll(name string) error {
 	return os.RemoveAll(p)
 }
 
-func (fs LocalFileSystem) Mkdir(name string) error {
+func (fs LocalFileSystem) Mkdir(ctx context.Context, name string) error {
 	p, err := fs.localPath(name)
 	if err != nil {
 		return err
@@ -150,7 +153,7 @@ func copyRegularFile(src, dst string, perm os.FileMode) error {
 	return dstFile.Close()
 }
 
-func (fs LocalFileSystem) Copy(src, dst string, recursive, overwrite bool) (created bool, err error) {
+func (fs LocalFileSystem) Copy(ctx context.Context, src, dst string, recursive, overwrite bool) (created bool, err error) {
 	srcPath, err := fs.localPath(src)
 	if err != nil {
 		return false, err
@@ -210,7 +213,7 @@ func (fs LocalFileSystem) Copy(src, dst string, recursive, overwrite bool) (crea
 	return created, nil
 }
 
-func (fs LocalFileSystem) MoveAll(src, dst string, overwrite bool) (created bool, err error) {
+func (fs LocalFileSystem) MoveAll(ctx context.Context, src, dst string, overwrite bool) (created bool, err error) {
 	srcPath, err := fs.localPath(src)
 	if err != nil {
 		return false, err
@@ -240,5 +243,3 @@ func (fs LocalFileSystem) MoveAll(src, dst string, overwrite bool) (created bool
 
 	return created, nil
 }
-
-var _ FileSystem = LocalFileSystem("")

@@ -14,14 +14,14 @@ import (
 
 // FileSystem is a WebDAV server backend.
 type FileSystem interface {
-	Open(name string) (io.ReadCloser, error)
-	Stat(name string) (*FileInfo, error)
-	Readdir(name string, recursive bool) ([]FileInfo, error)
-	Create(name string) (io.WriteCloser, error)
-	RemoveAll(name string) error
-	Mkdir(name string) error
-	Copy(name, dest string, recursive, overwrite bool) (created bool, err error)
-	MoveAll(name, dest string, overwrite bool) (created bool, err error)
+	Open(ctx context.Context, name string) (io.ReadCloser, error)
+	Stat(ctx context.Context, name string) (*FileInfo, error)
+	ReadDir(ctx context.Context, name string, recursive bool) ([]FileInfo, error)
+	Create(ctx context.Context, name string) (io.WriteCloser, error)
+	RemoveAll(ctx context.Context, name string) error
+	Mkdir(ctx context.Context, name string) error
+	Copy(ctx context.Context, name, dest string, recursive, overwrite bool) (created bool, err error)
+	MoveAll(ctx context.Context, name, dest string, overwrite bool) (created bool, err error)
 }
 
 // Handler handles WebDAV HTTP requests. It can be used to create a WebDAV
@@ -56,7 +56,7 @@ type backend struct {
 }
 
 func (b *backend) Options(r *http.Request) (caps []string, allow []string, err error) {
-	fi, err := b.FileSystem.Stat(r.URL.Path)
+	fi, err := b.FileSystem.Stat(r.Context(), r.URL.Path)
 	if os.IsNotExist(err) {
 		return nil, []string{http.MethodOptions, http.MethodPut, "MKCOL"}, nil
 	} else if err != nil {
@@ -79,7 +79,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 }
 
 func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
-	fi, err := b.FileSystem.Stat(r.URL.Path)
+	fi, err := b.FileSystem.Stat(r.Context(), r.URL.Path)
 	if os.IsNotExist(err) {
 		return &internal.HTTPError{Code: http.StatusNotFound, Err: err}
 	} else if err != nil {
@@ -89,7 +89,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 		return &internal.HTTPError{Code: http.StatusMethodNotAllowed}
 	}
 
-	f, err := b.FileSystem.Open(r.URL.Path)
+	f, err := b.FileSystem.Open(r.Context(), r.URL.Path)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth internal.Depth) (*internal.MultiStatus, error) {
 	// TODO: use partial error Response on error
 
-	fi, err := b.FileSystem.Stat(r.URL.Path)
+	fi, err := b.FileSystem.Stat(r.Context(), r.URL.Path)
 	if os.IsNotExist(err) {
 		return nil, &internal.HTTPError{Code: http.StatusNotFound, Err: err}
 	} else if err != nil {
@@ -129,7 +129,7 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 
 	var resps []internal.Response
 	if depth != internal.DepthZero && fi.IsDir {
-		children, err := b.FileSystem.Readdir(r.URL.Path, depth == internal.DepthInfinity)
+		children, err := b.FileSystem.ReadDir(r.Context(), r.URL.Path, depth == internal.DepthInfinity)
 		if err != nil {
 			return nil, err
 		}
@@ -198,7 +198,7 @@ func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*
 }
 
 func (b *backend) Put(r *http.Request) (*internal.Href, error) {
-	wc, err := b.FileSystem.Create(r.URL.Path)
+	wc, err := b.FileSystem.Create(r.Context(), r.URL.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +212,7 @@ func (b *backend) Put(r *http.Request) (*internal.Href, error) {
 }
 
 func (b *backend) Delete(r *http.Request) error {
-	err := b.FileSystem.RemoveAll(r.URL.Path)
+	err := b.FileSystem.RemoveAll(r.Context(), r.URL.Path)
 	if os.IsNotExist(err) {
 		return &internal.HTTPError{Code: http.StatusNotFound, Err: err}
 	}
@@ -223,7 +223,7 @@ func (b *backend) Mkcol(r *http.Request) error {
 	if r.Header.Get("Content-Type") != "" {
 		return internal.HTTPErrorf(http.StatusUnsupportedMediaType, "webdav: request body not supported in MKCOL request")
 	}
-	err := b.FileSystem.Mkdir(r.URL.Path)
+	err := b.FileSystem.Mkdir(r.Context(), r.URL.Path)
 	if os.IsNotExist(err) {
 		return &internal.HTTPError{Code: http.StatusConflict, Err: err}
 	}
@@ -231,7 +231,7 @@ func (b *backend) Mkcol(r *http.Request) error {
 }
 
 func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {
-	created, err = b.FileSystem.Copy(r.URL.Path, dest.Path, recursive, overwrite)
+	created, err = b.FileSystem.Copy(r.Context(), r.URL.Path, dest.Path, recursive, overwrite)
 	if os.IsExist(err) {
 		return false, &internal.HTTPError{http.StatusPreconditionFailed, err}
 	}
@@ -239,7 +239,7 @@ func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrit
 }
 
 func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (created bool, err error) {
-	created, err = b.FileSystem.MoveAll(r.URL.Path, dest.Path, overwrite)
+	created, err = b.FileSystem.MoveAll(r.Context(), r.URL.Path, dest.Path, overwrite)
 	if os.IsExist(err) {
 		return false, &internal.HTTPError{http.StatusPreconditionFailed, err}
 	}
