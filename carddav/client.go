@@ -17,9 +17,9 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
-// Discover performs a DNS-based CardDAV service discovery as described in
-// RFC 6352 section 11. It returns the URL to the CardDAV server.
-func Discover(ctx context.Context, domain string) (string, error) {
+// DiscoverContextURL performs a DNS-based CardDAV service discovery as
+// described in RFC 6352 section 11. It returns the URL to the CardDAV server.
+func DiscoverContextURL(ctx context.Context, domain string) (string, error) {
 	var resolver net.Resolver
 
 	// Only lookup carddavs (not carddav), plaintext connections are insecure
