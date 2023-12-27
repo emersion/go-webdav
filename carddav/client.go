@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"mime"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -20,37 +19,7 @@ import (
 // DiscoverContextURL performs a DNS-based CardDAV service discovery as
 // described in RFC 6352 section 11. It returns the URL to the CardDAV server.
 func DiscoverContextURL(ctx context.Context, domain string) (string, error) {
-	var resolver net.Resolver
-
-	// Only lookup carddavs (not carddav), plaintext connections are insecure
-	_, addrs, err := resolver.LookupSRV(ctx, "carddavs", "tcp", domain)
-	if dnsErr, ok := err.(*net.DNSError); ok {
-		if dnsErr.IsTemporary {
-			return "", err
-		}
-	} else if err != nil {
-		return "", err
-	}
-
-	if len(addrs) == 0 {
-		return "", fmt.Errorf("carddav: domain doesn't have an SRV record")
-	}
-	addr := addrs[0]
-
-	target := strings.TrimSuffix(addr.Target, ".")
-	if target == "" {
-		return "", fmt.Errorf("carddav: empty target in SRV record")
-	}
-
-	// TODO: perform a TXT lookup, check for a "path" key in the response
-	u := url.URL{Scheme: "https"}
-	if addr.Port == 443 {
-		u.Host = target
-	} else {
-		u.Host = fmt.Sprintf("%v:%v", target, addr.Port)
-	}
-	u.Path = "/.well-known/carddav"
-	return u.String(), nil
+	return internal.DiscoverContextURL(ctx, "carddavs", domain)
 }
 
 // Client provides access to a remote CardDAV server.
