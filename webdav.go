@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// FileInfo holds information about a WebDAV file.
 type FileInfo struct {
 	Path     string
 	Size     int64

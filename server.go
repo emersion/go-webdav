@@ -248,7 +248,7 @@ func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (cr
 
 // BackendSuppliedHomeSet represents either a CalDAV calendar-home-set or a
 // CardDAV addressbook-home-set. It should only be created via
-// `caldav.NewCalendarHomeSet()` or `carddav.NewAddressbookHomeSet()`. Only to
+// caldav.NewCalendarHomeSet or carddav.NewAddressbookHomeSet. Only to
 // be used server-side, for listing a user's home sets as determined by the
 // (external) backend.
 type BackendSuppliedHomeSet interface {
@@ -261,8 +261,10 @@ type UserPrincipalBackend interface {
 	CurrentUserPrincipal(ctx context.Context) (string, error)
 }
 
+// Capability indicates the features that a server supports.
 type Capability string
 
+// ServePrincipalOptions holds options for ServePrincipal.
 type ServePrincipalOptions struct {
 	CurrentUserPrincipalPath string
 	HomeSets                 []BackendSuppliedHomeSet

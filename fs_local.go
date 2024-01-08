@@ -14,6 +14,7 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
+// LocalFileSystem implements FileSystem for a local directory.
 type LocalFileSystem string
 
 var _ FileSystem = LocalFileSystem("")
