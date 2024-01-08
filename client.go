@@ -152,8 +152,8 @@ func (c *Client) Open(ctx context.Context, name string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-// Readdir lists files in a directory.
-func (c *Client) Readdir(ctx context.Context, name string, recursive bool) ([]FileInfo, error) {
+// ReadDir lists files in a directory.
+func (c *Client) ReadDir(ctx context.Context, name string, recursive bool) ([]FileInfo, error) {
 	depth := internal.DepthOne
 	if recursive {
 		depth = internal.DepthInfinity
