@@ -21,7 +21,7 @@ type FileSystem interface {
 	RemoveAll(ctx context.Context, name string) error
 	Mkdir(ctx context.Context, name string) error
 	Copy(ctx context.Context, name, dest string, options *CopyOptions) (created bool, err error)
-	Move(ctx context.Context, name, dest string, overwrite bool) (created bool, err error)
+	Move(ctx context.Context, name, dest string, options *MoveOptions) (created bool, err error)
 }
 
 // Handler handles WebDAV HTTP requests. It can be used to create a WebDAV
@@ -243,7 +243,10 @@ func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrit
 }
 
 func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (created bool, err error) {
-	created, err = b.FileSystem.Move(r.Context(), r.URL.Path, dest.Path, overwrite)
+	options := MoveOptions{
+		NoOverwrite: !overwrite,
+	}
+	created, err = b.FileSystem.Move(r.Context(), r.URL.Path, dest.Path, &options)
 	if os.IsExist(err) {
 		return false, &internal.HTTPError{http.StatusPreconditionFailed, err}
 	}

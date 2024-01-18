@@ -279,14 +279,18 @@ func (c *Client) Copy(ctx context.Context, name, dest string, options *CopyOptio
 }
 
 // Move moves a file.
-func (c *Client) Move(ctx context.Context, name, dest string, overwrite bool) error {
+func (c *Client) Move(ctx context.Context, name, dest string, options *MoveOptions) error {
+	if options == nil {
+		options = new(MoveOptions)
+	}
+
 	req, err := c.ic.NewRequest("MOVE", name, nil)
 	if err != nil {
 		return err
 	}
 
 	req.Header.Set("Destination", c.ic.ResolveHref(dest).String())
-	req.Header.Set("Overwrite", internal.FormatOverwrite(overwrite))
+	req.Header.Set("Overwrite", internal.FormatOverwrite(!options.NoOverwrite))
 
 	resp, err := c.ic.Do(req.WithContext(ctx))
 	if err != nil {

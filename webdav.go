@@ -21,3 +21,7 @@ type CopyOptions struct {
 	NoRecursive bool
 	NoOverwrite bool
 }
+
+type MoveOptions struct {
+	NoOverwrite bool
+}
