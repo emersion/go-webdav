@@ -278,8 +278,8 @@ func (c *Client) Copy(ctx context.Context, name, dest string, options *CopyOptio
 	return nil
 }
 
-// MoveAll moves a file.
-func (c *Client) MoveAll(ctx context.Context, name, dest string, overwrite bool) error {
+// Move moves a file.
+func (c *Client) Move(ctx context.Context, name, dest string, overwrite bool) error {
 	req, err := c.ic.NewRequest("MOVE", name, nil)
 	if err != nil {
 		return err

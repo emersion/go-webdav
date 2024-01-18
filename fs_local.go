@@ -214,7 +214,7 @@ func (fs LocalFileSystem) Copy(ctx context.Context, src, dst string, options *Co
 	return created, nil
 }
 
-func (fs LocalFileSystem) MoveAll(ctx context.Context, src, dst string, overwrite bool) (created bool, err error) {
+func (fs LocalFileSystem) Move(ctx context.Context, src, dst string, overwrite bool) (created bool, err error) {
 	srcPath, err := fs.localPath(src)
 	if err != nil {
 		return false, err
