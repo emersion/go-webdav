@@ -210,6 +210,23 @@ END:VCALENDAR`)
 			want:  []CalendarObject{event2, event3},
 		},
 		{
+			// https://datatracker.ietf.org/doc/html/rfc4791#section-7.8.1
+			name: "events in open time range (no end date)",
+			query: &CalendarQuery{
+				CompFilter: CompFilter{
+					Name: "VCALENDAR",
+					Comps: []CompFilter{
+						CompFilter{
+							Name:  "VEVENT",
+							Start: toDate(t, "20060104T000000Z"),
+						},
+					},
+				},
+			},
+			addrs: []CalendarObject{event1, event2, event3, todo1},
+			want:  []CalendarObject{event2, event3},
+		},
+		{
 			// https://datatracker.ietf.org/doc/html/rfc4791#section-7.8.6
 			name: "events by UID",
 			query: &CalendarQuery{
