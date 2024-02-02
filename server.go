@@ -255,7 +255,7 @@ func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (cr
 
 // BackendSuppliedHomeSet represents either a CalDAV calendar-home-set or a
 // CardDAV addressbook-home-set. It should only be created via
-// caldav.NewCalendarHomeSet or carddav.NewAddressbookHomeSet. Only to
+// caldav.NewCalendarHomeSet or carddav.NewAddressBookHomeSet. Only to
 // be used server-side, for listing a user's home sets as determined by the
 // (external) backend.
 type BackendSuppliedHomeSet interface {

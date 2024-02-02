@@ -37,20 +37,35 @@ func (*testBackend) CurrentUserPrincipal(ctx context.Context) (string, error) {
 	return r, nil
 }
 
-func (*testBackend) AddressbookHomeSetPath(ctx context.Context) (string, error) {
+func (*testBackend) AddressBookHomeSetPath(ctx context.Context) (string, error) {
 	r := ctx.Value(homeSetPathKey).(string)
 	return r, nil
 }
 
-func (*testBackend) AddressBook(ctx context.Context) (*AddressBook, error) {
+func (*testBackend) ListAddressBooks(ctx context.Context) ([]AddressBook, error) {
 	p := ctx.Value(addressBookPathKey).(string)
-	return &AddressBook{
-		Path:                 p,
-		Name:                 "My contacts",
-		Description:          "Default address book",
-		MaxResourceSize:      1024,
-		SupportedAddressData: nil,
+	return []AddressBook{
+		AddressBook{
+			Path:                 p,
+			Name:                 "My contacts",
+			Description:          "Default address book",
+			MaxResourceSize:      1024,
+			SupportedAddressData: nil,
+		},
 	}, nil
+}
+
+func (b *testBackend) GetAddressBook(ctx context.Context, path string) (*AddressBook, error) {
+	abs, err := b.ListAddressBooks(ctx)
+	if err != nil {
+		panic(err)
+	}
+	for _, ab := range abs {
+		if ab.Path == path {
+			return &ab, nil
+		}
+	}
+	return nil, webdav.NewHTTPError(404, fmt.Errorf("Not found"))
 }
 
 func (*testBackend) GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error) {
@@ -68,7 +83,11 @@ func (*testBackend) GetAddressObject(ctx context.Context, path string, req *Addr
 	}
 }
 
-func (b *testBackend) ListAddressObjects(ctx context.Context, req *AddressDataRequest) ([]AddressObject, error) {
+func (b *testBackend) ListAddressObjects(ctx context.Context, path string, req *AddressDataRequest) ([]AddressObject, error) {
+	p := ctx.Value(addressBookPathKey).(string)
+	if !strings.HasPrefix(path, p) {
+		return nil, webdav.NewHTTPError(404, fmt.Errorf("Not found"))
+	}
 	alice, err := b.GetAddressObject(ctx, alicePath, req)
 	if err != nil {
 		return nil, err
@@ -77,7 +96,7 @@ func (b *testBackend) ListAddressObjects(ctx context.Context, req *AddressDataRe
 	return []AddressObject{*alice}, nil
 }
 
-func (*testBackend) QueryAddressObjects(ctx context.Context, query *AddressBookQuery) ([]AddressObject, error) {
+func (*testBackend) QueryAddressObjects(ctx context.Context, path string, query *AddressBookQuery) ([]AddressObject, error) {
 	panic("TODO: implement")
 }
 
