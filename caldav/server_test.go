@@ -226,6 +226,6 @@ func (t testBackend) ListCalendarObjects(ctx context.Context, path string, req *
 	return t.objectMap[path], nil
 }
 
-func (t testBackend) QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error) {
+func (t testBackend) QueryCalendarObjects(ctx context.Context, path string, query *CalendarQuery) ([]CalendarObject, error) {
 	return nil, nil
 }
