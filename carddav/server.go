@@ -16,8 +16,6 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
-// TODO: add support for multiple address books
-
 type PutAddressObjectOptions struct {
 	// IfNoneMatch indicates that the client does not want to overwrite
 	// an existing resource.
@@ -29,11 +27,12 @@ type PutAddressObjectOptions struct {
 
 // Backend is a CardDAV server backend.
 type Backend interface {
-	AddressbookHomeSetPath(ctx context.Context) (string, error)
-	AddressBook(ctx context.Context) (*AddressBook, error)
+	AddressBookHomeSetPath(ctx context.Context) (string, error)
+	ListAddressBooks(ctx context.Context) ([]AddressBook, error)
+	GetAddressBook(ctx context.Context, path string) (*AddressBook, error)
 	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
-	ListAddressObjects(ctx context.Context, req *AddressDataRequest) ([]AddressObject, error)
-	QueryAddressObjects(ctx context.Context, query *AddressBookQuery) ([]AddressObject, error)
+	ListAddressObjects(ctx context.Context, path string, req *AddressDataRequest) ([]AddressObject, error)
+	QueryAddressObjects(ctx context.Context, path string, query *AddressBookQuery) ([]AddressObject, error)
 	PutAddressObject(ctx context.Context, path string, card vcard.Card, opts *PutAddressObjectOptions) (loc string, err error)
 	DeleteAddressObject(ctx context.Context, path string) error
 
@@ -90,7 +89,7 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if report.Query != nil {
-		return h.handleQuery(r.Context(), w, report.Query)
+		return h.handleQuery(r, w, report.Query)
 	} else if report.Multiget != nil {
 		return h.handleMultiget(r.Context(), w, report.Multiget)
 	}
@@ -152,7 +151,7 @@ func decodeAddressDataReq(addressData *addressDataReq) (*AddressDataRequest, err
 	return req, nil
 }
 
-func (h *Handler) handleQuery(ctx context.Context, w http.ResponseWriter, query *addressbookQuery) error {
+func (h *Handler) handleQuery(r *http.Request, w http.ResponseWriter, query *addressbookQuery) error {
 	var q AddressBookQuery
 	if query.Prop != nil {
 		var addressData addressDataReq
@@ -180,7 +179,7 @@ func (h *Handler) handleQuery(ctx context.Context, w http.ResponseWriter, query 
 		}
 	}
 
-	aos, err := h.Backend.QueryAddressObjects(ctx, &q)
+	aos, err := h.Backend.QueryAddressObjects(r.Context(), r.URL.Path, &q)
 	if err != nil {
 		return err
 	}
@@ -196,7 +195,7 @@ func (h *Handler) handleQuery(ctx context.Context, w http.ResponseWriter, query 
 			AllProp:  query.AllProp,
 			PropName: query.PropName,
 		}
-		resp, err := b.propFindAddressObject(ctx, &propfind, &ao)
+		resp, err := b.propFindAddressObject(r.Context(), &propfind, &ao)
 		if err != nil {
 			return err
 		}
@@ -371,7 +370,7 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 			}
 		}
 	case resourceTypeAddressBookHomeSet:
-		homeSetPath, err := b.Backend.AddressbookHomeSetPath(r.Context())
+		homeSetPath, err := b.Backend.AddressBookHomeSetPath(r.Context())
 		if err != nil {
 			return nil, err
 		}
@@ -391,24 +390,21 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 			}
 		}
 	case resourceTypeAddressBook:
-		// TODO for multiple address books, look through all of them
-		ab, err := b.Backend.AddressBook(r.Context())
+		ab, err := b.Backend.GetAddressBook(r.Context(), r.URL.Path)
 		if err != nil {
 			return nil, err
 		}
-		if r.URL.Path == ab.Path {
-			resp, err := b.propFindAddressBook(r.Context(), propfind, ab)
+		resp, err := b.propFindAddressBook(r.Context(), propfind, ab)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
+		if depth != internal.DepthZero {
+			resps_, err := b.propFindAllAddressObjects(r.Context(), propfind, ab)
 			if err != nil {
 				return nil, err
 			}
-			resps = append(resps, *resp)
-			if depth != internal.DepthZero {
-				resps_, err := b.propFindAllAddressObjects(r.Context(), propfind, ab)
-				if err != nil {
-					return nil, err
-				}
-				resps = append(resps, resps_...)
-			}
+			resps = append(resps, resps_...)
 		}
 	case resourceTypeAddressObject:
 		ao, err := b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
@@ -448,7 +444,7 @@ func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.
 	if err != nil {
 		return nil, err
 	}
-	homeSetPath, err := b.Backend.AddressbookHomeSetPath(ctx)
+	homeSetPath, err := b.Backend.AddressBookHomeSetPath(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -472,7 +468,7 @@ func (b *backend) propFindHomeSet(ctx context.Context, propfind *internal.PropFi
 	if err != nil {
 		return nil, err
 	}
-	homeSetPath, err := b.Backend.AddressbookHomeSetPath(ctx)
+	homeSetPath, err := b.Backend.AddressBookHomeSetPath(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -527,22 +523,20 @@ func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.Pr
 }
 
 func (b *backend) propFindAllAddressBooks(ctx context.Context, propfind *internal.PropFind, recurse bool) ([]internal.Response, error) {
-	// TODO iterate over all address books once having multiple is supported
-	ab, err := b.Backend.AddressBook(ctx)
+	abs, err := b.Backend.ListAddressBooks(ctx)
 	if err != nil {
 		return nil, err
 	}
-	abs := []*AddressBook{ab}
 
 	var resps []internal.Response
 	for _, ab := range abs {
-		resp, err := b.propFindAddressBook(ctx, propfind, ab)
+		resp, err := b.propFindAddressBook(ctx, propfind, &ab)
 		if err != nil {
 			return nil, err
 		}
 		resps = append(resps, *resp)
 		if recurse {
-			resps_, err := b.propFindAllAddressObjects(ctx, propfind, ab)
+			resps_, err := b.propFindAllAddressObjects(ctx, propfind, &ab)
 			if err != nil {
 				return nil, err
 			}
@@ -597,7 +591,7 @@ func (b *backend) propFindAddressObject(ctx context.Context, propfind *internal.
 
 func (b *backend) propFindAllAddressObjects(ctx context.Context, propfind *internal.PropFind, ab *AddressBook) ([]internal.Response, error) {
 	var dataReq AddressDataRequest
-	aos, err := b.Backend.ListAddressObjects(ctx, &dataReq)
+	aos, err := b.Backend.ListAddressObjects(ctx, ab.Path, &dataReq)
 	if err != nil {
 		return nil, err
 	}
@@ -614,7 +608,7 @@ func (b *backend) propFindAllAddressObjects(ctx context.Context, propfind *inter
 }
 
 func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*internal.Response, error) {
-	homeSetPath, err := b.Backend.AddressbookHomeSetPath(r.Context())
+	homeSetPath, err := b.Backend.AddressBookHomeSetPath(r.Context())
 	if err != nil {
 		return nil, err
 	}
