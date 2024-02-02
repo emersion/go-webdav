@@ -34,7 +34,7 @@ type Backend interface {
 	GetCalendar(ctx context.Context, path string) (*Calendar, error)
 	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
 	ListCalendarObjects(ctx context.Context, path string, req *CalendarCompRequest) ([]CalendarObject, error)
-	QueryCalendarObjects(ctx context.Context, query *CalendarQuery) ([]CalendarObject, error)
+	QueryCalendarObjects(ctx context.Context, path string, query *CalendarQuery) ([]CalendarObject, error)
 	PutCalendarObject(ctx context.Context, path string, calendar *ical.Calendar, opts *PutCalendarObjectOptions) (loc string, err error)
 	DeleteCalendarObject(ctx context.Context, path string) error
 
@@ -213,7 +213,7 @@ func (h *Handler) handleQuery(r *http.Request, w http.ResponseWriter, query *cal
 	}
 	q.CompFilter = *cf
 
-	cos, err := h.Backend.QueryCalendarObjects(r.Context(), &q)
+	cos, err := h.Backend.QueryCalendarObjects(r.Context(), r.URL.Path, &q)
 	if err != nil {
 		return err
 	}
