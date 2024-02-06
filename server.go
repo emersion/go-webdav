@@ -57,7 +57,7 @@ type backend struct {
 
 func (b *backend) Options(r *http.Request) (caps []string, allow []string, err error) {
 	fi, err := b.FileSystem.Stat(r.Context(), r.URL.Path)
-	if os.IsNotExist(err) {
+	if internal.IsNotFound(err) {
 		return nil, []string{http.MethodOptions, http.MethodPut, "MKCOL"}, nil
 	} else if err != nil {
 		return nil, nil, err
@@ -80,9 +80,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 
 func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	fi, err := b.FileSystem.Stat(r.Context(), r.URL.Path)
-	if os.IsNotExist(err) {
-		return &internal.HTTPError{Code: http.StatusNotFound, Err: err}
-	} else if err != nil {
+	if err != nil {
 		return err
 	}
 	if fi.IsDir {
@@ -121,9 +119,7 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 	// TODO: use partial error Response on error
 
 	fi, err := b.FileSystem.Stat(r.Context(), r.URL.Path)
-	if os.IsNotExist(err) {
-		return nil, &internal.HTTPError{Code: http.StatusNotFound, Err: err}
-	} else if err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -212,11 +208,7 @@ func (b *backend) Put(r *http.Request) (*internal.Href, error) {
 }
 
 func (b *backend) Delete(r *http.Request) error {
-	err := b.FileSystem.RemoveAll(r.Context(), r.URL.Path)
-	if os.IsNotExist(err) {
-		return &internal.HTTPError{Code: http.StatusNotFound, Err: err}
-	}
-	return err
+	return b.FileSystem.RemoveAll(r.Context(), r.URL.Path)
 }
 
 func (b *backend) Mkcol(r *http.Request) error {
@@ -224,7 +216,7 @@ func (b *backend) Mkcol(r *http.Request) error {
 		return internal.HTTPErrorf(http.StatusUnsupportedMediaType, "webdav: request body not supported in MKCOL request")
 	}
 	err := b.FileSystem.Mkdir(r.Context(), r.URL.Path)
-	if os.IsNotExist(err) {
+	if internal.IsNotFound(err) {
 		return &internal.HTTPError{Code: http.StatusConflict, Err: err}
 	}
 	return err
