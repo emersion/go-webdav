@@ -30,7 +30,7 @@ type Backend interface {
 	AddressBookHomeSetPath(ctx context.Context) (string, error)
 	ListAddressBooks(ctx context.Context) ([]AddressBook, error)
 	GetAddressBook(ctx context.Context, path string) (*AddressBook, error)
-	CreateAddressBook(ctx context.Context, addressBook AddressBook) error
+	CreateAddressBook(ctx context.Context, addressBook *AddressBook) error
 	DeleteAddressBook(ctx context.Context, path string) error
 	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
 	ListAddressObjects(ctx context.Context, path string, req *AddressDataRequest) ([]AddressObject, error)
@@ -716,7 +716,7 @@ func (b *backend) Mkcol(r *http.Request) error {
 		// TODO ...
 	}
 
-	return b.Backend.CreateAddressBook(r.Context(), ab)
+	return b.Backend.CreateAddressBook(r.Context(), &ab)
 }
 
 func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {

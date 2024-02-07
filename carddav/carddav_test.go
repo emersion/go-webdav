@@ -68,7 +68,7 @@ func (b *testBackend) GetAddressBook(ctx context.Context, path string) (*Address
 	return nil, webdav.NewHTTPError(404, fmt.Errorf("Not found"))
 }
 
-func (*testBackend) CreateAddressBook(ctx context.Context, ab AddressBook) error {
+func (*testBackend) CreateAddressBook(ctx context.Context, ab *AddressBook) error {
 	panic("TODO: implement")
 }
 
