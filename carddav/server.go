@@ -720,11 +720,11 @@ func (b *backend) Mkcol(r *http.Request) error {
 }
 
 func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {
-	panic("TODO")
+	return false, internal.HTTPErrorf(http.StatusNotImplemented, "carddav: Copy not implemented")
 }
 
 func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (created bool, err error) {
-	panic("TODO")
+	return false, internal.HTTPErrorf(http.StatusNotImplemented, "carddav: Move not implemented")
 }
 
 // https://tools.ietf.org/rfcmarkup?doc=6352#section-6.3.2.1
