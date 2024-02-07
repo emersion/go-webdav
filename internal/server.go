@@ -44,6 +44,11 @@ func DecodeXMLRequest(r *http.Request, v interface{}) error {
 	return nil
 }
 
+func IsRequestBodyEmpty(r *http.Request) bool {
+	_, err := r.Body.Read(nil)
+	return err == io.EOF
+}
+
 func ServeXML(w http.ResponseWriter) *xml.Encoder {
 	w.Header().Add("Content-Type", "text/xml; charset=\"utf-8\"")
 	w.Write([]byte(xml.Header))

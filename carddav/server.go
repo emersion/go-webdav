@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"io"
 	"mime"
 	"net/http"
 	"path"
@@ -703,13 +702,7 @@ func (b *backend) Mkcol(r *http.Request) error {
 		Path: r.URL.Path,
 	}
 
-	// Check if a request body was sent
-	_, err := r.Body.Read(nil)
-	if err != nil && err != io.EOF {
-		return err
-	}
-	if err == nil {
-		// Not EOF, body is present
+	if !internal.IsRequestBodyEmpty(r) {
 		var m mkcolReq
 		if err := internal.DecodeXMLRequest(r, &m); err != nil {
 			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: error parsing mkcol request: %s", err.Error())
@@ -722,6 +715,7 @@ func (b *backend) Mkcol(r *http.Request) error {
 		ab.Description = m.Description.Description
 		// TODO ...
 	}
+
 	return b.Backend.CreateAddressBook(r.Context(), ab)
 }
 
