@@ -68,6 +68,14 @@ func (b *testBackend) GetAddressBook(ctx context.Context, path string) (*Address
 	return nil, webdav.NewHTTPError(404, fmt.Errorf("Not found"))
 }
 
+func (*testBackend) CreateAddressBook(ctx context.Context, ab AddressBook) error {
+	panic("TODO: implement")
+}
+
+func (*testBackend) DeleteAddressBook(ctx context.Context, path string) error {
+	panic("TODO: implement")
+}
+
 func (*testBackend) GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error) {
 	if path == alicePath {
 		card, err := vcard.NewDecoder(strings.NewReader(aliceData)).Decode()
