@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"mime"
 	"net/http"
 	"path"
@@ -30,6 +31,8 @@ type Backend interface {
 	AddressBookHomeSetPath(ctx context.Context) (string, error)
 	ListAddressBooks(ctx context.Context) ([]AddressBook, error)
 	GetAddressBook(ctx context.Context, path string) (*AddressBook, error)
+	CreateAddressBook(ctx context.Context, addressBook AddressBook) error
+	DeleteAddressBook(ctx context.Context, path string) error
 	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
 	ListAddressObjects(ctx context.Context, path string, req *AddressDataRequest) ([]AddressObject, error)
 	QueryAddressObjects(ctx context.Context, path string, query *AddressBookQuery) ([]AddressObject, error)
@@ -682,11 +685,44 @@ func (b *backend) Put(r *http.Request) (*internal.Href, error) {
 }
 
 func (b *backend) Delete(r *http.Request) error {
-	return b.Backend.DeleteAddressObject(r.Context(), r.URL.Path)
+	switch b.resourceTypeAtPath(r.URL.Path) {
+	case resourceTypeAddressBook:
+		return b.Backend.DeleteAddressBook(r.Context(), r.URL.Path)
+	case resourceTypeAddressObject:
+		return b.Backend.DeleteAddressObject(r.Context(), r.URL.Path)
+	}
+	return internal.HTTPErrorf(http.StatusForbidden, "carddav: cannot delete resource at given location")
 }
 
 func (b *backend) Mkcol(r *http.Request) error {
-	return internal.HTTPErrorf(http.StatusForbidden, "carddav: address book creation unsupported")
+	if b.resourceTypeAtPath(r.URL.Path) != resourceTypeAddressBook {
+		return internal.HTTPErrorf(http.StatusForbidden, "carddav: address book creation not allowed at given location")
+	}
+
+	ab := AddressBook{
+		Path: r.URL.Path,
+	}
+
+	// Check if a request body was sent
+	_, err := r.Body.Read(nil)
+	if err != nil && err != io.EOF {
+		return err
+	}
+	if err == nil {
+		// Not EOF, body is present
+		var m mkcolReq
+		if err := internal.DecodeXMLRequest(r, &m); err != nil {
+			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: error parsing mkcol request: %s", err.Error())
+		}
+
+		if !m.ResourceType.Is(internal.CollectionName) || !m.ResourceType.Is(addressBookName) {
+			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: unexpected resource type")
+		}
+		ab.Name = m.DisplayName
+		ab.Description = m.Description.Description
+		// TODO ...
+	}
+	return b.Backend.CreateAddressBook(r.Context(), ab)
 }
 
 func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {
