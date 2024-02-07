@@ -661,7 +661,7 @@ func (b *backend) propFindAllCalendarObjects(ctx context.Context, propfind *inte
 }
 
 func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*internal.Response, error) {
-	panic("TODO")
+	return nil, internal.HTTPErrorf(http.StatusNotImplemented, "caldav: PropPatch not implemented")
 }
 
 func (b *backend) Put(r *http.Request) (*internal.Href, error) {
@@ -702,15 +702,15 @@ func (b *backend) Delete(r *http.Request) error {
 }
 
 func (b *backend) Mkcol(r *http.Request) error {
-	panic("TODO")
+	return internal.HTTPErrorf(http.StatusNotImplemented, "caldav: Mkcol not implemented")
 }
 
 func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {
-	panic("TODO")
+	return false, internal.HTTPErrorf(http.StatusNotImplemented, "caldav: Copy not implemented")
 }
 
 func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (created bool, err error) {
-	panic("TODO")
+	return false, internal.HTTPErrorf(http.StatusNotImplemented, "caldav: Move not implemented")
 }
 
 // https://datatracker.ietf.org/doc/html/rfc4791#section-5.3.2.1
