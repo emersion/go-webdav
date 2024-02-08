@@ -530,9 +530,6 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, calendarName), nil
 		},
-		internal.DisplayNameName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.DisplayName{Name: cal.Name}, nil
-		},
 		calendarDescriptionName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &calendarDescription{Description: cal.Description}, nil
 		},
@@ -558,12 +555,16 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 		},
 	}
 
+	if cal.Name != "" {
+		props[internal.DisplayNameName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.DisplayName{Name: cal.Name}, nil
+		}
+	}
 	if cal.Description != "" {
 		props[calendarDescriptionName] = func(*internal.RawXMLValue) (interface{}, error) {
 			return &calendarDescription{Description: cal.Description}, nil
 		}
 	}
-
 	if cal.MaxResourceSize > 0 {
 		props[maxResourceSizeName] = func(*internal.RawXMLValue) (interface{}, error) {
 			return &maxResourceSize{Size: cal.MaxResourceSize}, nil
