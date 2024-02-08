@@ -499,12 +499,6 @@ func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.Pr
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, addressBookName), nil
 		},
-		internal.DisplayNameName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.DisplayName{Name: ab.Name}, nil
-		},
-		addressBookDescriptionName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &addressbookDescription{Description: ab.Description}, nil
-		},
 		supportedAddressDataName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &supportedAddressData{
 				Types: []addressDataType{
@@ -515,6 +509,16 @@ func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.Pr
 		},
 	}
 
+	if ab.Name != "" {
+		props[internal.DisplayNameName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.DisplayName{Name: ab.Name}, nil
+		}
+	}
+	if ab.Description != "" {
+		props[addressBookDescriptionName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &addressbookDescription{Description: ab.Description}, nil
+		}
+	}
 	if ab.MaxResourceSize > 0 {
 		props[maxResourceSizeName] = func(*internal.RawXMLValue) (interface{}, error) {
 			return &maxResourceSize{Size: ab.MaxResourceSize}, nil
