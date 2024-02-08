@@ -182,6 +182,10 @@ type testBackend struct {
 	objectMap map[string][]CalendarObject
 }
 
+func (t testBackend) CreateCalendar(ctx context.Context, calendar *Calendar) error {
+	return nil
+}
+
 func (t testBackend) ListCalendars(ctx context.Context) ([]Calendar, error) {
 	return t.calendars, nil
 }

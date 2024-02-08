@@ -30,8 +30,11 @@ type PutCalendarObjectOptions struct {
 // Backend is a CalDAV server backend.
 type Backend interface {
 	CalendarHomeSetPath(ctx context.Context) (string, error)
+
+	CreateCalendar(ctx context.Context, calendar *Calendar) error
 	ListCalendars(ctx context.Context) ([]Calendar, error)
 	GetCalendar(ctx context.Context, path string) (*Calendar, error)
+
 	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
 	ListCalendarObjects(ctx context.Context, path string, req *CalendarCompRequest) ([]CalendarObject, error)
 	QueryCalendarObjects(ctx context.Context, path string, query *CalendarQuery) ([]CalendarObject, error)
@@ -702,7 +705,28 @@ func (b *backend) Delete(r *http.Request) error {
 }
 
 func (b *backend) Mkcol(r *http.Request) error {
-	return internal.HTTPErrorf(http.StatusNotImplemented, "caldav: Mkcol not implemented")
+	if b.resourceTypeAtPath(r.URL.Path) != resourceTypeCalendar {
+		return internal.HTTPErrorf(http.StatusForbidden, "caldav: calendar creation not allowed at given location")
+	}
+
+	cal := Calendar{
+		Path: r.URL.Path,
+	}
+
+	if !internal.IsRequestBodyEmpty(r) {
+		var m mkcolReq
+		if err := internal.DecodeXMLRequest(r, &m); err != nil {
+			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: error parsing mkcol request: %s", err.Error())
+		}
+
+		if !m.ResourceType.Is(internal.CollectionName) || !m.ResourceType.Is(calendarName) {
+			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: unexpected resource type")
+		}
+		cal.Name = m.DisplayName
+		// TODO ...
+	}
+
+	return b.Backend.CreateCalendar(r.Context(), &cal)
 }
 
 func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {
