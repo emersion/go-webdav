@@ -30,6 +30,11 @@ type AddressBook struct {
 	SupportedAddressData []AddressDataType
 }
 
+type AddressBookUpdate struct {
+	Name        *string
+	Description *string
+}
+
 func (ab *AddressBook) SupportsAddressData(contentType, version string) bool {
 	if len(ab.SupportedAddressData) == 0 {
 		return contentType == "text/vcard" && version == "3.0"

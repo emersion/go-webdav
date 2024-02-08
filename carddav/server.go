@@ -31,6 +31,7 @@ type Backend interface {
 	ListAddressBooks(ctx context.Context) ([]AddressBook, error)
 	GetAddressBook(ctx context.Context, path string) (*AddressBook, error)
 	CreateAddressBook(ctx context.Context, addressBook *AddressBook) error
+	UpdateAddressBook(ctx context.Context, path string, update *AddressBookUpdate) error
 	DeleteAddressBook(ctx context.Context, path string) error
 	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
 	ListAddressObjects(ctx context.Context, path string, req *AddressDataRequest) ([]AddressObject, error)
@@ -284,7 +285,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 	if b.resourceTypeAtPath(r.URL.Path) != resourceTypeAddressObject {
 		// Note: some clients assume the address book is read-only when
 		// DELETE/MKCOL are missing
-		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT", "DELETE", "MKCOL"}, nil
+		return caps, []string{http.MethodOptions, "PROPFIND", "PROPPATCH", "REPORT", "DELETE", "MKCOL"}, nil
 	}
 
 	var dataReq AddressDataRequest
@@ -302,6 +303,8 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 		http.MethodPut,
 		http.MethodDelete,
 		"PROPFIND",
+		// TODO PROPPATCH support for address objects
+		//"PROPPATCH",
 	}, nil
 }
 
@@ -614,43 +617,115 @@ func (b *backend) propFindAllAddressObjects(ctx context.Context, propfind *inter
 }
 
 func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*internal.Response, error) {
-	homeSetPath, err := b.Backend.AddressBookHomeSetPath(r.Context())
-	if err != nil {
-		return nil, err
-	}
-
+	resType := b.resourceTypeAtPath(r.URL.Path)
 	resp := internal.NewOKResponse(r.URL.Path)
 
-	if r.URL.Path == homeSetPath {
-		// TODO: support PROPPATCH for address books
+	switch resType {
+	case resourceTypeAddressBook:
+		abUpdate, err := b.propPatchAddressBook(r.Context(), update, resp)
+		if err != nil {
+			return nil, err
+		}
+		err = b.Backend.UpdateAddressBook(r.Context(), r.URL.Path, &abUpdate)
+		if err != nil {
+			return nil, err
+		}
+	case resourceTypeAddressObject:
+		// TODO: support PROPPATCH for address objects
+		return nil, internal.HTTPErrorf(http.StatusNotImplemented, "PROPPATCH for address objects not yet implemented")
+	default:
 		for _, prop := range update.Remove {
-			emptyVal := internal.NewRawXMLElement(prop.Prop.XMLName, nil, nil)
-			if err := resp.EncodeProp(http.StatusNotImplemented, emptyVal); err != nil {
-				return nil, err
+			for _, raw := range prop.Prop.Raw {
+				rxn, ok := raw.XMLName()
+				if !ok {
+					return nil, fmt.Errorf("failed to parse properties")
+				}
+				emptyVal := internal.NewRawXMLElement(rxn, nil, nil)
+				if err := resp.EncodeProp(http.StatusMethodNotAllowed, emptyVal); err != nil {
+					return nil, err
+				}
 			}
 		}
 		for _, prop := range update.Set {
-			emptyVal := internal.NewRawXMLElement(prop.Prop.XMLName, nil, nil)
-			if err := resp.EncodeProp(http.StatusNotImplemented, emptyVal); err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		for _, prop := range update.Remove {
-			emptyVal := internal.NewRawXMLElement(prop.Prop.XMLName, nil, nil)
-			if err := resp.EncodeProp(http.StatusMethodNotAllowed, emptyVal); err != nil {
-				return nil, err
-			}
-		}
-		for _, prop := range update.Set {
-			emptyVal := internal.NewRawXMLElement(prop.Prop.XMLName, nil, nil)
-			if err := resp.EncodeProp(http.StatusMethodNotAllowed, emptyVal); err != nil {
-				return nil, err
+			for _, raw := range prop.Prop.Raw {
+				rxn, ok := raw.XMLName()
+				if !ok {
+					return nil, fmt.Errorf("failed to parse properties")
+				}
+				emptyVal := internal.NewRawXMLElement(rxn, nil, nil)
+				if err := resp.EncodeProp(http.StatusMethodNotAllowed, emptyVal); err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
-
 	return resp, nil
+}
+
+func (b *backend) propPatchAddressBook(ctx context.Context, update *internal.PropertyUpdate, resp *internal.Response) (AddressBookUpdate, error) {
+	// TODO handle all properties
+	var (
+		result AddressBookUpdate
+		name   internal.DisplayName
+		desc   addressbookDescription
+	)
+	for _, prop := range update.Remove {
+		for _, raw := range prop.Prop.Raw {
+			rxn, ok := raw.XMLName()
+			if !ok {
+				return result, fmt.Errorf("failed to parse properties")
+			}
+			switch rxn {
+			case internal.DisplayNameName:
+				result.Description = new(string)
+				if err := resp.EncodeProp(http.StatusOK, internal.DisplayName{}); err != nil {
+					return result, err
+				}
+			case addressBookDescriptionName:
+				result.Description = new(string)
+				if err := resp.EncodeProp(http.StatusOK, desc); err != nil {
+					return result, err
+				}
+			default:
+				emptyVal := internal.NewRawXMLElement(rxn, nil, nil)
+				if err := resp.EncodeProp(http.StatusNotImplemented, emptyVal); err != nil {
+					return result, err
+				}
+			}
+		}
+	}
+	for _, prop := range update.Set {
+		for _, raw := range prop.Prop.Raw {
+			rxn, ok := raw.XMLName()
+			if !ok {
+				return result, fmt.Errorf("failed to parse properties")
+			}
+			switch rxn {
+			case internal.DisplayNameName:
+				if err := raw.Decode(&name); err != nil {
+					return result, err
+				}
+				result.Name = &name.Name
+				if err := resp.EncodeProp(http.StatusOK, internal.DisplayName{}); err != nil {
+					return result, err
+				}
+			case addressBookDescriptionName:
+				if err := raw.Decode(&desc); err != nil {
+					return result, err
+				}
+				result.Description = &desc.Description
+				if err := resp.EncodeProp(http.StatusOK, desc); err != nil {
+					return result, err
+				}
+			default:
+				emptyVal := internal.NewRawXMLElement(rxn, nil, nil)
+				if err := resp.EncodeProp(http.StatusNotImplemented, emptyVal); err != nil {
+					return result, err
+				}
+			}
+		}
+	}
+	return result, nil
 }
 
 func (b *backend) Put(r *http.Request) (*internal.Href, error) {
