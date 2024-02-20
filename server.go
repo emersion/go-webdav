@@ -38,7 +38,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	b := backend{h.FileSystem}
-	hh := internal.Handler{&b}
+	hh := internal.Handler{Backend: &b}
 	hh.ServeHTTP(w, r)
 }
 
@@ -193,18 +193,25 @@ func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*
 	return nil, internal.HTTPErrorf(http.StatusForbidden, "webdav: PROPPATCH is unsupported")
 }
 
-func (b *backend) Put(r *http.Request) (*internal.Href, error) {
+func (b *backend) Put(w http.ResponseWriter, r *http.Request) error {
 	wc, err := b.FileSystem.Create(r.Context(), r.URL.Path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer wc.Close()
 
 	if _, err := io.Copy(wc, r.Body); err != nil {
-		return nil, err
+		return err
+	}
+	if err := wc.Close(); err != nil {
+		return err
 	}
 
-	return nil, wc.Close()
+	w.WriteHeader(http.StatusCreated)
+	// TODO: Last-Modified, ETag, Content-Type if the request has been copied
+	// verbatim
+	// TODO: http.StatusNoContent if the resource already existed
+	return nil
 }
 
 func (b *backend) Delete(r *http.Request) error {

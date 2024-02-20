@@ -222,8 +222,8 @@ func (t testBackend) GetCalendarObject(ctx context.Context, path string, req *Ca
 	return nil, fmt.Errorf("Couldn't find calendar object at: %s", path)
 }
 
-func (t testBackend) PutCalendarObject(ctx context.Context, path string, calendar *ical.Calendar, opts *PutCalendarObjectOptions) (string, error) {
-	return "", nil
+func (t testBackend) PutCalendarObject(ctx context.Context, path string, calendar *ical.Calendar, opts *PutCalendarObjectOptions) (*CalendarObject, error) {
+	return nil, nil
 }
 
 func (t testBackend) ListCalendarObjects(ctx context.Context, path string, req *CalendarCompRequest) ([]CalendarObject, error) {
