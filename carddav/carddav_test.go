@@ -3,6 +3,7 @@ package carddav
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,7 +13,9 @@ import (
 	"github.com/emersion/go-webdav"
 )
 
-type testBackend struct{}
+type testBackend struct {
+	addressBooks []AddressBook
+}
 
 type contextKey string
 
@@ -68,8 +71,9 @@ func (b *testBackend) GetAddressBook(ctx context.Context, path string) (*Address
 	return nil, webdav.NewHTTPError(404, fmt.Errorf("Not found"))
 }
 
-func (*testBackend) CreateAddressBook(ctx context.Context, ab *AddressBook) error {
-	panic("TODO: implement")
+func (b *testBackend) CreateAddressBook(ctx context.Context, ab *AddressBook) error {
+	b.addressBooks = append(b.addressBooks, *ab)
+	return nil
 }
 
 func (*testBackend) DeleteAddressBook(ctx context.Context, path string) error {
@@ -189,4 +193,41 @@ func TestAddressBookDiscovery(t *testing.T) {
 			}
 		})
 	}
+}
+
+var mkcolRequestBody = `
+<?xml version="1.0" encoding="utf-8" ?>
+   <D:mkcol xmlns:D="DAV:"
+                 xmlns:C="urn:ietf:params:xml:ns:carddav">
+     <D:set>
+       <D:prop>
+         <D:resourcetype>
+           <D:collection/>
+           <C:addressbook/>
+         </D:resourcetype>
+         <D:displayname>Lisa's Contacts</D:displayname>
+         <C:addressbook-description xml:lang="en"
+   >My primary address book.</C:addressbook-description>
+       </D:prop>
+     </D:set>
+   </D:mkcol>`
+
+func TestCreateAddressbookMinimalBody(t *testing.T) {
+	tb := testBackend{
+		addressBooks: nil,
+	}
+	b := backend{
+		Backend: &tb,
+		Prefix:  "/dav",
+	}
+	req := httptest.NewRequest("MKCOL", "/dav/addressbooks/user0/test-addressbook", strings.NewReader(mkcolRequestBody))
+	req.Header.Set("Content-Type", "application/xml")
+
+	err := b.Mkcol(req)
+	assert.NoError(t, err)
+	assert.Len(t, tb.addressBooks, 1)
+	c := tb.addressBooks[0]
+	assert.Equal(t, "Lisa's Contacts", c.Name)
+	assert.Equal(t, "/dav/addressbooks/user0/test-addressbook", c.Path)
+	assert.Equal(t, "My primary address book.", c.Description)
 }
