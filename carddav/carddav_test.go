@@ -12,7 +12,9 @@ import (
 	"github.com/emersion/go-webdav"
 )
 
-type testBackend struct{}
+type testBackend struct {
+	addressBooks []AddressBook
+}
 
 type contextKey string
 
@@ -68,8 +70,9 @@ func (b *testBackend) GetAddressBook(ctx context.Context, path string) (*Address
 	return nil, webdav.NewHTTPError(404, fmt.Errorf("Not found"))
 }
 
-func (*testBackend) CreateAddressBook(ctx context.Context, ab *AddressBook) error {
-	panic("TODO: implement")
+func (b *testBackend) CreateAddressBook(ctx context.Context, ab *AddressBook) error {
+	b.addressBooks = append(b.addressBooks, *ab)
+	return nil
 }
 
 func (*testBackend) DeleteAddressBook(ctx context.Context, path string) error {
@@ -188,5 +191,52 @@ func TestAddressBookDiscovery(t *testing.T) {
 				t.Fatalf("Found address book at %s, expected %s", abs[0].Path, tc.addressBookPath)
 			}
 		})
+	}
+}
+
+var mkcolRequestBody = `
+<?xml version="1.0" encoding="utf-8" ?>
+   <D:mkcol xmlns:D="DAV:"
+                 xmlns:C="urn:ietf:params:xml:ns:carddav">
+     <D:set>
+       <D:prop>
+         <D:resourcetype>
+           <D:collection/>
+           <C:addressbook/>
+         </D:resourcetype>
+         <D:displayname>Lisa's Contacts</D:displayname>
+         <C:addressbook-description xml:lang="en"
+   >My primary address book.</C:addressbook-description>
+       </D:prop>
+     </D:set>
+   </D:mkcol>`
+
+func TestCreateAddressbookMinimalBody(t *testing.T) {
+	tb := testBackend{
+		addressBooks: nil,
+	}
+	b := backend{
+		Backend: &tb,
+		Prefix:  "/dav",
+	}
+	req := httptest.NewRequest("MKCOL", "/dav/addressbooks/user0/test-addressbook", strings.NewReader(mkcolRequestBody))
+	req.Header.Set("Content-Type", "application/xml")
+
+	err := b.Mkcol(req)
+	if err != nil {
+		t.Fatalf("Unexpcted error in Mkcol: %s", err)
+	}
+	if len(tb.addressBooks) != 1 {
+		t.Fatalf("Found %d address books, expected 1", len(tb.addressBooks))
+	}
+	c := tb.addressBooks[0]
+	if c.Name != "Lisa's Contacts" {
+		t.Fatalf("Address book name is '%s', expected 'Lisa's Contacts'", c.Name)
+	}
+	if c.Path != "/dav/addressbooks/user0/test-addressbook" {
+		t.Fatalf("Address book path is '%s', expected '/dav/addressbooks/user0/test-addressbook'", c.Path)
+	}
+	if c.Description != "My primary address book." {
+		t.Fatalf("Address book sdscription is '%s', expected 'My primary address book.'", c.Description)
 	}
 }
