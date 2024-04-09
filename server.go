@@ -17,7 +17,7 @@ type FileSystem interface {
 	Open(ctx context.Context, name string) (io.ReadCloser, error)
 	Stat(ctx context.Context, name string) (*FileInfo, error)
 	ReadDir(ctx context.Context, name string, recursive bool) ([]FileInfo, error)
-	Create(ctx context.Context, name string) (io.WriteCloser, error)
+	Create(ctx context.Context, name string, body io.ReadCloser) error
 	RemoveAll(ctx context.Context, name string) error
 	Mkdir(ctx context.Context, name string) error
 	Copy(ctx context.Context, name, dest string, options *CopyOptions) (created bool, err error)
@@ -194,16 +194,8 @@ func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*
 }
 
 func (b *backend) Put(w http.ResponseWriter, r *http.Request) error {
-	wc, err := b.FileSystem.Create(r.Context(), r.URL.Path)
+	err := b.FileSystem.Create(r.Context(), r.URL.Path, r.Body)
 	if err != nil {
-		return err
-	}
-	defer wc.Close()
-
-	if _, err := io.Copy(wc, r.Body); err != nil {
-		return err
-	}
-	if err := wc.Close(); err != nil {
 		return err
 	}
 
