@@ -114,7 +114,7 @@ func (fs LocalFileSystem) ReadDir(ctx context.Context, name string, recursive bo
 	return l, errFromOS(err)
 }
 
-func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadCloser) error {
+func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadCloser, header http.Header) error {
 	p, err := fs.localPath(name)
 	if err != nil {
 		return err
