@@ -50,7 +50,7 @@ func IsRequestBodyEmpty(r *http.Request) bool {
 }
 
 func ServeXML(w http.ResponseWriter) *xml.Encoder {
-	w.Header().Add("Content-Type", "text/xml; charset=\"utf-8\"")
+	w.Header().Add("Content-Type", "application/xml; charset=\"utf-8\"")
 	w.Write([]byte(xml.Header))
 	return xml.NewEncoder(w)
 }
