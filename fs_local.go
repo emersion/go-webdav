@@ -114,25 +114,36 @@ func (fs LocalFileSystem) ReadDir(ctx context.Context, name string, recursive bo
 	return l, errFromOS(err)
 }
 
-func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadCloser) (*FileInfo, error) {
+func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadCloser) (*FileInfo, bool, error) {
 	p, err := fs.localPath(name)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
+	created := false
+	fi, _ := fs.Stat(ctx, name)
+	if fi == nil {
+		created = true
+	}
+
 	wc, err := os.Create(p)
 	if err != nil {
-		return nil, errFromOS(err)
+		return nil, false, errFromOS(err)
 	}
 	defer wc.Close()
 
 	if _, err := io.Copy(wc, body); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if err := wc.Close(); err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
-	return fs.Stat(ctx, name)
+	fi, err = fs.Stat(ctx, name)
+	if err != nil {
+		return nil, false, err
+	}
+
+	return fi, created, err
 }
 
 func (fs LocalFileSystem) RemoveAll(ctx context.Context, name string) error {

@@ -17,7 +17,7 @@ type FileSystem interface {
 	Open(ctx context.Context, name string) (io.ReadCloser, error)
 	Stat(ctx context.Context, name string) (*FileInfo, error)
 	ReadDir(ctx context.Context, name string, recursive bool) ([]FileInfo, error)
-	Create(ctx context.Context, name string, body io.ReadCloser) (*FileInfo, error)
+	Create(ctx context.Context, name string, body io.ReadCloser) (fileInfo *FileInfo, created bool, err error)
 	RemoveAll(ctx context.Context, name string) error
 	Mkdir(ctx context.Context, name string) error
 	Copy(ctx context.Context, name, dest string, options *CopyOptions) (created bool, err error)
@@ -194,7 +194,7 @@ func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*
 }
 
 func (b *backend) Put(w http.ResponseWriter, r *http.Request) error {
-	fi, err := b.FileSystem.Create(r.Context(), r.URL.Path, r.Body)
+	fi, created, err := b.FileSystem.Create(r.Context(), r.URL.Path, r.Body)
 	if err != nil {
 		return err
 	}
@@ -209,8 +209,13 @@ func (b *backend) Put(w http.ResponseWriter, r *http.Request) error {
 	if fi.ETag != "" {
 		w.Header().Set("ETag", internal.ETag(fi.ETag).String())
 	}
-	w.WriteHeader(http.StatusCreated)
-	// TODO: http.StatusNoContent if the resource already existed
+
+	if created {
+		w.WriteHeader(http.StatusCreated)
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
+
 	return nil
 }
 
