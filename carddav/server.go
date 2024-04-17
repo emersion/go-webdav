@@ -431,12 +431,10 @@ func (b *backend) propFindRoot(ctx context.Context, propfind *internal.PropFind)
 	}
 
 	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
-		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(internal.CollectionName), nil
-		},
+		internal.CurrentUserPrincipalName: internal.PropFindValue(&internal.CurrentUserPrincipal{
+			Href: internal.Href{Path: principalPath},
+		}),
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName)),
 	}
 	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
@@ -446,30 +444,24 @@ func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.
 	if err != nil {
 		return nil, err
 	}
-	homeSetPath, err := b.Backend.AddressBookHomeSetPath(ctx)
-	if err != nil {
-		return nil, err
-	}
 
 	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
-		},
+		internal.CurrentUserPrincipalName: internal.PropFindValue(&internal.CurrentUserPrincipal{
+			Href: internal.Href{Path: principalPath},
+		}),
 		addressBookHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+			homeSetPath, err := b.Backend.AddressBookHomeSetPath(ctx)
+			if err != nil {
+				return nil, err
+			}
 			return &addressbookHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(internal.CollectionName), nil
-		},
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName)),
 	}
 	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
 
 func (b *backend) propFindHomeSet(ctx context.Context, propfind *internal.PropFind) (*internal.Response, error) {
-	principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
-	if err != nil {
-		return nil, err
-	}
 	homeSetPath, err := b.Backend.AddressBookHomeSetPath(ctx)
 	if err != nil {
 		return nil, err
@@ -478,11 +470,13 @@ func (b *backend) propFindHomeSet(ctx context.Context, propfind *internal.PropFi
 	// TODO anything else to return here?
 	props := map[xml.Name]internal.PropFindFunc{
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+			principalPath, err := b.Backend.CurrentUserPrincipal(ctx)
+			if err != nil {
+				return nil, err
+			}
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(internal.CollectionName), nil
-		},
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName)),
 	}
 	return internal.NewPropFindResponse(homeSetPath, propfind, props)
 }
@@ -496,33 +490,29 @@ func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.Pr
 			}
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(internal.CollectionName, addressBookName), nil
-		},
-		supportedAddressDataName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &supportedAddressData{
-				Types: []addressDataType{
-					{ContentType: vcard.MIMEType, Version: "3.0"},
-					{ContentType: vcard.MIMEType, Version: "4.0"},
-				},
-			}, nil
-		},
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName, addressBookName)),
+		supportedAddressDataName: internal.PropFindValue(&supportedAddressData{
+			Types: []addressDataType{
+				{ContentType: vcard.MIMEType, Version: "3.0"},
+				{ContentType: vcard.MIMEType, Version: "4.0"},
+			},
+		}),
 	}
 
 	if ab.Name != "" {
-		props[internal.DisplayNameName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.DisplayName{Name: ab.Name}, nil
-		}
+		props[internal.DisplayNameName] = internal.PropFindValue(&internal.DisplayName{
+			Name: ab.Name,
+		})
 	}
 	if ab.Description != "" {
-		props[addressBookDescriptionName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &addressbookDescription{Description: ab.Description}, nil
-		}
+		props[addressBookDescriptionName] = internal.PropFindValue(&addressbookDescription{
+			Description: ab.Description,
+		})
 	}
 	if ab.MaxResourceSize > 0 {
-		props[maxResourceSizeName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &maxResourceSize{Size: ab.MaxResourceSize}, nil
-		}
+		props[maxResourceSizeName] = internal.PropFindValue(&maxResourceSize{
+			Size: ab.MaxResourceSize,
+		})
 	}
 
 	return internal.NewPropFindResponse(ab.Path, propfind, props)
@@ -561,9 +551,9 @@ func (b *backend) propFindAddressObject(ctx context.Context, propfind *internal.
 			}
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
-		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetContentType{Type: vcard.MIMEType}, nil
-		},
+		internal.GetContentTypeName: internal.PropFindValue(&internal.GetContentType{
+			Type: vcard.MIMEType,
+		}),
 		// TODO: address-data can only be used in REPORT requests
 		addressDataName: func(*internal.RawXMLValue) (interface{}, error) {
 			var buf bytes.Buffer
@@ -576,20 +566,20 @@ func (b *backend) propFindAddressObject(ctx context.Context, propfind *internal.
 	}
 
 	if ao.ContentLength > 0 {
-		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetContentLength{Length: ao.ContentLength}, nil
-		}
+		props[internal.GetContentLengthName] = internal.PropFindValue(&internal.GetContentLength{
+			Length: ao.ContentLength,
+		})
 	}
 	if !ao.ModTime.IsZero() {
-		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetLastModified{LastModified: internal.Time(ao.ModTime)}, nil
-		}
+		props[internal.GetLastModifiedName] = internal.PropFindValue(&internal.GetLastModified{
+			LastModified: internal.Time(ao.ModTime),
+		})
 	}
 
 	if ao.ETag != "" {
-		props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetETag{ETag: internal.ETag(ao.ETag)}, nil
-		}
+		props[internal.GetETagName] = internal.PropFindValue(&internal.GetETag{
+			ETag: internal.ETag(ao.ETag),
+		})
 	}
 
 	return internal.NewPropFindResponse(ao.Path, propfind, props)

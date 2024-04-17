@@ -162,26 +162,26 @@ func (b *backend) propFindFile(propfind *internal.PropFind, fi *FileInfo) (*inte
 	}
 
 	if !fi.IsDir {
-		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetContentLength{Length: fi.Size}, nil
-		}
+		props[internal.GetContentLengthName] = internal.PropFindValue(&internal.GetContentLength{
+			Length: fi.Size,
+		})
 
 		if !fi.ModTime.IsZero() {
-			props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
-				return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime)}, nil
-			}
+			props[internal.GetLastModifiedName] = internal.PropFindValue(&internal.GetLastModified{
+				LastModified: internal.Time(fi.ModTime),
+			})
 		}
 
 		if fi.MIMEType != "" {
-			props[internal.GetContentTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
-				return &internal.GetContentType{Type: fi.MIMEType}, nil
-			}
+			props[internal.GetContentTypeName] = internal.PropFindValue(&internal.GetContentType{
+				Type: fi.MIMEType,
+			})
 		}
 
 		if fi.ETag != "" {
-			props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
-				return &internal.GetETag{ETag: internal.ETag(fi.ETag)}, nil
-			}
+			props[internal.GetETagName] = internal.PropFindValue(&internal.GetETag{
+				ETag: internal.ETag(fi.ETag),
+			})
 		}
 	}
 
