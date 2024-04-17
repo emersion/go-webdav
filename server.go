@@ -17,7 +17,7 @@ type FileSystem interface {
 	Open(ctx context.Context, name string) (io.ReadCloser, error)
 	Stat(ctx context.Context, name string) (*FileInfo, error)
 	ReadDir(ctx context.Context, name string, recursive bool) ([]FileInfo, error)
-	Create(ctx context.Context, name string, body io.ReadCloser) error
+	Create(ctx context.Context, name string, body io.ReadCloser) (*FileInfo, error)
 	RemoveAll(ctx context.Context, name string) error
 	Mkdir(ctx context.Context, name string) error
 	Copy(ctx context.Context, name, dest string, options *CopyOptions) (created bool, err error)
@@ -45,7 +45,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // NewHTTPError creates a new error that is associated with an HTTP status code
 // and optionally an error that lead to it. Backends can use this functions to
 // return errors that convey some semantics (e.g. 404 not found, 403 access
-// denied, etc) while also providing an (optional) arbitrary error context
+// denied, etc.) while also providing an (optional) arbitrary error context
 // (intended for humans).
 func NewHTTPError(statusCode int, cause error) error {
 	return &internal.HTTPError{Code: statusCode, Err: cause}
@@ -194,14 +194,22 @@ func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*
 }
 
 func (b *backend) Put(w http.ResponseWriter, r *http.Request) error {
-	err := b.FileSystem.Create(r.Context(), r.URL.Path, r.Body)
+	fi, err := b.FileSystem.Create(r.Context(), r.URL.Path, r.Body)
 	if err != nil {
 		return err
 	}
 
+	w.Header().Set("Content-Length", strconv.FormatInt(fi.Size, 10))
+	if fi.MIMEType != "" {
+		w.Header().Set("Content-Type", fi.MIMEType)
+	}
+	if !fi.ModTime.IsZero() {
+		w.Header().Set("Last-Modified", fi.ModTime.UTC().Format(http.TimeFormat))
+	}
+	if fi.ETag != "" {
+		w.Header().Set("ETag", internal.ETag(fi.ETag).String())
+	}
 	w.WriteHeader(http.StatusCreated)
-	// TODO: Last-Modified, ETag, Content-Type if the request has been copied
-	// verbatim
 	// TODO: http.StatusNoContent if the resource already existed
 	return nil
 }
