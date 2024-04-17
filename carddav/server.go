@@ -430,15 +430,15 @@ func (b *backend) propFindRoot(ctx context.Context, propfind *internal.PropFind)
 		return nil, err
 	}
 
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]webdav.PropFindFunc{
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.ResourceTypeName: func() (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName), nil
 		},
 	}
-	return internal.NewPropFindResponse(principalPath, propfind, props)
+	return webdav.NewPropFindResponse(principalPath, propfind, props)
 }
 
 func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.PropFind) (*internal.Response, error) {
@@ -451,18 +451,18 @@ func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.
 		return nil, err
 	}
 
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]webdav.PropFindFunc{
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
-		addressBookHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+		addressBookHomeSetName: func() (interface{}, error) {
 			return &addressbookHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.ResourceTypeName: func() (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName), nil
 		},
 	}
-	return internal.NewPropFindResponse(principalPath, propfind, props)
+	return webdav.NewPropFindResponse(principalPath, propfind, props)
 }
 
 func (b *backend) propFindHomeSet(ctx context.Context, propfind *internal.PropFind) (*internal.Response, error) {
@@ -476,30 +476,30 @@ func (b *backend) propFindHomeSet(ctx context.Context, propfind *internal.PropFi
 	}
 
 	// TODO anything else to return here?
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]webdav.PropFindFunc{
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.ResourceTypeName: func() (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName), nil
 		},
 	}
-	return internal.NewPropFindResponse(homeSetPath, propfind, props)
+	return webdav.NewPropFindResponse(homeSetPath, propfind, props)
 }
 
 func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.PropFind, ab *AddressBook) (*internal.Response, error) {
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]webdav.PropFindFunc{
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			path, err := b.Backend.CurrentUserPrincipal(ctx)
 			if err != nil {
 				return nil, err
 			}
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.ResourceTypeName: func() (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, addressBookName), nil
 		},
-		supportedAddressDataName: func(*internal.RawXMLValue) (interface{}, error) {
+		supportedAddressDataName: func() (interface{}, error) {
 			return &supportedAddressData{
 				Types: []addressDataType{
 					{ContentType: vcard.MIMEType, Version: "3.0"},
@@ -510,22 +510,22 @@ func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.Pr
 	}
 
 	if ab.Name != "" {
-		props[internal.DisplayNameName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.DisplayNameName] = func() (interface{}, error) {
 			return &internal.DisplayName{Name: ab.Name}, nil
 		}
 	}
 	if ab.Description != "" {
-		props[addressBookDescriptionName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[addressBookDescriptionName] = func() (interface{}, error) {
 			return &addressbookDescription{Description: ab.Description}, nil
 		}
 	}
 	if ab.MaxResourceSize > 0 {
-		props[maxResourceSizeName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[maxResourceSizeName] = func() (interface{}, error) {
 			return &maxResourceSize{Size: ab.MaxResourceSize}, nil
 		}
 	}
 
-	return internal.NewPropFindResponse(ab.Path, propfind, props)
+	return webdav.NewPropFindResponse(ab.Path, propfind, props)
 }
 
 func (b *backend) propFindAllAddressBooks(ctx context.Context, propfind *internal.PropFind, recurse bool) ([]internal.Response, error) {
@@ -553,19 +553,19 @@ func (b *backend) propFindAllAddressBooks(ctx context.Context, propfind *interna
 }
 
 func (b *backend) propFindAddressObject(ctx context.Context, propfind *internal.PropFind, ao *AddressObject) (*internal.Response, error) {
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]webdav.PropFindFunc{
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			path, err := b.Backend.CurrentUserPrincipal(ctx)
 			if err != nil {
 				return nil, err
 			}
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
-		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.GetContentTypeName: func() (interface{}, error) {
 			return &internal.GetContentType{Type: vcard.MIMEType}, nil
 		},
 		// TODO: address-data can only be used in REPORT requests
-		addressDataName: func(*internal.RawXMLValue) (interface{}, error) {
+		addressDataName: func() (interface{}, error) {
 			var buf bytes.Buffer
 			if err := vcard.NewEncoder(&buf).Encode(ao.Card); err != nil {
 				return nil, err
@@ -576,23 +576,23 @@ func (b *backend) propFindAddressObject(ctx context.Context, propfind *internal.
 	}
 
 	if ao.ContentLength > 0 {
-		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.GetContentLengthName] = func() (interface{}, error) {
 			return &internal.GetContentLength{Length: ao.ContentLength}, nil
 		}
 	}
 	if !ao.ModTime.IsZero() {
-		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.GetLastModifiedName] = func() (interface{}, error) {
 			return &internal.GetLastModified{LastModified: internal.Time(ao.ModTime)}, nil
 		}
 	}
 
 	if ao.ETag != "" {
-		props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.GetETagName] = func() (interface{}, error) {
 			return &internal.GetETag{ETag: internal.ETag(ao.ETag)}, nil
 		}
 	}
 
-	return internal.NewPropFindResponse(ao.Path, propfind, props)
+	return webdav.NewPropFindResponse(ao.Path, propfind, props)
 }
 
 func (b *backend) propFindAllAddressObjects(ctx context.Context, propfind *internal.PropFind, ab *AddressBook) ([]internal.Response, error) {

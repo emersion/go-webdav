@@ -51,6 +51,10 @@ func NewHTTPError(statusCode int, cause error) error {
 	return &internal.HTTPError{Code: statusCode, Err: cause}
 }
 
+type PropFindFunc func() (interface{}, error)
+
+type BuildPropFindFuncMapFunc func(fi *FileInfo) map[xml.Name]PropFindFunc
+
 type backend struct {
 	FileSystem FileSystem
 }
@@ -151,9 +155,88 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 }
 
 func (b *backend) propFindFile(propfind *internal.PropFind, fi *FileInfo) (*internal.Response, error) {
-	props := make(map[xml.Name]internal.PropFindFunc)
+	props := BuildPropFindFuncMap(fi)
+	if fi.BuildPropFindFuncMap != nil {
+		additionalProps := fi.BuildPropFindFuncMap(fi)
+		for k, v := range additionalProps {
+			props[k] = v
+		}
+	}
 
-	props[internal.ResourceTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
+	return NewPropFindResponse(fi.Path, propfind, props)
+}
+
+func NewPropFindResponse(path string, propfind *internal.PropFind, props map[xml.Name]PropFindFunc) (*internal.Response, error) {
+	resp := &internal.Response{Hrefs: []internal.Href{internal.Href{Path: path}}}
+
+	if _, ok := props[internal.ResourceTypeName]; !ok {
+		props[internal.ResourceTypeName] = func() (interface{}, error) {
+			return internal.NewResourceType(), nil
+		}
+	}
+
+	if propfind.PropName != nil {
+		for xmlName, _ := range props {
+			emptyVal := internal.NewRawXMLElement(xmlName, nil, nil)
+			if err := resp.EncodeProp(http.StatusOK, emptyVal); err != nil {
+				return nil, err
+			}
+		}
+	} else if propfind.AllProp != nil {
+		// TODO: add support for propfind.Include
+		for xmlName, f := range props {
+			val, err := f()
+
+			code := http.StatusOK
+			if err != nil {
+				// TODO: don't throw away error message here
+				code = internal.HTTPErrorFromError(err).Code
+				emptyVal := internal.NewRawXMLElement(xmlName, nil, nil)
+				val = emptyVal
+			}
+
+			if err := resp.EncodeProp(code, val); err != nil {
+				return nil, err
+			}
+		}
+	} else if prop := propfind.Prop; prop != nil {
+		for _, raw := range prop.Raw {
+			xmlName, ok := raw.XMLName()
+			if !ok {
+				continue
+			}
+
+			emptyVal := internal.NewRawXMLElement(xmlName, nil, nil)
+
+			var code int
+			var val interface{} = emptyVal
+			f, ok := props[xmlName]
+			if ok {
+				if v, err := f(); err != nil {
+					// TODO: don't throw away error message here
+					code = internal.HTTPErrorFromError(err).Code
+				} else {
+					code = http.StatusOK
+					val = v
+				}
+			} else {
+				code = http.StatusNotFound
+			}
+
+			if err := resp.EncodeProp(code, val); err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		return nil, internal.HTTPErrorf(http.StatusBadRequest, "webdav: request missing propname, allprop or prop element")
+	}
+
+	return resp, nil
+}
+
+func BuildPropFindFuncMap(fi *FileInfo) map[xml.Name]PropFindFunc {
+	props := make(map[xml.Name]PropFindFunc)
+	props[internal.ResourceTypeName] = func() (interface{}, error) {
 		var types []xml.Name
 		if fi.IsDir {
 			types = append(types, internal.CollectionName)
@@ -162,30 +245,29 @@ func (b *backend) propFindFile(propfind *internal.PropFind, fi *FileInfo) (*inte
 	}
 
 	if !fi.IsDir {
-		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.GetContentLengthName] = func() (interface{}, error) {
 			return &internal.GetContentLength{Length: fi.Size}, nil
 		}
 
 		if !fi.ModTime.IsZero() {
-			props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
+			props[internal.GetLastModifiedName] = func() (interface{}, error) {
 				return &internal.GetLastModified{LastModified: internal.Time(fi.ModTime)}, nil
 			}
 		}
 
 		if fi.MIMEType != "" {
-			props[internal.GetContentTypeName] = func(*internal.RawXMLValue) (interface{}, error) {
+			props[internal.GetContentTypeName] = func() (interface{}, error) {
 				return &internal.GetContentType{Type: fi.MIMEType}, nil
 			}
 		}
 
 		if fi.ETag != "" {
-			props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
+			props[internal.GetETagName] = func() (interface{}, error) {
 				return &internal.GetETag{ETag: internal.ETag(fi.ETag)}, nil
 			}
 		}
 	}
-
-	return internal.NewPropFindResponse(fi.Path, propfind, props)
+	return props
 }
 
 func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*internal.Response, error) {
@@ -303,11 +385,11 @@ func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, options *Ser
 	if err := internal.DecodeXMLRequest(r, &propfind); err != nil {
 		return err
 	}
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]PropFindFunc{
+		internal.ResourceTypeName: func() (interface{}, error) {
 			return internal.NewResourceType(principalName), nil
 		},
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: options.CurrentUserPrincipalPath}}, nil
 		},
 	}
@@ -316,12 +398,12 @@ func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, options *Ser
 
 	for _, homeSet := range options.HomeSets {
 		hs := homeSet // capture variable for closure
-		props[homeSet.GetXMLName()] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[homeSet.GetXMLName()] = func() (interface{}, error) {
 			return hs, nil
 		}
 	}
 
-	resp, err := internal.NewPropFindResponse(r.URL.Path, &propfind, props)
+	resp, err := NewPropFindResponse(r.URL.Path, &propfind, props)
 	if err != nil {
 		return err
 	}
