@@ -199,7 +199,6 @@ func (b *backend) Put(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	w.Header().Set("Content-Length", strconv.FormatInt(fi.Size, 10))
 	if fi.MIMEType != "" {
 		w.Header().Set("Content-Type", fi.MIMEType)
 	}
