@@ -125,6 +125,10 @@ func (c *Client) FindCalendars(ctx context.Context, calendarHomeSet string) ([]C
 }
 
 func encodeCalendarCompReq(c *CalendarCompRequest) (*comp, error) {
+	if c == nil || c.Name == "" {
+		return nil, nil
+	}
+
 	encoded := comp{Name: c.Name}
 
 	if c.AllProps {
@@ -142,7 +146,9 @@ func encodeCalendarCompReq(c *CalendarCompRequest) (*comp, error) {
 		if err != nil {
 			return nil, err
 		}
-		encoded.Comp = append(encoded.Comp, *encodedChild)
+		if encodedChild != nil {
+			encoded.Comp = append(encoded.Comp, *encodedChild)
+		}
 	}
 
 	return &encoded, nil
