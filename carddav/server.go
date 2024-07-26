@@ -320,7 +320,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 		w.Header().Set("Content-Length", strconv.FormatInt(ao.ContentLength, 10))
 	}
 	if ao.ETag != "" {
-		w.Header().Set("ETag", internal.ETag(ao.ETag).String())
+		w.Header().Set("ETag", ao.ETag)
 	}
 	if !ao.ModTime.IsZero() {
 		w.Header().Set("Last-Modified", ao.ModTime.UTC().Format(http.TimeFormat))
@@ -588,7 +588,7 @@ func (b *backend) propFindAddressObject(ctx context.Context, propfind *internal.
 
 	if ao.ETag != "" {
 		props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetETag{ETag: internal.ETag(ao.ETag)}, nil
+			return &internal.GetETag{ETag: ao.ETag}, nil
 		}
 	}
 
