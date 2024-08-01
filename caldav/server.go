@@ -465,12 +465,10 @@ func (b *backend) propFindRoot(ctx context.Context, propfind *internal.PropFind)
 	}
 
 	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
-		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(internal.CollectionName), nil
-		},
+		internal.CurrentUserPrincipalName: internal.PropFindValue(&internal.CurrentUserPrincipal{
+			Href: internal.Href{Path: principalPath},
+		}),
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName)),
 	}
 	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
@@ -486,15 +484,13 @@ func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.
 	}
 
 	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
-		},
-		calendarHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &calendarHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
-		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(internal.CollectionName), nil
-		},
+		internal.CurrentUserPrincipalName: internal.PropFindValue(&internal.CurrentUserPrincipal{
+			Href: internal.Href{Path: principalPath},
+		}),
+		calendarHomeSetName: internal.PropFindValue(&calendarHomeSet{
+			Href: internal.Href{Path: homeSetPath},
+		}),
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName)),
 	}
 	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
@@ -511,12 +507,10 @@ func (b *backend) propFindHomeSet(ctx context.Context, propfind *internal.PropFi
 
 	// TODO anything else to return here?
 	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
-		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(internal.CollectionName), nil
-		},
+		internal.CurrentUserPrincipalName: internal.PropFindValue(&internal.CurrentUserPrincipal{
+			Href: internal.Href{Path: principalPath},
+		}),
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName)),
 	}
 	return internal.NewPropFindResponse(homeSetPath, propfind, props)
 }
@@ -530,19 +524,15 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 			}
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(internal.CollectionName, calendarName), nil
-		},
-		calendarDescriptionName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &calendarDescription{Description: cal.Description}, nil
-		},
-		supportedCalendarDataName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &supportedCalendarData{
-				Types: []calendarDataType{
-					{ContentType: ical.MIMEType, Version: "2.0"},
-				},
-			}, nil
-		},
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName, calendarName)),
+		calendarDescriptionName: internal.PropFindValue(&calendarDescription{
+			Description: cal.Description,
+		}),
+		supportedCalendarDataName: internal.PropFindValue(&supportedCalendarData{
+			Types: []calendarDataType{
+				{ContentType: ical.MIMEType, Version: "2.0"},
+			},
+		}),
 		supportedCalendarComponentSetName: func(*internal.RawXMLValue) (interface{}, error) {
 			components := []comp{}
 			if cal.SupportedComponentSet != nil {
@@ -559,19 +549,19 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 	}
 
 	if cal.Name != "" {
-		props[internal.DisplayNameName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.DisplayName{Name: cal.Name}, nil
-		}
+		props[internal.DisplayNameName] = internal.PropFindValue(&internal.DisplayName{
+			Name: cal.Name,
+		})
 	}
 	if cal.Description != "" {
-		props[calendarDescriptionName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &calendarDescription{Description: cal.Description}, nil
-		}
+		props[calendarDescriptionName] = internal.PropFindValue(&calendarDescription{
+			Description: cal.Description,
+		})
 	}
 	if cal.MaxResourceSize > 0 {
-		props[maxResourceSizeName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &maxResourceSize{Size: cal.MaxResourceSize}, nil
-		}
+		props[maxResourceSizeName] = internal.PropFindValue(&maxResourceSize{
+			Size: cal.MaxResourceSize,
+		})
 	}
 
 	// TODO: CALDAV:calendar-timezone, CALDAV:supported-calendar-component-set, CALDAV:min-date-time, CALDAV:max-date-time, CALDAV:max-instances, CALDAV:max-attendees-per-instance
@@ -612,9 +602,9 @@ func (b *backend) propFindCalendarObject(ctx context.Context, propfind *internal
 			}
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
-		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetContentType{Type: ical.MIMEType}, nil
-		},
+		internal.GetContentTypeName: internal.PropFindValue(&internal.GetContentType{
+			Type: ical.MIMEType,
+		}),
 		// TODO: calendar-data can only be used in REPORT requests
 		calendarDataName: func(*internal.RawXMLValue) (interface{}, error) {
 			var buf bytes.Buffer
@@ -627,20 +617,20 @@ func (b *backend) propFindCalendarObject(ctx context.Context, propfind *internal
 	}
 
 	if co.ContentLength > 0 {
-		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetContentLength{Length: co.ContentLength}, nil
-		}
+		props[internal.GetContentLengthName] = internal.PropFindValue(&internal.GetContentLength{
+			Length: co.ContentLength,
+		})
 	}
 	if !co.ModTime.IsZero() {
-		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetLastModified{LastModified: internal.Time(co.ModTime)}, nil
-		}
+		props[internal.GetLastModifiedName] = internal.PropFindValue(&internal.GetLastModified{
+			LastModified: internal.Time(co.ModTime),
+		})
 	}
 
 	if co.ETag != "" {
-		props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.GetETag{ETag: internal.ETag(co.ETag)}, nil
-		}
+		props[internal.GetETagName] = internal.PropFindValue(&internal.GetETag{
+			ETag: internal.ETag(co.ETag),
+		})
 	}
 
 	return internal.NewPropFindResponse(co.Path, propfind, props)
