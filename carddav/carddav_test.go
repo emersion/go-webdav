@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/emersion/go-vcard"
-	"github.com/emersion/go-webdav"
+	"github.com/jonyTF/go-webdav"
 )
 
 type testBackend struct {

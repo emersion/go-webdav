@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/emersion/go-vcard"
-	"github.com/emersion/go-webdav"
-	"github.com/emersion/go-webdav/internal"
+	"github.com/jonyTF/go-webdav"
+	"github.com/jonyTF/go-webdav/internal"
 )
 
 var CapabilityAddressBook = webdav.Capability("addressbook")
