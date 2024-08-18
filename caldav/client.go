@@ -154,7 +154,9 @@ func encodeCalendarReq(c *CalendarCompRequest) (*internal.Prop, error) {
 		return nil, err
 	}
 
-	calDataReq := calendarDataReq{Comp: compReq}
+	expandReq := encodeExpandRequest(c.Expand)
+
+	calDataReq := calendarDataReq{Comp: compReq, Expand: expandReq}
 
 	getLastModReq := internal.NewRawXMLElement(internal.GetLastModifiedName, nil, nil)
 	getETagReq := internal.NewRawXMLElement(internal.GetETagName, nil, nil)
@@ -211,6 +213,17 @@ func encodeTextMatch(tm *TextMatch) *textMatch {
 		NegateCondition: negateCondition(tm.NegateCondition),
 	}
 	return encoded
+}
+
+func encodeExpandRequest(e *CalendarExpandRequest) *expand {
+	if e == nil {
+		return nil
+	}
+	encoded := expand{
+		Start: dateWithUTCTime(e.Start),
+		End:   dateWithUTCTime(e.End),
+	}
+	return &encoded
 }
 
 func decodeCalendarObjectList(ms *internal.MultiStatus) ([]CalendarObject, error) {
