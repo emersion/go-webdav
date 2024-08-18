@@ -79,6 +79,12 @@ type CalendarCompRequest struct {
 
 	AllComps bool
 	Comps    []CalendarCompRequest
+
+	Expand *CalendarExpandRequest
+}
+
+type CalendarExpandRequest struct {
+	Start, End time.Time
 }
 
 type CompFilter struct {

@@ -179,7 +179,8 @@ func (t *dateWithUTCTime) MarshalText() ([]byte, error) {
 type calendarDataReq struct {
 	XMLName xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-data"`
 	Comp    *comp    `xml:"comp,omitempty"`
-	// TODO: expand, limit-recurrence-set, limit-freebusy-set
+	Expand  *expand  `xml:"expand,omitempty"`
+	// TODO: limit-recurrence-set, limit-freebusy-set
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.6.1
@@ -192,6 +193,12 @@ type comp struct {
 
 	Allcomp *struct{} `xml:"allcomp,omitempty"`
 	Comp    []comp    `xml:"comp,omitempty"`
+}
+
+type expand struct {
+	XMLName xml.Name        `xml:"urn:ietf:params:xml:ns:caldav expand"`
+	Start   dateWithUTCTime `xml:"start,attr"`
+	End     dateWithUTCTime `xml:"end,attr"`
 }
 
 // https://tools.ietf.org/html/rfc4791#section-9.6.4
