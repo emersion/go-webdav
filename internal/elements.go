@@ -21,7 +21,8 @@ var (
 	GetLastModifiedName  = xml.Name{Namespace, "getlastmodified"}
 	GetETagName          = xml.Name{Namespace, "getetag"}
 
-	CurrentUserPrincipalName = xml.Name{Namespace, "current-user-principal"}
+	CurrentUserPrincipalName    = xml.Name{Namespace, "current-user-principal"}
+	CurrentUserPrivilegeSetName = xml.Name{Namespace, "current-user-privilege-set"}
 )
 
 type Status struct {
@@ -415,6 +416,16 @@ type CurrentUserPrincipal struct {
 	XMLName         xml.Name  `xml:"DAV: current-user-principal"`
 	Href            Href      `xml:"href,omitempty"`
 	Unauthenticated *struct{} `xml:"unauthenticated,omitempty"`
+}
+
+// https://datatracker.ietf.org/doc/html/rfc3744#section-5.4
+type CurrentUserPrivilegeSet struct {
+	XMLName    xml.Name    `xml:"DAV: current-user-principal"`
+	Privileges []Privilege `xml:"privilege"`
+}
+type Privilege struct {
+	Read  bool `xml:"read"`
+	Write bool `xml:"write"`
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.19
