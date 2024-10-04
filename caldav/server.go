@@ -464,15 +464,15 @@ func (b *backend) propFindRoot(ctx context.Context, propfind *internal.PropFind)
 		return nil, err
 	}
 
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]webdav.PropFindFunc{
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.ResourceTypeName: func() (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName), nil
 		},
 	}
-	return internal.NewPropFindResponse(principalPath, propfind, props)
+	return webdav.NewPropFindResponse(principalPath, propfind, props)
 }
 
 func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.PropFind) (*internal.Response, error) {
@@ -485,18 +485,18 @@ func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.
 		return nil, err
 	}
 
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]webdav.PropFindFunc{
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
-		calendarHomeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+		calendarHomeSetName: func() (interface{}, error) {
 			return &calendarHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.ResourceTypeName: func() (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName), nil
 		},
 	}
-	return internal.NewPropFindResponse(principalPath, propfind, props)
+	return webdav.NewPropFindResponse(principalPath, propfind, props)
 }
 
 func (b *backend) propFindHomeSet(ctx context.Context, propfind *internal.PropFind) (*internal.Response, error) {
@@ -510,40 +510,40 @@ func (b *backend) propFindHomeSet(ctx context.Context, propfind *internal.PropFi
 	}
 
 	// TODO anything else to return here?
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]webdav.PropFindFunc{
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.ResourceTypeName: func() (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName), nil
 		},
 	}
-	return internal.NewPropFindResponse(homeSetPath, propfind, props)
+	return webdav.NewPropFindResponse(homeSetPath, propfind, props)
 }
 
 func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropFind, cal *Calendar) (*internal.Response, error) {
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]webdav.PropFindFunc{
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			path, err := b.Backend.CurrentUserPrincipal(ctx)
 			if err != nil {
 				return nil, err
 			}
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.ResourceTypeName: func() (interface{}, error) {
 			return internal.NewResourceType(internal.CollectionName, calendarName), nil
 		},
-		calendarDescriptionName: func(*internal.RawXMLValue) (interface{}, error) {
+		calendarDescriptionName: func() (interface{}, error) {
 			return &calendarDescription{Description: cal.Description}, nil
 		},
-		supportedCalendarDataName: func(*internal.RawXMLValue) (interface{}, error) {
+		supportedCalendarDataName: func() (interface{}, error) {
 			return &supportedCalendarData{
 				Types: []calendarDataType{
 					{ContentType: ical.MIMEType, Version: "2.0"},
 				},
 			}, nil
 		},
-		supportedCalendarComponentSetName: func(*internal.RawXMLValue) (interface{}, error) {
+		supportedCalendarComponentSetName: func() (interface{}, error) {
 			components := []comp{}
 			if cal.SupportedComponentSet != nil {
 				for _, name := range cal.SupportedComponentSet {
@@ -559,24 +559,23 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 	}
 
 	if cal.Name != "" {
-		props[internal.DisplayNameName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.DisplayNameName] = func() (interface{}, error) {
 			return &internal.DisplayName{Name: cal.Name}, nil
 		}
 	}
 	if cal.Description != "" {
-		props[calendarDescriptionName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[calendarDescriptionName] = func() (interface{}, error) {
 			return &calendarDescription{Description: cal.Description}, nil
 		}
 	}
 	if cal.MaxResourceSize > 0 {
-		props[maxResourceSizeName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[maxResourceSizeName] = func() (interface{}, error) {
 			return &maxResourceSize{Size: cal.MaxResourceSize}, nil
 		}
 	}
 
 	// TODO: CALDAV:calendar-timezone, CALDAV:supported-calendar-component-set, CALDAV:min-date-time, CALDAV:max-date-time, CALDAV:max-instances, CALDAV:max-attendees-per-instance
-
-	return internal.NewPropFindResponse(cal.Path, propfind, props)
+	return webdav.NewPropFindResponse(cal.Path, propfind, props)
 }
 
 func (b *backend) propFindAllCalendars(ctx context.Context, propfind *internal.PropFind, recurse bool) ([]internal.Response, error) {
@@ -604,19 +603,19 @@ func (b *backend) propFindAllCalendars(ctx context.Context, propfind *internal.P
 }
 
 func (b *backend) propFindCalendarObject(ctx context.Context, propfind *internal.PropFind, co *CalendarObject) (*internal.Response, error) {
-	props := map[xml.Name]internal.PropFindFunc{
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
+	props := map[xml.Name]webdav.PropFindFunc{
+		internal.CurrentUserPrincipalName: func() (interface{}, error) {
 			path, err := b.Backend.CurrentUserPrincipal(ctx)
 			if err != nil {
 				return nil, err
 			}
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: path}}, nil
 		},
-		internal.GetContentTypeName: func(*internal.RawXMLValue) (interface{}, error) {
+		internal.GetContentTypeName: func() (interface{}, error) {
 			return &internal.GetContentType{Type: ical.MIMEType}, nil
 		},
 		// TODO: calendar-data can only be used in REPORT requests
-		calendarDataName: func(*internal.RawXMLValue) (interface{}, error) {
+		calendarDataName: func() (interface{}, error) {
 			var buf bytes.Buffer
 			if err := ical.NewEncoder(&buf).Encode(co.Data); err != nil {
 				return nil, err
@@ -627,23 +626,23 @@ func (b *backend) propFindCalendarObject(ctx context.Context, propfind *internal
 	}
 
 	if co.ContentLength > 0 {
-		props[internal.GetContentLengthName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.GetContentLengthName] = func() (interface{}, error) {
 			return &internal.GetContentLength{Length: co.ContentLength}, nil
 		}
 	}
 	if !co.ModTime.IsZero() {
-		props[internal.GetLastModifiedName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.GetLastModifiedName] = func() (interface{}, error) {
 			return &internal.GetLastModified{LastModified: internal.Time(co.ModTime)}, nil
 		}
 	}
 
 	if co.ETag != "" {
-		props[internal.GetETagName] = func(*internal.RawXMLValue) (interface{}, error) {
+		props[internal.GetETagName] = func() (interface{}, error) {
 			return &internal.GetETag{ETag: internal.ETag(co.ETag)}, nil
 		}
 	}
 
-	return internal.NewPropFindResponse(co.Path, propfind, props)
+	return webdav.NewPropFindResponse(co.Path, propfind, props)
 }
 
 func (b *backend) propFindAllCalendarObjects(ctx context.Context, propfind *internal.PropFind, cal *Calendar) ([]internal.Response, error) {
