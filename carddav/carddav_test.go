@@ -194,6 +194,43 @@ func TestAddressBookDiscovery(t *testing.T) {
 	}
 }
 
+func TestRedirections(t *testing.T) {
+	ctx := context.Background()
+
+	h := Handler{&testBackend{}, ""}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, currentUserPrincipalKey, "/principal/")
+		ctx = context.WithValue(ctx, homeSetPathKey, "/principal/contacts/")
+		ctx = context.WithValue(ctx, addressBookPathKey, "/principal/contacts/default")
+		r = r.WithContext(ctx)
+		(&h).ServeHTTP(w, r)
+	}))
+	defer ts.Close()
+
+	client, err := NewClient(nil, ts.URL)
+	if err != nil {
+		t.Fatalf("error creating client: %s", err)
+	}
+	hsp, err := client.FindAddressBookHomeSet(ctx, "/must-be-redirected/")
+	if err != nil {
+		t.Fatalf("error finding home set path: %s", err)
+	}
+	if want := "/principal/contacts/"; hsp != want {
+		t.Fatalf("Found home set path '%s', expected '%s'", hsp, want)
+	}
+	abs, err := client.FindAddressBooks(ctx, "/must-be-redirected/again/")
+	if err != nil {
+		t.Fatalf("error finding address books: %s", err)
+	}
+	if len(abs) != 1 {
+		t.Fatalf("Found %d address books, expected 1", len(abs))
+	}
+	if want := "/principal/contacts/default"; abs[0].Path != want {
+		t.Fatalf("Found address book at %s, expected %s", abs[0].Path, want)
+	}
+}
+
 var mkcolRequestBody = `
 <?xml version="1.0" encoding="utf-8" ?>
    <D:mkcol xmlns:D="DAV:"

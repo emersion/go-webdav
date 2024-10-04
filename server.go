@@ -115,39 +115,39 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth internal.Depth) (*internal.MultiStatus, error) {
+func (b *backend) PropFind(w http.ResponseWriter, r *http.Request, propfind *internal.PropFind, depth internal.Depth) error {
 	// TODO: use partial error Response on error
 
 	fi, err := b.FileSystem.Stat(r.Context(), r.URL.Path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var resps []internal.Response
 	if depth != internal.DepthZero && fi.IsDir {
 		children, err := b.FileSystem.ReadDir(r.Context(), r.URL.Path, depth == internal.DepthInfinity)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		resps = make([]internal.Response, len(children))
 		for i, child := range children {
 			resp, err := b.propFindFile(propfind, &child)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			resps[i] = *resp
 		}
 	} else {
 		resp, err := b.propFindFile(propfind, fi)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		resps = []internal.Response{*resp}
 	}
 
-	return internal.NewMultiStatus(resps...), nil
+	return internal.ServeMultiStatus(w, internal.NewMultiStatus(resps...))
 }
 
 func (b *backend) propFindFile(propfind *internal.PropFind, fi *FileInfo) (*internal.Response, error) {

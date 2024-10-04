@@ -332,7 +332,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth internal.Depth) (*internal.MultiStatus, error) {
+func (b *backend) PropFind(w http.ResponseWriter, r *http.Request, propfind *internal.PropFind, depth internal.Depth) error {
 	resType := b.resourceTypeAtPath(r.URL.Path)
 
 	var dataReq AddressDataRequest
@@ -342,86 +342,92 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 	case resourceTypeRoot:
 		resp, err := b.propFindRoot(r.Context(), propfind)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		resps = append(resps, *resp)
 	case resourceTypeUserPrincipal:
 		principalPath, err := b.Backend.CurrentUserPrincipal(r.Context())
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if r.URL.Path == principalPath {
 			resp, err := b.propFindUserPrincipal(r.Context(), propfind)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			resps = append(resps, *resp)
 			if depth != internal.DepthZero {
 				resp, err := b.propFindHomeSet(r.Context(), propfind)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				resps = append(resps, *resp)
 				if depth == internal.DepthInfinity {
 					resps_, err := b.propFindAllAddressBooks(r.Context(), propfind, true)
 					if err != nil {
-						return nil, err
+						return err
 					}
 					resps = append(resps, resps_...)
 				}
 			}
+		} else {
+			http.Redirect(w, r, principalPath, http.StatusPermanentRedirect) // keep http method
+			return nil
 		}
 	case resourceTypeAddressBookHomeSet:
 		homeSetPath, err := b.Backend.AddressBookHomeSetPath(r.Context())
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if r.URL.Path == homeSetPath {
 			resp, err := b.propFindHomeSet(r.Context(), propfind)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			resps = append(resps, *resp)
 			if depth != internal.DepthZero {
 				recurse := depth == internal.DepthInfinity
 				resps_, err := b.propFindAllAddressBooks(r.Context(), propfind, recurse)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				resps = append(resps, resps_...)
 			}
+		} else {
+			http.Redirect(w, r, homeSetPath, http.StatusPermanentRedirect) // keep http method
+			return nil
 		}
 	case resourceTypeAddressBook:
 		ab, err := b.Backend.GetAddressBook(r.Context(), r.URL.Path)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		resp, err := b.propFindAddressBook(r.Context(), propfind, ab)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		resps = append(resps, *resp)
 		if depth != internal.DepthZero {
 			resps_, err := b.propFindAllAddressObjects(r.Context(), propfind, ab)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			resps = append(resps, resps_...)
 		}
 	case resourceTypeAddressObject:
 		ao, err := b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		resp, err := b.propFindAddressObject(r.Context(), propfind, ao)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		resps = append(resps, *resp)
 	}
 
-	return internal.NewMultiStatus(resps...), nil
+	return internal.ServeMultiStatus(w, internal.NewMultiStatus(resps...))
 }
 
 func (b *backend) propFindRoot(ctx context.Context, propfind *internal.PropFind) (*internal.Response, error) {

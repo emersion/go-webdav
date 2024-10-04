@@ -233,3 +233,35 @@ func (t testBackend) ListCalendarObjects(ctx context.Context, path string, req *
 func (t testBackend) QueryCalendarObjects(ctx context.Context, path string, query *CalendarQuery) ([]CalendarObject, error) {
 	return nil, nil
 }
+
+func TestRedirections(t *testing.T) {
+	ctx := context.Background()
+
+	calendars := []Calendar{{Path: "/user/calendars/a"}}
+	ts := httptest.NewServer(&Handler{&testBackend{
+		calendars: calendars,
+	}, ""})
+	defer ts.Close()
+
+	client, err := NewClient(nil, ts.URL)
+	if err != nil {
+		t.Fatalf("error creating client: %s", err)
+	}
+	hsp, err := client.FindCalendarHomeSet(ctx, "/must-be-redirected/")
+	if err != nil {
+		t.Fatalf("error finding home set path: %s", err)
+	}
+	if want := "/user/calendars/"; hsp != want {
+		t.Fatalf("Found home set path '%s', expected '%s'", hsp, want)
+	}
+	abs, err := client.FindCalendars(ctx, "/must-be-redirected/again/")
+	if err != nil {
+		t.Fatalf("error finding calendars: %s", err)
+	}
+	if len(abs) != 1 {
+		t.Fatalf("Found %d calendars, expected 1", len(abs))
+	}
+	if want := "/user/calendars/a"; abs[0].Path != want {
+		t.Fatalf("Found calendar at %s, expected %s", abs[0].Path, want)
+	}
+}

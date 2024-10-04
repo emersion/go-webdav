@@ -64,7 +64,7 @@ func ServeMultiStatus(w http.ResponseWriter, ms *MultiStatus) error {
 type Backend interface {
 	Options(r *http.Request) (caps []string, allow []string, err error)
 	HeadGet(w http.ResponseWriter, r *http.Request) error
-	PropFind(r *http.Request, pf *PropFind, depth Depth) (*MultiStatus, error)
+	PropFind(w http.ResponseWriter, r *http.Request, pf *PropFind, depth Depth) error
 	PropPatch(r *http.Request, pu *PropertyUpdate) (*Response, error)
 	Put(w http.ResponseWriter, r *http.Request) error
 	Delete(r *http.Request) error
@@ -152,12 +152,7 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	ms, err := h.Backend.PropFind(r, &propfind, depth)
-	if err != nil {
-		return err
-	}
-
-	return ServeMultiStatus(w, ms)
+	return h.Backend.PropFind(w, r, &propfind, depth)
 }
 
 type PropFindFunc func(raw *RawXMLValue) (interface{}, error)
