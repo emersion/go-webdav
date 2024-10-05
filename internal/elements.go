@@ -420,7 +420,7 @@ type CurrentUserPrincipal struct {
 
 // https://datatracker.ietf.org/doc/html/rfc3744#section-5.4
 type CurrentUserPrivilegeSet struct {
-	XMLName    xml.Name    `xml:"DAV: current-user-principal"`
+	XMLName    xml.Name    `xml:"DAV: current-user-privilege-set"`
 	Privileges []Privilege `xml:"privilege"`
 }
 type Privilege struct {
