@@ -421,11 +421,10 @@ type CurrentUserPrincipal struct {
 // https://datatracker.ietf.org/doc/html/rfc3744#section-5.4
 type CurrentUserPrivilegeSet struct {
 	XMLName    xml.Name    `xml:"DAV: current-user-privilege-set"`
-	Privileges []Privilege `xml:"privilege"`
+	Privileges []Privilege `xml:"privilege>dynamic"`
 }
 type Privilege struct {
-	Read  bool `xml:"read"`
-	Write bool `xml:"write"`
+	XMLName xml.Name
 }
 
 // https://tools.ietf.org/html/rfc4918#section-14.19
