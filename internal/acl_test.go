@@ -163,10 +163,10 @@ func TestACLMarshalling(t *testing.T) {
 		checkSupportedPrivilege(t, sp.SupportedPrivileges[1], Write, false, "Write any object", 3)
 		checkSupportedPrivilege(t, sp.SupportedPrivileges[2], Unlock, false, "Unlock resource", 0)
 
-		checkSupportedPrivilege(t, sp.SupportedPrivileges[0].SupportedPrivileges[0], ReadAcl, true, "Read ACL", 0)
+		checkSupportedPrivilege(t, sp.SupportedPrivileges[0].SupportedPrivileges[0], ReadACL, true, "Read ACL", 0)
 		checkSupportedPrivilege(t, sp.SupportedPrivileges[0].SupportedPrivileges[1], ReadCurrentUserPrivilegeSet, true, "Read current user privilege set property", 0)
 
-		checkSupportedPrivilege(t, sp.SupportedPrivileges[1].SupportedPrivileges[0], WriteAcl, true, "Write ACL", 0)
+		checkSupportedPrivilege(t, sp.SupportedPrivileges[1].SupportedPrivileges[0], WriteACL, true, "Write ACL", 0)
 		checkSupportedPrivilege(t, sp.SupportedPrivileges[1].SupportedPrivileges[1], WriteProperties, false, "Write properties", 0)
 		checkSupportedPrivilege(t, sp.SupportedPrivileges[1].SupportedPrivileges[2], WriteContent, false, "Write resource content", 0)
 
