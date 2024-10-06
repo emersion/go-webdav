@@ -109,7 +109,7 @@ var (
 	   The DAV:read-acl privilege controls the use of PROPFIND to retrieve
 	   the DAV:acl property of the resource.
 	*/
-	ReadAcl = xml.Name{"DAV:", "read-acl"}
+	ReadACL = xml.Name{"DAV:", "read-acl"}
 
 	/*
 	   rfc3744#section-3.7
@@ -138,7 +138,7 @@ var (
 	   The DAV:write-acl privilege controls use of the ACL method to modify
 	   the DAV:acl property of the resource.
 	*/
-	WriteAcl = xml.Name{"DAV:", "write-acl"}
+	WriteACL = xml.Name{"DAV:", "write-acl"}
 
 	/*
 	   rfc3744#section-3.9
@@ -445,7 +445,7 @@ var (
 	   conflict with each other.  This is a catchall error code indicating
 	   that an implementation-specific ACL restriction has been violated.
 	*/
-	NoAceConflict = xml.Name{"DAV:", "no-ace-conflict"}
+	NoACEConflict = xml.Name{"DAV:", "no-ace-conflict"}
 
 	/*
 	   rfc3744#section-8.1.1
@@ -456,7 +456,7 @@ var (
 	   to a given principal, then it would not be consistent if the ACL
 	   request submitted an ACE denying DAV:write to the same principal.
 	*/
-	NoProtectedAceConflict = xml.Name{"DAV:", "no-protected-ace-conflict"}
+	NoProtectedACEConflict = xml.Name{"DAV:", "no-protected-ace-conflict"}
 
 	/*
 	   rfc3744#section-8.1.1
@@ -472,7 +472,7 @@ var (
 	   rules determine whether the new ACE has any impact on the privileges
 	   available to a specific principal.
 	*/
-	NoInheritedAceConflict = xml.Name{"DAV:", "no-inherited-ace-conflict"}
+	NoInheritedACEConflict = xml.Name{"DAV:", "no-inherited-ace-conflict"}
 
 	/*
 	   rfc3744#section-8.1.1
@@ -483,7 +483,7 @@ var (
 	   privileges to a single principal, and one ACE granting privileges to
 	   a group.
 	*/
-	LimitedNumberOfAces = xml.Name{"DAV:", "limited-number-of-aces"}
+	LimitedNumberOfACEs = xml.Name{"DAV:", "limited-number-of-aces"}
 
 	// already defined above:
 	// DenyBeforeGrant
