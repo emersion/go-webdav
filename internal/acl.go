@@ -292,8 +292,8 @@ This is a protected property that identifies the privileges defined
 for the resource.
 */
 type SupportedPrivilegeSet struct {
-	XMLName             xml.Name             `xml:"DAV: supported-privilege-set"`
-	SupportedPrivileges []SupportedPrivilege `xml:"supported-privilege"`
+	XMLName            xml.Name             `xml:"DAV: supported-privilege-set"`
+	SupportedPrivilege []SupportedPrivilege `xml:"supported-privilege"`
 }
 
 /*
@@ -313,9 +313,9 @@ type SupportedPrivilege struct {
 		An abstract privilege MUST NOT be used in an ACE for that resource.
 		Servers MUST fail an attempt to set an abstract privilege.
 	*/
-	Abstract            *struct{}            `xml:"abstract,omitempty"`
-	Description         Description          `xml:"description"`
-	SupportedPrivileges []SupportedPrivilege `xml:"supported-privilege"`
+	Abstract           *struct{}            `xml:"abstract,omitempty"`
+	Description        Description          `xml:"description"`
+	SupportedPrivilege []SupportedPrivilege `xml:"supported-privilege"`
 }
 
 /*
@@ -347,8 +347,8 @@ also useful for determining what operations the current principal can
 perform, without having to actually execute an operation.
 */
 type CurrentUserPrivilegeSet struct {
-	XMLName    xml.Name    `xml:"DAV: current-user-privilege-set"`
-	Privileges []Privilege `xml:"privilege"`
+	XMLName   xml.Name    `xml:"DAV: current-user-privilege-set"`
+	Privilege []Privilege `xml:"privilege"`
 }
 
 /*
@@ -393,8 +393,8 @@ non-abstract elements specified in the DAV:supported-privilege-set of
 that resource.
 */
 type Grant struct {
-	XMLName    xml.Name    `xml:"DAV: grant"`
-	Privileges []Privilege `xml:"privilege"`
+	XMLName   xml.Name    `xml:"DAV: grant"`
+	Privilege []Privilege `xml:"privilege"`
 }
 
 /*
@@ -407,8 +407,8 @@ non-abstract elements specified in the DAV:supported-privilege-set of
 that resource.
 */
 type Deny struct {
-	XMLName    xml.Name    `xml:"DAV: deny"`
-	Privileges []Privilege `xml:"privilege"`
+	XMLName   xml.Name    `xml:"DAV: deny"`
+	Privilege []Privilege `xml:"privilege"`
 }
 
 // to be continued (5.5.2. & following)

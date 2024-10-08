@@ -44,8 +44,8 @@ func checkSupportedPrivilege(t *testing.T, sp SupportedPrivilege, privilege xml.
 	if strings.TrimSpace(sp.Description.Lang) != "en" {
 		t.Errorf("expected lang %q, got %q", "en", sp.Description.Lang)
 	}
-	if len(sp.SupportedPrivileges) != children {
-		t.Fatalf("expected %d <supported-privilege>, got %d", children, len(sp.SupportedPrivileges))
+	if len(sp.SupportedPrivilege) != children {
+		t.Fatalf("expected %d <supported-privilege>, got %d", children, len(sp.SupportedPrivilege))
 	}
 }
 
@@ -152,23 +152,23 @@ func TestACLMarshalling(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if len(sps.SupportedPrivileges) != 1 {
-			t.Fatalf("expected 1 <supported-privilege>, got %d", len(sps.SupportedPrivileges))
+		if len(sps.SupportedPrivilege) != 1 {
+			t.Fatalf("expected 1 <supported-privilege>, got %d", len(sps.SupportedPrivilege))
 		}
-		sp := sps.SupportedPrivileges[0]
+		sp := sps.SupportedPrivilege[0]
 
 		checkSupportedPrivilege(t, sp, All, true, "Any operation", 3)
 
-		checkSupportedPrivilege(t, sp.SupportedPrivileges[0], Read, false, "Read any object", 2)
-		checkSupportedPrivilege(t, sp.SupportedPrivileges[1], Write, false, "Write any object", 3)
-		checkSupportedPrivilege(t, sp.SupportedPrivileges[2], Unlock, false, "Unlock resource", 0)
+		checkSupportedPrivilege(t, sp.SupportedPrivilege[0], Read, false, "Read any object", 2)
+		checkSupportedPrivilege(t, sp.SupportedPrivilege[1], Write, false, "Write any object", 3)
+		checkSupportedPrivilege(t, sp.SupportedPrivilege[2], Unlock, false, "Unlock resource", 0)
 
-		checkSupportedPrivilege(t, sp.SupportedPrivileges[0].SupportedPrivileges[0], ReadACL, true, "Read ACL", 0)
-		checkSupportedPrivilege(t, sp.SupportedPrivileges[0].SupportedPrivileges[1], ReadCurrentUserPrivilegeSet, true, "Read current user privilege set property", 0)
+		checkSupportedPrivilege(t, sp.SupportedPrivilege[0].SupportedPrivilege[0], ReadACL, true, "Read ACL", 0)
+		checkSupportedPrivilege(t, sp.SupportedPrivilege[0].SupportedPrivilege[1], ReadCurrentUserPrivilegeSet, true, "Read current user privilege set property", 0)
 
-		checkSupportedPrivilege(t, sp.SupportedPrivileges[1].SupportedPrivileges[0], WriteACL, true, "Write ACL", 0)
-		checkSupportedPrivilege(t, sp.SupportedPrivileges[1].SupportedPrivileges[1], WriteProperties, false, "Write properties", 0)
-		checkSupportedPrivilege(t, sp.SupportedPrivileges[1].SupportedPrivileges[2], WriteContent, false, "Write resource content", 0)
+		checkSupportedPrivilege(t, sp.SupportedPrivilege[1].SupportedPrivilege[0], WriteACL, true, "Write ACL", 0)
+		checkSupportedPrivilege(t, sp.SupportedPrivilege[1].SupportedPrivilege[1], WriteProperties, false, "Write properties", 0)
+		checkSupportedPrivilege(t, sp.SupportedPrivilege[1].SupportedPrivilege[2], WriteContent, false, "Write resource content", 0)
 
 		sp = SupportedPrivilege{
 			Privilege:   NewPrivilege(All),
@@ -217,11 +217,11 @@ func TestACLMarshalling(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		if len(cups.Privileges) != 1 {
-			t.Fatalf("expected 1 <privilege>, got %d", len(cups.Privileges))
+		if len(cups.Privilege) != 1 {
+			t.Fatalf("expected 1 <privilege>, got %d", len(cups.Privilege))
 		}
-		if !cups.Privileges[0].Is(Read) {
-			t.Fatalf("expected <read>, got %v", cups.Privileges[0].Raw)
+		if !cups.Privilege[0].Is(Read) {
+			t.Fatalf("expected <read>, got %v", cups.Privilege[0].Raw)
 		}
 	})
 	/* rfc3744#section-5.5.5 */
@@ -279,12 +279,12 @@ func TestACLMarshalling(t *testing.T) {
 				t.Fatalf("expected %s, got %s", want, href.String())
 			}
 
-			if len(ace.Grant.Privileges) != 1 {
-				t.Fatalf("expected 1 <privilege>, got %d", len(ace.Grant.Privileges))
+			if len(ace.Grant.Privilege) != 1 {
+				t.Fatalf("expected 1 <privilege>, got %d", len(ace.Grant.Privilege))
 			}
 
-			if !ace.Grant.Privileges[0].Is(Write) {
-				t.Fatalf("expected <write>, got %v", ace.Grant.Privileges[0].Raw)
+			if !ace.Grant.Privilege[0].Is(Write) {
+				t.Fatalf("expected <write>, got %v", ace.Grant.Privilege[0].Raw)
 			}
 		}
 		{
@@ -295,19 +295,19 @@ func TestACLMarshalling(t *testing.T) {
 				t.Fatalf("expected %s, got %s", want, principalName)
 			}
 
-			if len(ace.Grant.Privileges) != 1 {
-				t.Fatalf("expected 1 <privilege>, got %d", len(ace.Grant.Privileges))
+			if len(ace.Grant.Privilege) != 1 {
+				t.Fatalf("expected 1 <privilege>, got %d", len(ace.Grant.Privilege))
 			}
 
-			if !ace.Grant.Privileges[0].Is(Read) {
-				t.Fatalf("expected <read>, got %v", ace.Grant.Privileges[0].Raw)
+			if !ace.Grant.Privilege[0].Is(Read) {
+				t.Fatalf("expected <read>, got %v", ace.Grant.Privilege[0].Raw)
 			}
 		}
 
 		var ace ACE
 		ace.Principal.Raw = NewRawXMLElement(xml.Name{"DAV:", "authenticated"}, nil, nil)
 		ace.Grant = &Grant{
-			Privileges: []Privilege{
+			Privilege: []Privilege{
 				NewPrivilege(Read),
 			},
 		}
