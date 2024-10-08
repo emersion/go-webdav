@@ -351,6 +351,16 @@ type CurrentUserPrivilegeSet struct {
 	Privilege []Privilege `xml:"privilege"`
 }
 
+// convenience CurrentUserPrivilegeSet
+var (
+	CurrentUserPrivilegeSetReadOnly = CurrentUserPrivilegeSet{
+		Privilege: []Privilege{NewPrivilege(Read)},
+	}
+	CurrentUserPrivilegeSetReadWrite = CurrentUserPrivilegeSet{
+		Privilege: []Privilege{NewPrivilege(Read), NewPrivilege(Write)},
+	}
+)
+
 /*
 rfc3744#section-5.5
 
