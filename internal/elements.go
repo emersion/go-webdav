@@ -21,7 +21,8 @@ var (
 	GetLastModifiedName  = xml.Name{Namespace, "getlastmodified"}
 	GetETagName          = xml.Name{Namespace, "getetag"}
 
-	CurrentUserPrincipalName = xml.Name{Namespace, "current-user-principal"}
+	CurrentUserPrincipalName    = xml.Name{Namespace, "current-user-principal"}
+	CurrentUserPrivilegeSetName = xml.Name{Namespace, "current-user-privilege-set"}
 )
 
 type Status struct {

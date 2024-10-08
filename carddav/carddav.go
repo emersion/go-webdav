@@ -28,6 +28,7 @@ type AddressBook struct {
 	Description          string
 	MaxResourceSize      int64
 	SupportedAddressData []AddressDataType
+	ReadOnly             bool
 }
 
 func (ab *AddressBook) SupportsAddressData(contentType, version string) bool {
@@ -107,6 +108,7 @@ type AddressObject struct {
 	ContentLength int64
 	ETag          string
 	Card          vcard.Card
+	ReadOnly      bool
 }
 
 // SyncQuery is the query struct represents a sync-collection request
