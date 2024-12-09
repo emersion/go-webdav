@@ -132,9 +132,11 @@ func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadC
 	defer wc.Close()
 
 	if _, err := io.Copy(wc, body); err != nil {
+		os.Remove(p)
 		return nil, false, err
 	}
 	if err := wc.Close(); err != nil {
+		os.Remove(p)
 		return nil, false, err
 	}
 
