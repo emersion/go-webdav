@@ -114,15 +114,31 @@ func (fs LocalFileSystem) ReadDir(ctx context.Context, name string, recursive bo
 	return l, errFromOS(err)
 }
 
-func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadCloser) (*FileInfo, bool, error) {
+func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadCloser, opts *CreateOptions) (fi *FileInfo, created bool, err error) {
 	p, err := fs.localPath(name)
 	if err != nil {
 		return nil, false, err
 	}
-	created := false
-	fi, _ := fs.Stat(ctx, name)
-	if fi == nil {
-		created = true
+	fi, _ = fs.Stat(ctx, name)
+	created = fi == nil
+	etag := ""
+	if fi != nil {
+		etag = fi.ETag
+	}
+
+	if opts.IfMatch.IsSet() {
+		if ok, err := opts.IfMatch.MatchETag(etag); err != nil {
+			return nil, false, NewHTTPError(http.StatusBadRequest, err)
+		} else if !ok {
+			return nil, false, NewHTTPError(http.StatusPreconditionFailed, fmt.Errorf("If-Match condition failed"))
+		}
+	}
+	if opts.IfNoneMatch.IsSet() {
+		if ok, err := opts.IfNoneMatch.MatchETag(etag); err != nil {
+			return nil, false, NewHTTPError(http.StatusBadRequest, err)
+		} else if ok {
+			return nil, false, NewHTTPError(http.StatusPreconditionFailed, fmt.Errorf("If-None-Match condition failed"))
+		}
 	}
 
 	wc, err := os.Create(p)

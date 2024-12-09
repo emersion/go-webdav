@@ -17,7 +17,7 @@ type FileSystem interface {
 	Open(ctx context.Context, name string) (io.ReadCloser, error)
 	Stat(ctx context.Context, name string) (*FileInfo, error)
 	ReadDir(ctx context.Context, name string, recursive bool) ([]FileInfo, error)
-	Create(ctx context.Context, name string, body io.ReadCloser) (fileInfo *FileInfo, created bool, err error)
+	Create(ctx context.Context, name string, body io.ReadCloser, opts *CreateOptions) (fileInfo *FileInfo, created bool, err error)
 	RemoveAll(ctx context.Context, name string) error
 	Mkdir(ctx context.Context, name string) error
 	Copy(ctx context.Context, name, dest string, options *CopyOptions) (created bool, err error)
@@ -194,7 +194,14 @@ func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*
 }
 
 func (b *backend) Put(w http.ResponseWriter, r *http.Request) error {
-	fi, created, err := b.FileSystem.Create(r.Context(), r.URL.Path, r.Body)
+	ifNoneMatch := ConditionalMatch(r.Header.Get("If-None-Match"))
+	ifMatch := ConditionalMatch(r.Header.Get("If-Match"))
+
+	opts := CreateOptions{
+		IfNoneMatch: ifNoneMatch,
+		IfMatch:     ifMatch,
+	}
+	fi, created, err := b.FileSystem.Create(r.Context(), r.URL.Path, r.Body, &opts)
 	if err != nil {
 		return err
 	}
