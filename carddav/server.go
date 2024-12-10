@@ -431,6 +431,13 @@ func (b *backend) propFindRoot(ctx context.Context, propfind *internal.PropFind)
 	}
 
 	props := map[xml.Name]internal.PropFindFunc{
+		internal.CurrentUserPrivilegeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrivilegeSet{
+				Privileges: []internal.Privilege{
+					{Read: true, Write: true},
+				},
+			}, nil
+		},
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
@@ -452,6 +459,13 @@ func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.
 	}
 
 	props := map[xml.Name]internal.PropFindFunc{
+		internal.CurrentUserPrivilegeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrivilegeSet{
+				Privileges: []internal.Privilege{
+					{Read: true, Write: true},
+				},
+			}, nil
+		},
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
@@ -477,6 +491,13 @@ func (b *backend) propFindHomeSet(ctx context.Context, propfind *internal.PropFi
 
 	// TODO anything else to return here?
 	props := map[xml.Name]internal.PropFindFunc{
+		internal.CurrentUserPrivilegeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrivilegeSet{
+				Privileges: []internal.Privilege{
+					{Read: true, Write: true},
+				},
+			}, nil
+		},
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: principalPath}}, nil
 		},
@@ -489,6 +510,13 @@ func (b *backend) propFindHomeSet(ctx context.Context, propfind *internal.PropFi
 
 func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.PropFind, ab *AddressBook) (*internal.Response, error) {
 	props := map[xml.Name]internal.PropFindFunc{
+		internal.CurrentUserPrivilegeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrivilegeSet{
+				Privileges: []internal.Privilege{
+					{Read: true, Write: true},
+				},
+			}, nil
+		},
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			path, err := b.Backend.CurrentUserPrincipal(ctx)
 			if err != nil {
@@ -554,6 +582,13 @@ func (b *backend) propFindAllAddressBooks(ctx context.Context, propfind *interna
 
 func (b *backend) propFindAddressObject(ctx context.Context, propfind *internal.PropFind, ao *AddressObject) (*internal.Response, error) {
 	props := map[xml.Name]internal.PropFindFunc{
+		internal.CurrentUserPrivilegeSetName: func(*internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrivilegeSet{
+				Privileges: []internal.Privilege{
+					{Read: true, Write: true},
+				},
+			}, nil
+		},
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			path, err := b.Backend.CurrentUserPrincipal(ctx)
 			if err != nil {
