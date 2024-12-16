@@ -114,6 +114,31 @@ func (fs LocalFileSystem) ReadDir(ctx context.Context, name string, recursive bo
 	return l, errFromOS(err)
 }
 
+func checkConditionalMatches(fi *FileInfo, ifMatch, ifNoneMatch ConditionalMatch) error {
+	etag := ""
+	if fi != nil {
+		etag = fi.ETag
+	}
+
+	if ifMatch.IsSet() {
+		if ok, err := ifMatch.MatchETag(etag); err != nil {
+			return NewHTTPError(http.StatusBadRequest, err)
+		} else if !ok {
+			return NewHTTPError(http.StatusPreconditionFailed, fmt.Errorf("If-Match condition failed"))
+		}
+	}
+
+	if ifNoneMatch.IsSet() {
+		if ok, err := ifNoneMatch.MatchETag(etag); err != nil {
+			return NewHTTPError(http.StatusBadRequest, err)
+		} else if ok {
+			return NewHTTPError(http.StatusPreconditionFailed, fmt.Errorf("If-None-Match condition failed"))
+		}
+	}
+
+	return nil
+}
+
 func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadCloser, opts *CreateOptions) (fi *FileInfo, created bool, err error) {
 	p, err := fs.localPath(name)
 	if err != nil {
@@ -121,24 +146,9 @@ func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadC
 	}
 	fi, _ = fs.Stat(ctx, name)
 	created = fi == nil
-	etag := ""
-	if fi != nil {
-		etag = fi.ETag
-	}
 
-	if opts.IfMatch.IsSet() {
-		if ok, err := opts.IfMatch.MatchETag(etag); err != nil {
-			return nil, false, NewHTTPError(http.StatusBadRequest, err)
-		} else if !ok {
-			return nil, false, NewHTTPError(http.StatusPreconditionFailed, fmt.Errorf("If-Match condition failed"))
-		}
-	}
-	if opts.IfNoneMatch.IsSet() {
-		if ok, err := opts.IfNoneMatch.MatchETag(etag); err != nil {
-			return nil, false, NewHTTPError(http.StatusBadRequest, err)
-		} else if ok {
-			return nil, false, NewHTTPError(http.StatusPreconditionFailed, fmt.Errorf("If-None-Match condition failed"))
-		}
+	if err := checkConditionalMatches(fi, opts.IfMatch, opts.IfNoneMatch); err != nil {
+		return nil, false, err
 	}
 
 	wc, err := os.Create(p)
@@ -164,7 +174,7 @@ func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadC
 	return fi, created, err
 }
 
-func (fs LocalFileSystem) RemoveAll(ctx context.Context, name string) error {
+func (fs LocalFileSystem) RemoveAll(ctx context.Context, name string, opts *RemoveAllOptions) error {
 	p, err := fs.localPath(name)
 	if err != nil {
 		return err
@@ -172,8 +182,13 @@ func (fs LocalFileSystem) RemoveAll(ctx context.Context, name string) error {
 
 	// WebDAV semantics are that it should return a "404 Not Found" error in
 	// case the resource doesn't exist. We need to Stat before RemoveAll.
-	if _, err = os.Stat(p); err != nil {
+	fi, err := fs.Stat(ctx, name)
+	if err != nil {
 		return errFromOS(err)
+	}
+
+	if err := checkConditionalMatches(fi, opts.IfMatch, opts.IfNoneMatch); err != nil {
+		return err
 	}
 
 	return errFromOS(os.RemoveAll(p))
