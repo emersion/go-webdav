@@ -24,6 +24,11 @@ type CreateOptions struct {
 	IfNoneMatch ConditionalMatch
 }
 
+type RemoveAllOptions struct {
+	IfMatch     ConditionalMatch
+	IfNoneMatch ConditionalMatch
+}
+
 type CopyOptions struct {
 	NoRecursive bool
 	NoOverwrite bool
