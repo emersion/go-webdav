@@ -11,12 +11,13 @@ import (
 
 // FileInfo holds information about a WebDAV file.
 type FileInfo struct {
-	Path     string
-	Size     int64
-	ModTime  time.Time
-	IsDir    bool
-	MIMEType string
-	ETag     string
+	Path                 string
+	Size                 int64
+	ModTime              time.Time
+	IsDir                bool
+	MIMEType             string
+	ETag                 string
+	BuildPropFindFuncMap BuildPropFindFuncMapFunc
 }
 
 type CreateOptions struct {
