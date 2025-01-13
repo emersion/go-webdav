@@ -126,19 +126,20 @@ func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadC
 		etag = fi.ETag
 	}
 
-	if opts.IfMatch.IsSet() {
-		if ok, err := opts.IfMatch.MatchETag(etag); err != nil {
-			return nil, false, NewHTTPError(http.StatusBadRequest, err)
-		} else if !ok {
-			return nil, false, NewHTTPError(http.StatusPreconditionFailed, fmt.Errorf("If-Match condition failed"))
-		}
+	if isSet, ok, err := opts.IfMatch.MatchETag(etag); !isSet {
+		// not set so continue
+	} else if err != nil {
+		return nil, false, NewHTTPError(http.StatusBadRequest, err)
+	} else if isSet && !ok {
+		return nil, false, NewHTTPError(http.StatusPreconditionFailed, fmt.Errorf("If-Match condition failed"))
 	}
-	if opts.IfNoneMatch.IsSet() {
-		if ok, err := opts.IfNoneMatch.MatchETag(etag); err != nil {
-			return nil, false, NewHTTPError(http.StatusBadRequest, err)
-		} else if ok {
-			return nil, false, NewHTTPError(http.StatusPreconditionFailed, fmt.Errorf("If-None-Match condition failed"))
-		}
+
+	if isSet, ok, err := opts.IfNoneMatch.MatchETag(etag); !isSet {
+		// not set so continue
+	} else if err != nil {
+		return nil, false, NewHTTPError(http.StatusBadRequest, err)
+	} else if isSet && ok {
+		return nil, false, NewHTTPError(http.StatusPreconditionFailed, fmt.Errorf("If-None-Match condition failed"))
 	}
 
 	wc, err := os.Create(p)
