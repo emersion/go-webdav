@@ -146,6 +146,87 @@ UID:DC6C50A017428C5216A2F1CD@example.com
 END:VEVENT
 END:VCALENDAR`)
 
+	event4 := newCO(`
+BEGIN:VCALENDAR
+PRODID:DAVx5/4.4.5-ose ical4j/3.2.19 (org.fossify.calendar)
+VERSION:2.0
+BEGIN:VEVENT
+CREATED:20250111T232306Z
+DTEND;TZID=Europe/Paris:20250114T200000
+DTSTAMP:20250111T235047Z
+DTSTART;TZID=Europe/Paris:20250114T190000
+RRULE:FREQ=DAILY;COUNT=2;INTERVAL=1
+SEQUENCE:5
+STATUS:TENTATIVE
+SUMMARY:event
+UID:FA4733E2-EDE6-454A-BAE1-0AC82E6384AB
+X-APPLE-CREATOR-IDENTITY:com.apple.mobilecal
+X-APPLE-CREATOR-TEAM-IDENTITY:0000000000
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION: description
+TRIGGER:-PT30M
+END:VALARM
+END:VEVENT
+BEGIN:VTIMEZONE
+TZID:Europe/Paris
+BEGIN:STANDARD
+DTSTART:19961027T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+TZNAME:CET
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:19810329T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+TZNAME:CEST
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+END:DAYLIGHT
+END:VTIMEZONE
+END:VCALENDAR
+`)
+
+	event5 := newCO(`
+BEGIN:VCALENDAR
+PRODID:DAVx5/4.4.5-ose ical4j/3.2.19 (org.fossify.calendar)
+VERSION:2.0
+BEGIN:VEVENT
+CREATED:20250111T232306Z
+DTSTAMP:20250111T235047Z
+DTSTART;TZID=Europe/Paris:20250101T120000
+STATUS:CONFIRMED
+SUMMARY:event
+UID:FA4733E2-EDE6-454A-BAE1-0AC82E6384AB
+X-APPLE-CREATOR-IDENTITY:com.apple.mobilecal
+X-APPLE-CREATOR-TEAM-IDENTITY:0000000000
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION: description
+TRIGGER:-PT30M
+END:VALARM
+END:VEVENT
+BEGIN:VTIMEZONE
+TZID:Europe/Paris
+BEGIN:STANDARD
+DTSTART:19961027T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+TZNAME:CET
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+END:STANDARD
+BEGIN:DAYLIGHT
+DTSTART:19810329T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+TZNAME:CEST
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+END:DAYLIGHT
+END:VTIMEZONE
+END:VCALENDAR
+`)
+
 	todo1 := newCO(`BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Example Corp.//CalDAV Client//EN
@@ -172,8 +253,8 @@ END:VCALENDAR`)
 		{
 			name:  "nil-query",
 			query: nil,
-			addrs: []CalendarObject{event1, event2, event3, todo1},
-			want:  []CalendarObject{event1, event2, event3, todo1},
+			addrs: []CalendarObject{event1, event2, event3, event4, todo1},
+			want:  []CalendarObject{event1, event2, event3, event4, todo1},
 		},
 		{
 			// https://datatracker.ietf.org/doc/html/rfc4791#section-7.8.8
@@ -188,8 +269,8 @@ END:VCALENDAR`)
 					},
 				},
 			},
-			addrs: []CalendarObject{event1, event2, event3, todo1},
-			want:  []CalendarObject{event1, event2, event3},
+			addrs: []CalendarObject{event1, event2, event3, event4, todo1},
+			want:  []CalendarObject{event1, event2, event3, event4},
 		},
 		{
 			// https://datatracker.ietf.org/doc/html/rfc4791#section-7.8.1
@@ -206,7 +287,7 @@ END:VCALENDAR`)
 					},
 				},
 			},
-			addrs: []CalendarObject{event1, event2, event3, todo1},
+			addrs: []CalendarObject{event1, event2, event3, event4, todo1},
 			want:  []CalendarObject{event2, event3},
 		},
 		{
@@ -245,7 +326,7 @@ END:VCALENDAR`)
 					},
 				},
 			},
-			addrs: []CalendarObject{event1, event2, event3, todo1},
+			addrs: []CalendarObject{event1, event2, event3, event4, todo1},
 			want:  []CalendarObject{event3},
 		},
 		{
@@ -267,7 +348,7 @@ END:VCALENDAR`)
 					},
 				},
 			},
-			addrs: []CalendarObject{event1, event2, event3, todo1},
+			addrs: []CalendarObject{event1, event2, event3, event4, todo1},
 			want:  []CalendarObject{event1},
 		},
 		{
@@ -285,9 +366,45 @@ END:VCALENDAR`)
 					},
 				},
 			},
-			addrs: []CalendarObject{event1, event2, event3, todo1},
+			addrs: []CalendarObject{event1, event2, event3, event4, todo1},
 			want:  []CalendarObject{event2},
 		},
+		{
+			// only end tag
+			name: "recurring events in time range",
+			query: &CalendarQuery{
+				CompFilter: CompFilter{
+					Name: "VCALENDAR",
+					Comps: []CompFilter{
+						CompFilter{
+							Name: "VEVENT",
+							End:  toDate(t, "20250114T180000Z"),
+						},
+					},
+				},
+			},
+			addrs: []CalendarObject{event1, event2, event3, event4, todo1},
+			want:  []CalendarObject{event1, event2, event3},
+		},
+		{
+			// event with no DTEND or DURATION
+			name: "No DTEND or DURATION",
+			query: &CalendarQuery{
+				CompFilter: CompFilter{
+					Name: "VCALENDAR",
+					Comps: []CompFilter{
+						CompFilter{
+							Name:  "VEVENT",
+							Start: toDate(t, "20250101T110000Z"),
+							End:   toDate(t, "20250114T110001Z"),
+						},
+					},
+				},
+			},
+			addrs: []CalendarObject{event4, event5},
+			want:  []CalendarObject{event5},
+		},
+
 		// TODO add more examples
 	} {
 		t.Run(tc.name, func(t *testing.T) {
