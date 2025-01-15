@@ -73,6 +73,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "REPORT":
 		err = h.handleReport(w, r)
+	case "MKCALENDAR":
+		err = h.handleMkCalendar(w, r)
 	default:
 		b := backend{
 			Backend: h.Backend,
@@ -85,6 +87,51 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		internal.ServeError(w, err)
 	}
+}
+
+func (h *Handler) handleMkCalendar(w http.ResponseWriter, r *http.Request) error {
+	if (&backend{}).resourceTypeAtPath(r.URL.Path) != resourceTypeCalendar {
+		return internal.HTTPErrorf(http.StatusForbidden, "caldav: calendar creation not allowed at given location")
+	}
+
+	cal := Calendar{
+		Path: r.URL.Path,
+	}
+
+	if !internal.IsRequestBodyEmpty(r) {
+		var m mkcalendarReq
+		if err := internal.DecodeXMLRequest(r, &m); err != nil {
+			return internal.HTTPErrorf(http.StatusBadRequest, "caldav: error parsing mkcalendar request: %s", err.Error())
+		}
+
+		cal.Name = m.DisplayName
+		cal.Description = m.CalendarDescription
+
+		if d := len(m.SupportedCalendarComponentSet.Comp); d != 0 {
+			cal.SupportedComponentSet = make([]string, len(m.SupportedCalendarComponentSet.Comp))
+			for k, v := range m.SupportedCalendarComponentSet.Comp {
+				cal.SupportedComponentSet[k] = v.Name
+			}
+		}
+
+		// TODO other props submitted by iOS: calendar-timezone, calendar-color, calendar-free-busy-set, calendar-order
+		// TODO other props which should be handled: max-resource-size
+	}
+
+	if e := h.Backend.CreateCalendar(r.Context(), &cal); e != nil {
+		return internal.HTTPErrorf(http.StatusInternalServerError, "caldav: error parsing mkcalendar request: %s", e.Error())
+	} else {
+		w.Header().Add("Location", cal.Path)
+		w.Header().Add("Content-Length", "0")
+		w.WriteHeader(http.StatusCreated)
+		//
+		// If a response body for a successful request is included, it MUST
+		// be a CALDAV:mkcalendar-response XML element.
+		// 	<!ELEMENT mkcalendar-response ANY>
+		//
+		return nil
+	}
+
 }
 
 func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
@@ -720,11 +767,11 @@ func (b *backend) Mkcol(r *http.Request) error {
 	if !internal.IsRequestBodyEmpty(r) {
 		var m mkcolReq
 		if err := internal.DecodeXMLRequest(r, &m); err != nil {
-			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: error parsing mkcol request: %s", err.Error())
+			return internal.HTTPErrorf(http.StatusBadRequest, "caldav: error parsing mkcol request: %s", err.Error())
 		}
 
 		if !m.ResourceType.Is(internal.CollectionName) || !m.ResourceType.Is(calendarName) {
-			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: unexpected resource type")
+			return internal.HTTPErrorf(http.StatusBadRequest, "caldav: unexpected resource type")
 		}
 		cal.Name = m.DisplayName
 		// TODO ...
