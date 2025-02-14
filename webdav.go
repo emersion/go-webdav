@@ -55,6 +55,9 @@ func (val ConditionalMatch) ETag() (string, error) {
 }
 
 func (val ConditionalMatch) MatchETag(etag string) (bool, error) {
+	if etag == "" {
+		return false, nil
+	}
 	if val.IsWildcard() {
 		return true, nil
 	}
