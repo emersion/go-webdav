@@ -199,7 +199,11 @@ func (fs LocalFileSystem) Mkdir(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	return errFromOS(os.Mkdir(p, 0755))
+	if err := os.Mkdir(p, 0755); os.IsExist(err) {
+		return NewHTTPError(http.StatusMethodNotAllowed, err)
+	} else {
+		return errFromOS(err)
+	}
 }
 
 func copyRegularFile(src, dst string, perm os.FileMode) error {
