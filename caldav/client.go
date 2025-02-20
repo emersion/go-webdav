@@ -19,7 +19,7 @@ import (
 // DiscoverContextURL performs a DNS-based CardDAV service discovery as
 // described in RFC 6352 section 11. It returns the URL to the CardDAV server.
 func DiscoverContextURL(ctx context.Context, domain string) (string, error) {
-	return internal.DiscoverContextURL(ctx, "caldavs", domain)
+	return internal.DiscoverContextURL(ctx, "caldav", domain)
 }
 
 // Client provides access to a remote CardDAV server.
