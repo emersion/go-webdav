@@ -172,7 +172,45 @@ func encodeCompFilter(filter *CompFilter) *compFilter {
 	for _, child := range filter.Comps {
 		encoded.CompFilters = append(encoded.CompFilters, *encodeCompFilter(&child))
 	}
+	for _, pf := range filter.Props {
+		encoded.PropFilters = append(encoded.PropFilters, *encodePropFilter(&pf))
+	}
 	return &encoded
+}
+
+func encodePropFilter(filter *PropFilter) *propFilter {
+	encoded := propFilter{Name: filter.Name}
+	if !filter.Start.IsZero() || !filter.End.IsZero() {
+		encoded.TimeRange = &timeRange{
+			Start: dateWithUTCTime(filter.Start),
+			End:   dateWithUTCTime(filter.End),
+		}
+	}
+	encoded.TextMatch = encodeTextMatch(filter.TextMatch)
+	for _, pf := range filter.ParamFilter {
+		encoded.ParamFilter = append(encoded.ParamFilter, encodeParamFilter(pf))
+	}
+	return &encoded
+}
+
+func encodeParamFilter(pf ParamFilter) paramFilter {
+	encoded := paramFilter{
+		Name:      pf.Name,
+		TextMatch: encodeTextMatch(pf.TextMatch),
+	}
+	return encoded
+}
+
+func encodeTextMatch(tm *TextMatch) *textMatch {
+	if tm == nil {
+		return nil
+	}
+
+	encoded := &textMatch{
+		Text:            tm.Text,
+		NegateCondition: negateCondition(tm.NegateCondition),
+	}
+	return encoded
 }
 
 func decodeCalendarObjectList(ms *internal.MultiStatus) ([]CalendarObject, error) {
