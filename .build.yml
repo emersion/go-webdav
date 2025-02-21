@@ -4,6 +4,12 @@ packages:
 sources:
   - https://github.com/emersion/go-webdav
 tasks:
+  - build: |
+      cd go-webdav
+      go build -race -v ./...
   - test: |
       cd go-webdav
-      go test -v ./...
+      go test -race -v ./...
+  - gofmt: |
+      cd go-webdav
+      test -z $(gofmt -l .)
