@@ -2,8 +2,10 @@ package webdav
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
 	"os"
@@ -64,11 +66,17 @@ func fileInfoFromOS(p string, fi os.FileInfo) *FileInfo {
 }
 
 func errFromOS(err error) error {
-	if os.IsNotExist(err) {
+	// Remove path from path errors so it's not returned to the user
+	var perr *fs.PathError
+	if errors.As(err, &perr) {
+		err = fmt.Errorf("%s: %w", perr.Op, perr.Err)
+	}
+
+	if errors.Is(err, fs.ErrNotExist) {
 		return NewHTTPError(http.StatusNotFound, err)
-	} else if os.IsPermission(err) {
+	} else if errors.Is(err, fs.ErrPermission) {
 		return NewHTTPError(http.StatusForbidden, err)
-	} else if os.IsTimeout(err) {
+	} else if errors.Is(err, os.ErrDeadlineExceeded) {
 		return NewHTTPError(http.StatusServiceUnavailable, err)
 	} else {
 		return err
