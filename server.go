@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/emersion/go-webdav/internal"
 )
@@ -311,6 +312,14 @@ func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (cr
 		return false, &internal.HTTPError{http.StatusPreconditionFailed, err}
 	}
 	return created, err
+}
+
+func (b *backend) Lock(r *http.Request, depth internal.Depth, timeout time.Duration, refreshToken string) (lock *internal.Lock, created bool, err error) {
+	return nil, false, internal.HTTPErrorf(http.StatusMethodNotAllowed, "webdav: unsupported method")
+}
+
+func (b *backend) Unlock(r *http.Request, tokenHref string) error {
+	return internal.HTTPErrorf(http.StatusMethodNotAllowed, "webdav: unsupported method")
 }
 
 // BackendSuppliedHomeSet represents either a CalDAV calendar-home-set or a
