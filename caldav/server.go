@@ -741,6 +741,14 @@ func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (cr
 	return false, internal.HTTPErrorf(http.StatusNotImplemented, "caldav: Move not implemented")
 }
 
+func (b *backend) Lock(r *http.Request, depth internal.Depth, timeout time.Duration, refreshToken string) (lock *internal.Lock, created bool, err error) {
+	return nil, false, internal.HTTPErrorf(http.StatusMethodNotAllowed, "caldav: unsupported method")
+}
+
+func (b *backend) Unlock(r *http.Request, tokenHref string) error {
+	return internal.HTTPErrorf(http.StatusMethodNotAllowed, "webdav: unsupported method")
+}
+
 // https://datatracker.ietf.org/doc/html/rfc4791#section-5.3.2.1
 type PreconditionType string
 
