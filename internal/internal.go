@@ -51,6 +51,10 @@ func (d Depth) String() string {
 	panic("webdav: invalid Depth value")
 }
 
+func (d Depth) MarshalText() ([]byte, error) {
+	return []byte(d.String()), nil
+}
+
 // ParseOverwrite parses an Overwrite header.
 func ParseOverwrite(s string) (bool, error) {
 	switch s {
@@ -94,6 +98,10 @@ func (t Timeout) String() string {
 		return "Infinite"
 	}
 	return fmt.Sprintf("Second-%d", t.Duration/time.Second)
+}
+
+func (t Timeout) MarshalText() ([]byte, error) {
+	return []byte(t.String()), nil
 }
 
 func ParseLockToken(s string) (string, error) {

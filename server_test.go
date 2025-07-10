@@ -38,6 +38,9 @@ func TestLock(t *testing.T) {
 	if !strings.Contains(resp, `<lockroot xmlns="DAV:"><href>/res</href></lockroot>`) {
 		t.Errorf("Bad lockroot returned when doing a LOCK, response:\n%s", resp)
 	}
+	if !strings.Contains(resp, `<depth>infinity</depth>`) {
+		t.Errorf("Bad depth returned when doing a LOCK, response:\n%s", resp)
+	}
 	tok := res.Header.Get("Lock-Token")
 	if len(tok) < 2 {
 		t.Error("No token in Lock-Token header when doing a LOCK")
