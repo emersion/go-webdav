@@ -355,13 +355,14 @@ func (h *Handler) handleLock(w http.ResponseWriter, r *http.Request) error {
 			return err
 		}
 
-		conditions, err := ParseConditions(r.Header.Get("If"))
+		var err error
+		refreshToken, err = ParseSubmittedToken(r.Header)
 		if err != nil {
-			return &HTTPError{http.StatusBadRequest, err}
-		} else if len(conditions) != 1 || len(conditions[0]) != 1 || conditions[0][0].Token == "" {
-			return HTTPErrorf(http.StatusBadRequest, "webdav: a single lock token must be specified in the If header field")
+			return err
 		}
-		refreshToken = conditions[0][0].Token
+		if refreshToken == "" {
+			return HTTPErrorf(http.StatusBadRequest, "webdav: a lock token must be specified in the If header field")
+		}
 	}
 
 	depth := DepthInfinity

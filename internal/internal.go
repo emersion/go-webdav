@@ -115,6 +115,33 @@ func FormatLockToken(token string) string {
 	return fmt.Sprintf("<%v>", token)
 }
 
+func ParseSubmittedToken(h http.Header) (string, error) {
+	hif := h.Get("If")
+	if hif == "" {
+		return "", nil
+	}
+
+	conditions, err := ParseConditions(hif)
+	if err != nil {
+		return "", &HTTPError{http.StatusBadRequest, err}
+	}
+
+	if len(conditions) == 0 {
+		return "", nil
+	}
+	if len(conditions) > 1 {
+		return "", HTTPErrorf(http.StatusBadRequest, "webdav: multiple lists are not supported in the If header field")
+	}
+	if len(conditions[0]) == 0 {
+		return "", nil
+	}
+	if len(conditions[0]) > 1 {
+		return "", HTTPErrorf(http.StatusBadRequest, "webdav: multiple conditions are not supported in the If header field")
+	}
+
+	return conditions[0][0].Token, nil
+}
+
 // Condition is a condition to match lock tokens and entity tags.
 //
 // Only one of Token or ETag is set.
