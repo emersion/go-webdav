@@ -344,6 +344,12 @@ func (h *Handler) handleLock(w http.ResponseWriter, r *http.Request) error {
 		if err := DecodeXMLRequest(r, &lockInfo); err != nil {
 			return err
 		}
+		if lockInfo.LockScope.Exclusive == nil || lockInfo.LockScope.Shared != nil {
+			return HTTPErrorf(http.StatusBadRequest, "webdav: only exclusive locks are supported")
+		}
+		if lockInfo.LockType.Write == nil {
+			return HTTPErrorf(http.StatusBadRequest, "webdav: only write locks are supported")
+		}
 	} else {
 		if err := ensureRequestBodyEmpty(r); err != nil {
 			return err
@@ -356,13 +362,6 @@ func (h *Handler) handleLock(w http.ResponseWriter, r *http.Request) error {
 			return HTTPErrorf(http.StatusBadRequest, "webdav: a single lock token must be specified in the If header field")
 		}
 		refreshToken = conditions[0][0].Token
-	}
-
-	if lockInfo.LockScope.Exclusive == nil || lockInfo.LockScope.Shared != nil {
-		return HTTPErrorf(http.StatusBadRequest, "webdav: only exclusive locks are supported")
-	}
-	if lockInfo.LockType.Write == nil {
-		return HTTPErrorf(http.StatusBadRequest, "webdav: only write locks are supported")
 	}
 
 	depth := DepthInfinity

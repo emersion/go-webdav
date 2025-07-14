@@ -69,6 +69,20 @@ func TestLockConflict(t *testing.T) {
 	}
 }
 
+func TestLockRefreshBadToken(t *testing.T) {
+	req := httptest.NewRequest("LOCK", "/res", strings.NewReader(""))
+	req.Header.Set("If", "(<opaquelocktoken:anytoken>)")
+	w := httptest.NewRecorder()
+	handler := &Handler{FileSystem: testFileSystem{}}
+	handler.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusPreconditionFailed {
+		t.Errorf("Bad status returned when refreshing a lock with bad token:\n%d", res.StatusCode)
+	}
+}
+
 type testFileSystem struct{}
 
 func (fs testFileSystem) Open(ctx context.Context, name string) (io.ReadCloser, error) {
