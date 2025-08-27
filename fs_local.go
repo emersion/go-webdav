@@ -103,8 +103,11 @@ func (fs LocalFileSystem) ReadDir(ctx context.Context, name string, recursive bo
 
 	var l []FileInfo
 	err = filepath.Walk(path, func(p string, fi os.FileInfo, err error) error {
-		if err != nil {
+		if err != nil && !errors.Is(err, os.ErrPermission) {
 			return err
+		}
+		if fi == nil {
+			return nil
 		}
 
 		href, err := fs.externalPath(p)
