@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/emersion/go-webdav/internal"
 )
@@ -56,9 +57,11 @@ type backend struct {
 }
 
 func (b *backend) Options(r *http.Request) (caps []string, allow []string, err error) {
+	caps = []string{"2"}
+
 	fi, err := b.FileSystem.Stat(r.Context(), r.URL.Path)
 	if internal.IsNotFound(err) {
-		return nil, []string{http.MethodOptions, http.MethodPut, "MKCOL"}, nil
+		return caps, []string{http.MethodOptions, http.MethodPut, "MKCOL"}, nil
 	} else if err != nil {
 		return nil, nil, err
 	}
@@ -75,7 +78,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 		allow = append(allow, http.MethodHead, http.MethodGet, http.MethodPut)
 	}
 
-	return nil, allow, nil
+	return caps, allow, nil
 }
 
 func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
@@ -160,6 +163,13 @@ func (b *backend) propFindFile(propfind *internal.PropFind, fi *FileInfo) (*inte
 		}
 		return internal.NewResourceType(types...), nil
 	}
+
+	props[internal.SupportedLockName] = internal.PropFindValue(&internal.SupportedLock{
+		LockEntries: []internal.LockEntry{{
+			LockScope: internal.LockScope{Exclusive: &struct{}{}},
+			LockType:  internal.LockType{Write: &struct{}{}},
+		}},
+	})
 
 	if !fi.IsDir {
 		props[internal.GetContentLengthName] = internal.PropFindValue(&internal.GetContentLength{
@@ -311,6 +321,14 @@ func (b *backend) Move(r *http.Request, dest *internal.Href, overwrite bool) (cr
 		return false, &internal.HTTPError{http.StatusPreconditionFailed, err}
 	}
 	return created, err
+}
+
+func (b *backend) Lock(r *http.Request, depth internal.Depth, timeout time.Duration, refreshToken string) (lock *internal.Lock, created bool, err error) {
+	return nil, false, internal.HTTPErrorf(http.StatusMethodNotAllowed, "webdav: unsupported method")
+}
+
+func (b *backend) Unlock(r *http.Request, tokenHref string) error {
+	return internal.HTTPErrorf(http.StatusMethodNotAllowed, "webdav: unsupported method")
 }
 
 // BackendSuppliedHomeSet represents either a CalDAV calendar-home-set or a
