@@ -131,16 +131,16 @@ func (h *Handler) handleOptions(w http.ResponseWriter, r *http.Request) error {
 
 func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 	var propfind PropFind
-	if isContentXML(r.Header) {
+	if IsRequestBodyEmpty(r) {
+		// NOTE: properly handle PROPFIND requests without a body,
+		// regardless of the "Content-Type" header of the request.
+		propfind.AllProp = &struct{}{}
+	} else if isContentXML(r.Header) {
 		if err := DecodeXMLRequest(r, &propfind); err != nil {
 			return err
 		}
 	} else {
-		var b [1]byte
-		if _, err := r.Body.Read(b[:]); err != io.EOF {
-			return HTTPErrorf(http.StatusBadRequest, "webdav: unsupported request body")
-		}
-		propfind.AllProp = &struct{}{}
+		return HTTPErrorf(http.StatusBadRequest, "webdav: unsupported request body")
 	}
 
 	depth := DepthInfinity
