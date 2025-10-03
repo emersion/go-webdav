@@ -139,6 +139,8 @@ func (h *Handler) handlePropfind(w http.ResponseWriter, r *http.Request) error {
 		if err := DecodeXMLRequest(r, &propfind); err != nil {
 			return err
 		}
+	} else {
+		return HTTPErrorf(http.StatusBadRequest, "webdav: unsupported request body")
 	}
 
 	depth := DepthInfinity
