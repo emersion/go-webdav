@@ -334,6 +334,8 @@ func (t *ResourceType) Is(name xml.Name) bool {
 
 var CollectionName = xml.Name{Namespace, "collection"}
 
+var PrincipalName = xml.Name{Namespace, "principal"}
+
 // https://tools.ietf.org/html/rfc4918#section-15.4
 type GetContentLength struct {
 	XMLName xml.Name `xml:"DAV: getcontentlength"`
