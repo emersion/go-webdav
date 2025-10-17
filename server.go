@@ -366,7 +366,7 @@ func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, options *Ser
 	}
 	props := map[xml.Name]internal.PropFindFunc{
 		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(principalName), nil
+			return internal.NewResourceType(internal.PrincipalName), nil
 		},
 		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
 			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: options.CurrentUserPrincipalPath}}, nil
