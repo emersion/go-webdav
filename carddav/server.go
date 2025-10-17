@@ -456,7 +456,7 @@ func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.
 			}
 			return &addressbookHomeSet{Href: internal.Href{Path: homeSetPath}}, nil
 		},
-		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName)),
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName, internal.PrinicipalName)),
 	}
 	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
