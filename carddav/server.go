@@ -497,6 +497,14 @@ func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.Pr
 				{ContentType: vcard.MIMEType, Version: "4.0"},
 			},
 		}),
+		internal.CurrentUserPrivilegeSet: func(raw *internal.RawXMLValue) (interface{}, error) {
+			return &internal.CurrentUserPrivilege{
+				Privilege: internal.Privilege{
+					/* TODO: Gather UserPrivilege from backend to control read-and-write (nil to disable) */
+					Read: &struct{}{}, Write: &struct{}{},
+				},
+			}, nil
+		},
 	}
 
 	if ab.Name != "" {
