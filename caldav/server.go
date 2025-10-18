@@ -546,6 +546,13 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 				Comp: components,
 			}, nil
 		},
+		// TODO: Gather UserPrivilege from backend to control read-and-write
+		internal.CurrentUserPrivilegeSetName: internal.PropFindValue(&internal.CurrentUserPrivilegeSet{
+			Privilege: []internal.Privilege{{
+				Read:  &struct{}{},
+				Write: &struct{}{},
+			}},
+		}),
 	}
 
 	if cal.Name != "" {

@@ -497,6 +497,13 @@ func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.Pr
 				{ContentType: vcard.MIMEType, Version: "4.0"},
 			},
 		}),
+		// TODO: Gather UserPrivilege from backend to control read-and-write
+		internal.CurrentUserPrivilegeSetName: internal.PropFindValue(&internal.CurrentUserPrivilegeSet{
+			Privilege: []internal.Privilege{{
+				Read:  &struct{}{},
+				Write: &struct{}{},
+			}},
+		}),
 	}
 
 	if ab.Name != "" {
