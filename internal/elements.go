@@ -21,6 +21,9 @@ var (
 	GetLastModifiedName  = xml.Name{Namespace, "getlastmodified"}
 	GetETagName          = xml.Name{Namespace, "getetag"}
 
+	CollectionName = xml.Name{Namespace, "collection"}
+	PrincipalName  = xml.Name{Namespace, "principal"}
+
 	CurrentUserPrincipalName = xml.Name{Namespace, "current-user-principal"}
 )
 
@@ -331,8 +334,6 @@ func (t *ResourceType) Is(name xml.Name) bool {
 	}
 	return false
 }
-
-var CollectionName = xml.Name{Namespace, "collection"}
 
 // https://tools.ietf.org/html/rfc4918#section-15.4
 type GetContentLength struct {

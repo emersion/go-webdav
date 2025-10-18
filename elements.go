@@ -7,7 +7,6 @@ import (
 )
 
 var (
-	principalName                = xml.Name{"DAV:", "principal"}
 	principalAlternateURISetName = xml.Name{"DAV:", "alternate-URI-set"}
 	principalURLName             = xml.Name{"DAV:", "principal-URL"}
 	groupMembershipName          = xml.Name{"DAV:", "group-membership"}
