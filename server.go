@@ -365,21 +365,16 @@ func servePrincipalPropfind(w http.ResponseWriter, r *http.Request, options *Ser
 		return err
 	}
 	props := map[xml.Name]internal.PropFindFunc{
-		internal.ResourceTypeName: func(*internal.RawXMLValue) (interface{}, error) {
-			return internal.NewResourceType(internal.PrincipalName), nil
-		},
-		internal.CurrentUserPrincipalName: func(*internal.RawXMLValue) (interface{}, error) {
-			return &internal.CurrentUserPrincipal{Href: internal.Href{Path: options.CurrentUserPrincipalPath}}, nil
-		},
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.PrincipalName)),
+		internal.CurrentUserPrincipalName: internal.PropFindValue(&internal.CurrentUserPrincipal{
+			Href: internal.Href{Path: options.CurrentUserPrincipalPath},
+		}),
 	}
 
 	// TODO: handle Depth and more properties
 
 	for _, homeSet := range options.HomeSets {
-		hs := homeSet // capture variable for closure
-		props[homeSet.GetXMLName()] = func(*internal.RawXMLValue) (interface{}, error) {
-			return hs, nil
-		}
+		props[homeSet.GetXMLName()] = internal.PropFindValue(homeSet)
 	}
 
 	resp, err := internal.NewPropFindResponse(r.URL.Path, &propfind, props)
