@@ -36,7 +36,7 @@ type Backend interface {
 	GetCalendar(ctx context.Context, path string) (*Calendar, error)
 
 	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
-	GetCalendarObjects(ctx context.Context, path []string, req *CalendarCompRequest) ([]CalendarObject, error)
+	GetCalendarObjects(ctx context.Context, paths []string, req *CalendarCompRequest) ([]CalendarObject, error)
 	
 	ListCalendarObjects(ctx context.Context, path string, req *CalendarCompRequest) ([]CalendarObject, error)
 	QueryCalendarObjects(ctx context.Context, path string, query *CalendarQuery) ([]CalendarObject, error)
