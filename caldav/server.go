@@ -282,7 +282,7 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 		var err error
 		var found bool
 		if co, found = lookups[href.Path]; !found {
-			err = fmt.Errorf("not found")
+			err = fmt.Errorf("Couldn't find calendar object at: %s", href.Path)
 		}
 		if err != nil {
 			resp := internal.NewErrorResponse(href.Path, err)
