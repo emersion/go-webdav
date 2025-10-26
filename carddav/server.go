@@ -33,6 +33,7 @@ type Backend interface {
 	CreateAddressBook(ctx context.Context, addressBook *AddressBook) error
 	DeleteAddressBook(ctx context.Context, path string) error
 	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
+	GetAddressObjects(ctx context.Context, paths []string, req *AddressDataRequest) ([]AddressObject, error)
 	ListAddressObjects(ctx context.Context, path string, req *AddressDataRequest) ([]AddressObject, error)
 	QueryAddressObjects(ctx context.Context, path string, query *AddressBookQuery) ([]AddressObject, error)
 	PutAddressObject(ctx context.Context, path string, card vcard.Card, opts *PutAddressObjectOptions) (*AddressObject, error)
@@ -222,9 +223,30 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 		dataReq = *decoded
 	}
 
+	// multi-fetch and lookup collection
+	lookups := make(map[string]*AddressObject)
+
+	paths := make([]string, len(multiget.Hrefs))
+	for i, href := range multiget.Hrefs {
+		paths[i] = href.Path
+	}
+	if objects, err := h.Backend.GetAddressObjects(ctx, paths, &dataReq); err != nil {
+		return err
+	} else {
+		for _, o := range objects {
+			lookups[o.Path] = &o
+		}
+	}
+
+	// response preperation with lookup
 	var resps []internal.Response
 	for _, href := range multiget.Hrefs {
-		ao, err := h.Backend.GetAddressObject(ctx, href.Path, &dataReq)
+		var ao *AddressObject
+		var found bool
+		var err error
+		if ao, found = lookups[href.Path]; !found {
+			err = fmt.Errorf("not found")
+		}
 		if err != nil {
 			resp := internal.NewErrorResponse(href.Path, err)
 			resps = append(resps, *resp)
