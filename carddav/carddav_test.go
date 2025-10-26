@@ -96,8 +96,10 @@ func (*testBackend) GetAddressObject(ctx context.Context, path string, req *Addr
 
 func (b *testBackend) GetAddressObjects(ctx context.Context, paths []string, req *AddressDataRequest) ([]AddressObject, error) {
 	addresses := make([]AddressObject, 0)
-	if ao, err := b.GetAddressObject(ctx, path, req); err == nil {
-		addresses = append(addresses, *ao)
+	for _, path := range paths {
+		if ao, err := b.GetAddressObject(ctx, path, req); err == nil {
+			addresses = append(addresses, *ao)
+		}
 	}
 	return addresses, nil
 }
