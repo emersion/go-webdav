@@ -94,6 +94,14 @@ func (*testBackend) GetAddressObject(ctx context.Context, path string, req *Addr
 	}
 }
 
+func (b *testBackend) GetAddressObjects(ctx context.Context, paths []string, req *AddressDataRequest) ([]AddressObject, error) {
+	addresses := make([]AddressObject, 0)
+	if ao, err := b.GetAddressObject(ctx, path, req); err == nil {
+		addresses = append(addresses, *ao)
+	}
+	return addresses, nil
+}
+
 func (b *testBackend) ListAddressObjects(ctx context.Context, path string, req *AddressDataRequest) ([]AddressObject, error) {
 	p := ctx.Value(addressBookPathKey).(string)
 	if !strings.HasPrefix(path, p) {
