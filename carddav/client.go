@@ -3,6 +3,7 @@ package carddav
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"mime"
 	"net/http"
@@ -90,10 +91,12 @@ func (c *Client) FindAddressBooks(ctx context.Context, addressBookHomeSet string
 	}
 
 	l := make([]AddressBook, 0, len(ms.Responses))
+	errs := make([]error, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		path, err := resp.Path()
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 
 		var resType internal.ResourceType
@@ -136,7 +139,7 @@ func (c *Client) FindAddressBooks(ctx context.Context, addressBookHomeSet string
 		})
 	}
 
-	return l, nil
+	return l, errors.Join(errs...)
 }
 
 func encodeAddressPropReq(req *AddressDataRequest) (*internal.Prop, error) {
@@ -199,10 +202,12 @@ func encodeTextMatch(tm *TextMatch) *textMatch {
 
 func decodeAddressList(ms *internal.MultiStatus) ([]AddressObject, error) {
 	addrs := make([]AddressObject, 0, len(ms.Responses))
+	errs := make([]error, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		path, err := resp.Path()
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 
 		var addrData addressDataResp
@@ -240,7 +245,7 @@ func decodeAddressList(ms *internal.MultiStatus) ([]AddressObject, error) {
 		})
 	}
 
-	return addrs, nil
+	return addrs, errors.Join(errs...)
 }
 
 func (c *Client) QueryAddressBook(ctx context.Context, addressBook string, query *AddressBookQuery) ([]AddressObject, error) {
@@ -436,14 +441,16 @@ func (c *Client) SyncCollection(ctx context.Context, path string, query *SyncQue
 	}
 
 	ret := &SyncResponse{SyncToken: ms.SyncToken}
+	var errs []error
 	for _, resp := range ms.Responses {
 		p, err := resp.Path()
 		if err != nil {
 			if err, ok := err.(*internal.HTTPError); ok && err.Code == http.StatusNotFound {
 				ret.Deleted = append(ret.Deleted, p)
-				continue
+			} else {
+				errs = append(errs, err)
 			}
-			return nil, err
+			continue
 		}
 
 		if p == path || path == fmt.Sprintf("%s/", p) {
@@ -468,5 +475,5 @@ func (c *Client) SyncCollection(ctx context.Context, path string, query *SyncQue
 		ret.Updated = append(ret.Updated, o)
 	}
 
-	return ret, nil
+	return ret, errors.Join(errs...)
 }
