@@ -259,7 +259,7 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 		dataReq = *decoded
 	}
 
-	// multi-fetch and lookup collection
+	// Prefetch all objects and index by path for quick lookup in response generation.
 	lookups := make(map[string]*CalendarObject)
 
 	paths := make([]string, len(multiget.Hrefs))
@@ -269,8 +269,8 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 	if objects, err := h.Backend.GetCalendarObjects(ctx, paths, &dataReq); err != nil {
 		return err
 	} else {
-		for _, o := range objects {
-			lookups[o.Path] = &o
+		for i := range objects {
+			lookups[objects[i].Path] = &objects[i]
 		}
 	}
 
