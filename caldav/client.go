@@ -3,6 +3,7 @@ package caldav
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"mime"
 	"net/http"
@@ -70,10 +71,12 @@ func (c *Client) FindCalendars(ctx context.Context, calendarHomeSet string) ([]C
 	}
 
 	l := make([]Calendar, 0, len(ms.Responses))
+	errs := make([]error, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		path, err := resp.Path()
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 
 		var resType internal.ResourceType
@@ -121,7 +124,7 @@ func (c *Client) FindCalendars(ctx context.Context, calendarHomeSet string) ([]C
 		})
 	}
 
-	return l, nil
+	return l, errors.Join(errs...)
 }
 
 func encodeCalendarCompReq(c *CalendarCompRequest) (*comp, error) {
@@ -228,10 +231,12 @@ func encodeExpandRequest(e *CalendarExpandRequest) *expand {
 
 func decodeCalendarObjectList(ms *internal.MultiStatus) ([]CalendarObject, error) {
 	addrs := make([]CalendarObject, 0, len(ms.Responses))
+	errs := make([]error, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		path, err := resp.Path()
 		if err != nil {
-			return nil, err
+			errs = append(errs, err)
+			continue
 		}
 
 		var calData calendarDataResp
@@ -269,7 +274,7 @@ func decodeCalendarObjectList(ms *internal.MultiStatus) ([]CalendarObject, error
 		})
 	}
 
-	return addrs, nil
+	return addrs, errors.Join(errs...)
 }
 
 func (c *Client) QueryCalendar(ctx context.Context, calendar string, query *CalendarQuery) ([]CalendarObject, error) {

@@ -2,6 +2,7 @@ package webdav
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -165,15 +166,17 @@ func (c *Client) ReadDir(ctx context.Context, name string, recursive bool) ([]Fi
 	}
 
 	l := make([]FileInfo, 0, len(ms.Responses))
+	errs := make([]error, 0, len(ms.Responses))
 	for _, resp := range ms.Responses {
 		fi, err := fileInfoFromResponse(&resp)
 		if err != nil {
-			return l, err
+			errs = append(errs, err)
+		} else {
+			l = append(l, *fi)
 		}
-		l = append(l, *fi)
 	}
 
-	return l, nil
+	return l, errors.Join(errs...)
 }
 
 type fileWriter struct {
