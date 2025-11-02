@@ -244,7 +244,7 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 		var found bool
 		var err error
 		if ao, found = lookups[href.Path]; !found {
-			err = fmt.Errorf("not found")
+			err = internal.HTTPErrorf(http.StatusNotFound, "Couldn't find address object at: %s", href.Path)
 		}
 		if err != nil {
 			resp := internal.NewErrorResponse(href.Path, err)
