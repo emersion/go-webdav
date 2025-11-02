@@ -32,7 +32,6 @@ type Backend interface {
 	GetAddressBook(ctx context.Context, path string) (*AddressBook, error)
 	CreateAddressBook(ctx context.Context, addressBook *AddressBook) error
 	DeleteAddressBook(ctx context.Context, path string) error
-	GetAddressObject(ctx context.Context, path string, req *AddressDataRequest) (*AddressObject, error)
 	GetAddressObjects(ctx context.Context, paths []string, req *AddressDataRequest) ([]AddressObject, error)
 	ListAddressObjects(ctx context.Context, path string, req *AddressDataRequest) ([]AddressObject, error)
 	QueryAddressObjects(ctx context.Context, path string, query *AddressBookQuery) ([]AddressObject, error)
@@ -310,7 +309,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 	}
 
 	var dataReq AddressDataRequest
-	_, err = b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
+	_, err = b.Backend.GetAddressObjects(r.Context(), []string{r.URL.Path}, &dataReq)
 	if httpErr, ok := err.(*internal.HTTPError); ok && httpErr.Code == http.StatusNotFound {
 		return caps, []string{http.MethodOptions, http.MethodPut}, nil
 	} else if err != nil {
@@ -332,10 +331,12 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodHead {
 		dataReq.AllProp = true
 	}
-	ao, err := b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
+	aos, err := b.Backend.GetAddressObjects(r.Context(), []string{r.URL.Path}, &dataReq)
 	if err != nil {
 		return err
 	}
+
+	ao := &aos[0]
 
 	w.Header().Set("Content-Type", vcard.MIMEType)
 	if ao.ContentLength > 0 {
@@ -431,12 +432,12 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 			resps = append(resps, resps_...)
 		}
 	case resourceTypeAddressObject:
-		ao, err := b.Backend.GetAddressObject(r.Context(), r.URL.Path, &dataReq)
+		aos, err := b.Backend.GetAddressObjects(r.Context(), []string{r.URL.Path}, &dataReq)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := b.propFindAddressObject(r.Context(), propfind, ao)
+		resp, err := b.propFindAddressObject(r.Context(), propfind, &aos[0])
 		if err != nil {
 			return nil, err
 		}
