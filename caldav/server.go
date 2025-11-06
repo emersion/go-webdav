@@ -565,6 +565,20 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 			Description: cal.Description,
 		})
 	}
+	if cal.Color != "" {
+		props[calendarColorName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &calendarColor{
+				Color: cal.Color,
+			}, nil
+		}
+	}
+	if cal.Timezone != "" {
+		props[calendarTimezoneName] = func(*internal.RawXMLValue) (interface{}, error) {
+			return &calendarTimezone{
+				Timezone: cal.Timezone,
+			}, nil
+		}
+	}
 	if cal.MaxResourceSize > 0 {
 		props[maxResourceSizeName] = internal.PropFindValue(&maxResourceSize{
 			Size: cal.MaxResourceSize,
@@ -734,7 +748,14 @@ func (b *backend) Mkcol(r *http.Request) error {
 			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: unexpected resource type")
 		}
 		cal.Name = m.DisplayName
-		// TODO ...
+		cal.Description = m.Description
+		cal.Color = strings.TrimSpace(m.CalendarColor)
+		cal.Timezone = strings.TrimSpace(m.CalendarTimeZone)
+
+		cal.SupportedComponentSet = make([]string, len(m.SupportedCalendarComponentSet.Comp))
+		for i, v := range m.SupportedCalendarComponentSet.Comp {
+			cal.SupportedComponentSet[i] = v.Name
+		}
 	}
 
 	return b.Backend.CreateCalendar(r.Context(), &cal)
