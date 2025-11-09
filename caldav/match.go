@@ -44,8 +44,7 @@ func match(filter CompFilter, comp *ical.Component) (bool, error) {
 		return filter.IsNotDefined, nil
 	}
 
-	var zeroDate time.Time
-	if filter.Start != zeroDate {
+	if !filter.Start.IsZero() || !filter.End.IsZero() {
 		match, err := matchCompTimeRange(filter.Start, filter.End, comp)
 		if err != nil {
 			return false, err
@@ -126,46 +125,76 @@ func matchPropFilter(filter PropFilter, comp *ical.Component) (bool, error) {
 
 func matchCompTimeRange(start, end time.Time, comp *ical.Component) (bool, error) {
 	// See https://datatracker.ietf.org/doc/html/rfc4791#section-9.9
+	// The "start" attribute specifies the inclusive start of the time range,
+	// and the "end" attribute specifies the non-inclusive end of the time range.
+	// Both attributes MUST be specified as "date with UTC time" value.
 
 	// evaluate recurring components
-	rset, err := comp.RecurrenceSet(start.Location())
+	rset, err := comp.RecurrenceSet(time.UTC)
 	if err != nil {
 		return false, err
 	}
 	if rset != nil {
-		// TODO we can only set inclusive to true or false, but really the
-		// start time is inclusive while the end time is not :/
-		return len(rset.Between(start, end, true)) > 0, nil
+		// return len(rset.Between(start, end, true)) > 0, nil
+		// if start is zero then rset.After(zero) should work
+
+		// TODO: first_after_start only looks at DTSTART yielding wrong behaviour;
+		// an event can start before interval [start,end) but still intersect the interval;
+		// in this case it should be matched by according to RFC 4791.
+		//
+		// "The CALDAV:time-range XML element specifies that for a
+		// given calendaring REPORT request, the server MUST only return the
+		// calendar object resources that, depending on the context, have a
+		// component or property whose value intersects a specified time
+		// range."
+		//
+		// OPTIMIZATION: would make slightly more efficient code,
+		// i.e., fewer passes over rset iterator,
+		// if rset.Iterator's next() function was exported as Next()
+		// and the following code block was rewritten
+		if first_after_start := rset.After(start, true); first_after_start.IsZero() {
+			return false, nil
+		} else if end.IsZero() || first_after_start.Before(end) {
+			return true, nil
+		} else {
+			return false, nil
+		}
 	}
 
 	// TODO handle more than just events
 	if comp.Name != ical.CompEvent {
 		return false, nil
 	}
-	event := ical.Event{comp}
+	event := ical.Event{Component: comp}
 
-	eventStart, err := event.DateTimeStart(start.Location())
+	eventStart, err := event.DateTimeStart(time.UTC)
 	if err != nil {
 		return false, err
 	}
-	eventEnd, err := event.DateTimeEnd(end.Location())
+	eventEnd, err := event.DateTimeEnd(time.UTC)
 	if err != nil {
 		return false, err
 	}
+	duration_zero := eventStart.Equal(eventEnd)
 
-	// Event starts in time range
-	if eventStart.After(start) && (end.IsZero() || eventStart.Before(end)) {
+	// test if [eventStart, eventEnd) intersects [start, end)
+	// special handling if duration_zero;
+	// in that case check if eventStart is contained in [start,end)
+	//
+	// S_E compare event start versus filter end
+	// E_S compare event end versus filter start
+	//
+	// refer to table https://datatracker.ietf.org/doc/html/rfc4791#section-9.9
+	//
+	if S_E := eventStart.Compare(end); start.IsZero() && S_E < 0 {
 		return true, nil
-	}
-	// Event ends in time range
-	if eventEnd.After(start) && (end.IsZero() || eventEnd.Before(end)) {
+	} else if E_S := eventEnd.Compare(start); end.IsZero() && (E_S > 0 || (duration_zero && E_S >= 0)) {
 		return true, nil
-	}
-	// Event covers entire time range plus some
-	if eventStart.Before(start) && (!end.IsZero() && eventEnd.After(end)) {
+	} else if (S_E < 0 && E_S > 0) || (duration_zero && E_S >= 0 && S_E < 0) {
 		return true, nil
+	} else {
+		return false, nil
 	}
-	return false, nil
 }
 
 func matchPropTimeRange(start, end time.Time, field *ical.Prop) (bool, error) {
