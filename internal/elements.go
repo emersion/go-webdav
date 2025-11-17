@@ -159,10 +159,16 @@ func (resp *Response) Err() error {
 		}
 	}
 
-	return &HTTPError{
-		Code: resp.Status.Code,
-		Err:  err,
+	err = &HTTPError{Code: resp.Status.Code, Err: err}
+	if len(resp.Hrefs) == 0 {
+		return err
 	}
+
+	hrefErrs := make([]error, len(resp.Hrefs))
+	for i, href := range resp.Hrefs {
+		hrefErrs[i] = &HrefError{Href: url.URL(href), Err: err}
+	}
+	return errors.Join(hrefErrs...)
 }
 
 func (resp *Response) Path() (string, error) {

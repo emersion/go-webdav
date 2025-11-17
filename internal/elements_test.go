@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -32,9 +33,10 @@ func TestResponse_Err_error(t *testing.T) {
 	resp := ms.Responses[0]
 
 	err := resp.Err()
+	var httpErr *HTTPError
 	if err == nil {
 		t.Errorf("Multistatus.Get() returned a nil error, expected non-nil")
-	} else if httpErr, ok := err.(*HTTPError); !ok {
+	} else if !errors.As(err, &httpErr) {
 		t.Errorf("Multistatus.Get() = %T, expected an *HTTPError", err)
 	} else if httpErr.Code != 423 {
 		t.Errorf("HTTPError.Code = %v, expected 423", httpErr.Code)

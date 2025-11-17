@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // Depth indicates whether a request applies to the resource's members. It's
@@ -106,5 +107,18 @@ func (err *HTTPError) Error() string {
 }
 
 func (err *HTTPError) Unwrap() error {
+	return err.Err
+}
+
+type HrefError struct {
+	Href url.URL
+	Err  error
+}
+
+func (err *HrefError) Error() string {
+	return fmt.Sprintf("%v: %v", err.Href, err.Err)
+}
+
+func (err *HrefError) Unwrap() error {
 	return err.Err
 }
