@@ -222,6 +222,16 @@ func (t testBackend) GetCalendarObject(ctx context.Context, path string, req *Ca
 	return nil, fmt.Errorf("Couldn't find calendar object at: %s", path)
 }
 
+func (t testBackend) GetCalendarObjects(ctx context.Context, paths []string, req *CalendarCompRequest) ([]CalendarObject, error) {
+	objs := make([]CalendarObject, 0)
+	for _, path := range paths {
+		if obj, err := t.GetCalendarObject(ctx, path, req); err == nil {
+			objs = append(objs, *obj)
+		}
+	}
+	return objs, nil
+}
+
 func (t testBackend) PutCalendarObject(ctx context.Context, path string, calendar *ical.Calendar, opts *PutCalendarObjectOptions) (*CalendarObject, error) {
 	return nil, nil
 }

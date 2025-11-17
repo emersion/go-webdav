@@ -35,7 +35,8 @@ type Backend interface {
 	ListCalendars(ctx context.Context) ([]Calendar, error)
 	GetCalendar(ctx context.Context, path string) (*Calendar, error)
 
-	GetCalendarObject(ctx context.Context, path string, req *CalendarCompRequest) (*CalendarObject, error)
+	GetCalendarObjects(ctx context.Context, paths []string, req *CalendarCompRequest) ([]CalendarObject, error)
+	
 	ListCalendarObjects(ctx context.Context, path string, req *CalendarCompRequest) ([]CalendarObject, error)
 	QueryCalendarObjects(ctx context.Context, path string, query *CalendarQuery) ([]CalendarObject, error)
 	PutCalendarObject(ctx context.Context, path string, calendar *ical.Calendar, opts *PutCalendarObjectOptions) (*CalendarObject, error)
@@ -258,9 +259,30 @@ func (h *Handler) handleMultiget(ctx context.Context, w http.ResponseWriter, mul
 		dataReq = *decoded
 	}
 
+	// Prefetch all objects and index by path for quick lookup in response generation.
+	lookups := make(map[string]*CalendarObject)
+
+	paths := make([]string, len(multiget.Hrefs))
+	for i, href := range multiget.Hrefs {
+		paths[i] = href.Path
+	}
+	if objects, err := h.Backend.GetCalendarObjects(ctx, paths, &dataReq); err != nil {
+		return err
+	} else {
+		for i := range objects {
+			lookups[objects[i].Path] = &objects[i]
+		}
+	}
+
+	// response preperation with lookup
 	var resps []internal.Response
 	for _, href := range multiget.Hrefs {
-		co, err := h.Backend.GetCalendarObject(ctx, href.Path, &dataReq)
+		var co *CalendarObject
+		var err error
+		var found bool
+		if co, found = lookups[href.Path]; !found {
+			err = internal.HTTPErrorf(http.StatusNotFound, "Couldn't find calendar object at: %s", href.Path)
+		}
 		if err != nil {
 			resp := internal.NewErrorResponse(href.Path, err)
 			resps = append(resps, *resp)
@@ -322,7 +344,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 	}
 
 	var dataReq CalendarCompRequest
-	_, err = b.Backend.GetCalendarObject(r.Context(), r.URL.Path, &dataReq)
+	_, err = b.Backend.GetCalendarObjects(r.Context(), []string{r.URL.Path}, &dataReq)
 	if httpErr, ok := err.(*internal.HTTPError); ok && httpErr.Code == http.StatusNotFound {
 		return caps, []string{http.MethodOptions, http.MethodPut}, nil
 	} else if err != nil {
@@ -344,10 +366,12 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodHead {
 		dataReq.AllProps = true
 	}
-	co, err := b.Backend.GetCalendarObject(r.Context(), r.URL.Path, &dataReq)
+	cos, err := b.Backend.GetCalendarObjects(r.Context(), []string{r.URL.Path}, &dataReq)
 	if err != nil {
 		return err
 	}
+
+	co := &cos[0]
 
 	w.Header().Set("Content-Type", ical.MIMEType)
 	if co.ContentLength > 0 {
@@ -443,12 +467,12 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 			resps = append(resps, resps_...)
 		}
 	case resourceTypeCalendarObject:
-		ao, err := b.Backend.GetCalendarObject(r.Context(), r.URL.Path, &dataReq)
+		cos, err := b.Backend.GetCalendarObjects(r.Context(), []string{r.URL.Path}, &dataReq)
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := b.propFindCalendarObject(r.Context(), propfind, ao)
+		resp, err := b.propFindCalendarObject(r.Context(), propfind, &cos[0])
 		if err != nil {
 			return nil, err
 		}
