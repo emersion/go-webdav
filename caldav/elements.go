@@ -242,3 +242,11 @@ type mkcolReq struct {
 	DisplayName  string                `xml:"set>prop>displayname"`
 	// TODO this could theoretically contain all addressbook properties?
 }
+
+type mkcalendarReq struct {
+	XMLName                       xml.Name                      `xml:"urn:ietf:params:xml:ns:caldav mkcalendar"`
+	SupportedCalendarComponentSet supportedCalendarComponentSet `xml:"set>prop>supported-calendar-component-set"`
+	DisplayName                   string                        `xml:"set>prop>displayname"`
+	CalendarDescription           string                        `xml:"set>prop>calendar-description"`
+	// TODO this could also contain max-resource-size, calendar-timezone, calendar-color, etc...
+}
