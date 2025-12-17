@@ -430,3 +430,62 @@ func (c *Client) PutCalendarObject(ctx context.Context, path string, cal *ical.C
 	}
 	return co, nil
 }
+
+// SyncCollection performs a collection synchronization operation on the
+// specified resource, as defined in RFC 6578.
+func (c *Client) SyncCollection(ctx context.Context, path string, query *SyncQuery) (*SyncResponse, error) {
+	var limit *internal.Limit
+	if query.Limit > 0 {
+		limit = &internal.Limit{NResults: uint(query.Limit)}
+	}
+
+	compReq, err := encodeCalendarReq(&query.CompRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	ms, err := c.ic.SyncCollection(ctx, path, query.SyncToken, internal.DepthOne, limit, compReq)
+	if err != nil {
+		return nil, err
+	}
+
+	ret := &SyncResponse{SyncToken: ms.SyncToken}
+	var errs []error
+	for _, resp := range ms.Responses {
+		p, err := resp.Path()
+		if err != nil {
+			var httpErr *internal.HTTPError
+			hasStatus := errors.As(err, &httpErr)
+			if !hasStatus || httpErr.Code != http.StatusNotFound {
+				errs = append(errs, err)
+				continue
+			}
+			ret.Deleted = append(ret.Deleted, p)
+			continue
+		}
+
+		if p == path || path == fmt.Sprintf("%s/", p) {
+			continue
+		}
+
+		var getLastMod internal.GetLastModified
+		if err := resp.DecodeProp(&getLastMod); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
+		var getETag internal.GetETag
+		if err := resp.DecodeProp(&getETag); err != nil && !internal.IsNotFound(err) {
+			return nil, err
+		}
+
+		o := CalendarObject{
+			Path:    p,
+			ModTime: time.Time(getLastMod.LastModified),
+			ETag:    string(getETag.ETag),
+		}
+		ret.Updated = append(ret.Updated, o)
+	}
+
+	return ret, errors.Join(errs...)
+
+}
