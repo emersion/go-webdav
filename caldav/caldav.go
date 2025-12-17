@@ -131,3 +131,17 @@ type CalendarObject struct {
 	ETag          string
 	Data          *ical.Calendar
 }
+
+// SyncQuery is the query struct represents a sync-collection request
+type SyncQuery struct {
+	CompRequest CalendarCompRequest
+	SyncToken   string
+	Limit       int // <= 0 means unlimited
+}
+
+// SyncResponse contains the returned sync-token for next time
+type SyncResponse struct {
+	SyncToken string
+	Updated   []CalendarObject
+	Deleted   []string
+}
