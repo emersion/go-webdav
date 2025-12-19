@@ -3,6 +3,7 @@ package caldav
 import (
 	"bytes"
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"mime"
@@ -16,6 +17,14 @@ import (
 	"github.com/emersion/go-webdav"
 	"github.com/emersion/go-webdav/internal"
 )
+
+var calendarProps = []xml.Name{
+	internal.ResourceTypeName,
+	internal.DisplayNameName,
+	calendarDescriptionName,
+	maxResourceSizeName,
+	supportedCalendarComponentSetName,
+}
 
 // DiscoverContextURL performs a DNS-based CardDAV service discovery as
 // described in RFC 6352 section 11. It returns the URL to the CardDAV server.
@@ -42,6 +51,22 @@ func NewClient(c webdav.HTTPClient, endpoint string) (*Client, error) {
 	return &Client{wc, ic}, nil
 }
 
+// Get calendar information without loading all the events once the path of the calendar is known.
+func (c *Client) FindCalendar(ctx context.Context, path string) (*Calendar, error) {
+	propfind := internal.NewPropNamePropFind(calendarProps...)
+	resp, err := c.ic.PropFindFlat(ctx, path, propfind)
+	if err != nil {
+		return nil, err
+	}
+
+	calendar, err := decodeCalendar(path, resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return calendar, nil
+}
+
 func (c *Client) FindCalendarHomeSet(ctx context.Context, principal string) (string, error) {
 	propfind := internal.NewPropNamePropFind(calendarHomeSetName)
 	resp, err := c.ic.PropFindFlat(ctx, principal, propfind)
@@ -58,13 +83,7 @@ func (c *Client) FindCalendarHomeSet(ctx context.Context, principal string) (str
 }
 
 func (c *Client) FindCalendars(ctx context.Context, calendarHomeSet string) ([]Calendar, error) {
-	propfind := internal.NewPropNamePropFind(
-		internal.ResourceTypeName,
-		internal.DisplayNameName,
-		calendarDescriptionName,
-		maxResourceSizeName,
-		supportedCalendarComponentSetName,
-	)
+	propfind := internal.NewPropNamePropFind(calendarProps...)
 	ms, err := c.ic.PropFind(ctx, calendarHomeSet, internal.DepthOne, propfind)
 	if err != nil {
 		return nil, err
@@ -87,44 +106,53 @@ func (c *Client) FindCalendars(ctx context.Context, calendarHomeSet string) ([]C
 			continue
 		}
 
-		var desc calendarDescription
-		if err := resp.DecodeProp(&desc); err != nil && !internal.IsNotFound(err) {
+		calendar, err := decodeCalendar(path, &resp)
+		if err != nil {
 			return nil, err
 		}
 
-		var dispName internal.DisplayName
-		if err := resp.DecodeProp(&dispName); err != nil && !internal.IsNotFound(err) {
-			return nil, err
-		}
-
-		var maxResSize maxResourceSize
-		if err := resp.DecodeProp(&maxResSize); err != nil && !internal.IsNotFound(err) {
-			return nil, err
-		}
-		if maxResSize.Size < 0 {
-			return nil, fmt.Errorf("carddav: max-resource-size must be a positive integer")
-		}
-
-		var supportedCompSet supportedCalendarComponentSet
-		if err := resp.DecodeProp(&supportedCompSet); err != nil && !internal.IsNotFound(err) {
-			return nil, err
-		}
-
-		compNames := make([]string, 0, len(supportedCompSet.Comp))
-		for _, comp := range supportedCompSet.Comp {
-			compNames = append(compNames, comp.Name)
-		}
-
-		l = append(l, Calendar{
-			Path:                  path,
-			Name:                  dispName.Name,
-			Description:           desc.Description,
-			MaxResourceSize:       maxResSize.Size,
-			SupportedComponentSet: compNames,
-		})
+		l = append(l, *calendar)
 	}
 
 	return l, errors.Join(errs...)
+}
+
+func decodeCalendar(path string, resp *internal.Response) (*Calendar, error) {
+	var desc calendarDescription
+	if err := resp.DecodeProp(&desc); err != nil && !internal.IsNotFound(err) {
+		return nil, err
+	}
+
+	var dispName internal.DisplayName
+	if err := resp.DecodeProp(&dispName); err != nil && !internal.IsNotFound(err) {
+		return nil, err
+	}
+
+	var maxResSize maxResourceSize
+	if err := resp.DecodeProp(&maxResSize); err != nil && !internal.IsNotFound(err) {
+		return nil, err
+	}
+	if maxResSize.Size < 0 {
+		return nil, fmt.Errorf("carddav: max-resource-size must be a positive integer")
+	}
+
+	var supportedCompSet supportedCalendarComponentSet
+	if err := resp.DecodeProp(&supportedCompSet); err != nil && !internal.IsNotFound(err) {
+		return nil, err
+	}
+
+	compNames := make([]string, 0, len(supportedCompSet.Comp))
+	for _, comp := range supportedCompSet.Comp {
+		compNames = append(compNames, comp.Name)
+	}
+
+	return &Calendar{
+		Path:                  path,
+		Name:                  dispName.Name,
+		Description:           desc.Description,
+		MaxResourceSize:       maxResSize.Size,
+		SupportedComponentSet: compNames,
+	}, nil
 }
 
 func encodeCalendarCompReq(c *CalendarCompRequest) (*comp, error) {
