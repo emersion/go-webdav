@@ -67,8 +67,10 @@ type Calendar struct {
 	Path                  string
 	Name                  string
 	Description           string
+	Color                 string
 	MaxResourceSize       int64
 	SupportedComponentSet []string
+	Timezone              string
 }
 
 type CalendarCompRequest struct {
