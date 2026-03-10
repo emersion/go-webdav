@@ -466,10 +466,10 @@ type CurrentUserPrivilegeSet struct {
 }
 
 // https://tools.ietf.org/html/rfc3744#section-5.4
+// https://datatracker.ietf.org/doc/html/rfc6638#section-6.1.1
 type Privilege struct {
 	XMLName          xml.Name  `xml:"DAV: privilege"`
 	Read             *struct{} `xml:"DAV: read,omitempty"`
 	Write            *struct{} `xml:"DAV: write,omitempty"`
 	SchedulerDeliver *struct{} `xml:"DAV: schedule-deliver,omitempty"`
-	SchedulerSend    *struct{} `xml:"DAV: schedule-send,omitempty"`
 }

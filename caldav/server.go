@@ -44,6 +44,28 @@ type Backend interface {
 	webdav.UserPrincipalBackend
 }
 
+// Conforming to `InboxBackend` signals RFC6638 support, which is partial and focused on replying to invitations.
+// https://datatracker.ietf.org/doc/html/rfc6638
+//
+// In practice this does a few things to support scheduling.
+// 1. It adds the `calendar-auto-schedule` capability
+// 2. It returns `schedule-inbox-URL` and `calendar-user-address-set` based on the `GetInbox` result.
+// 3. It adds an inbox-calendar to the `PROPFIND` for all collections.
+// 4. It returns the `CalendarObject`:s from `ListInboxInvites` when getting a `REPORT` towards the inbox.
+//
+// To properly implement this, you need to.
+// 1. Implement `GetInbox`, and return a list of addresses for the users that can be invited, e.g. on the form: `mailto:test@example.com`.
+// 2. Implement `ListInboxInvites`, which returns `CalendarObject`:s that have an attendee that matches one of the addresses returned from `GetInbox`. e.g.
+// ```go
+// attendee := ical.NewProp(ical.PropAttendee)
+// attendee.Params.Set(ical.ParamCommonName, name)
+// attendee.Params.Set(ical.ParamParticipationStatus, "NEEDS-ACTION")
+// attendee.SetText("mailto:test@example.com")
+// attendee.SetValueType(ical.ValueCalendarAddress)
+// event.Props.Add(attendee)
+// ```
+//
+// Doing this should make it possible to accept/decline invitations in your client, which would trigger a `PutCalendarObject` towards the invite, with an updateded `ParamParticipationStatus`.
 type InboxBackend interface {
 	GetInbox(ctx context.Context) (*Inbox, error)
 	ListInboxInvites(ctx context.Context, path string) ([]CalendarObject, error)
@@ -330,6 +352,7 @@ func (b *backend) Options(r *http.Request) (caps []string, allow []string, err e
 	caps = []string{"calendar-access"}
 
 	if _, ok := b.Backend.(InboxBackend); ok {
+		// https://datatracker.ietf.org/doc/html/rfc6638#section-2
 		caps = append(caps, "calendar-auto-schedule")
 	}
 

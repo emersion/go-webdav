@@ -38,11 +38,13 @@ func (a *calendarHomeSet) GetXMLName() xml.Name {
 	return calendarHomeSetName
 }
 
+// https://datatracker.ietf.org/doc/html/rfc6638#section-2.4.1
 type calendarUserAddressSet struct {
 	XMLName   xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-user-address-set"`
 	Addresses []string `xml:"DAV: href"`
 }
 
+// https://datatracker.ietf.org/doc/html/rfc6638#section-2.2.1
 type scheduleInboxURL struct {
 	XMLName xml.Name      `xml:"urn:ietf:params:xml:ns:caldav schedule-inbox-URL"`
 	Href    internal.Href `xml:"DAV: href"`
