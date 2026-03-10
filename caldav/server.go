@@ -663,6 +663,17 @@ func (b *backend) propFindAllCalendars(ctx context.Context, propfind *internal.P
 			resps = append(resps, resps_...)
 		}
 	}
+	if inboxBackend, ok := b.Backend.(InboxBackend); ok {
+		inbox, err := inboxBackend.GetInbox(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := b.propFindInbox(propfind, inbox.Path)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
+	}
 	return resps, nil
 }
 
