@@ -658,7 +658,6 @@ func (b *backend) propFindInbox(propfind *internal.PropFind, path string) (*inte
 		internal.CurrentUserPrivilegeSetName: internal.PropFindValue(&internal.CurrentUserPrivilegeSet{
 			Privilege: []internal.Privilege{{
 				SchedulerDeliver: &struct{}{},
-				SchedulerSend:    &struct{}{},
 			}},
 		}),
 	}
