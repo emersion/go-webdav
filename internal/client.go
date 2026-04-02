@@ -110,9 +110,16 @@ func NewClient(c HTTPClient, endpoint string) (*Client, error) {
 }
 
 func (c *Client) ResolveHref(p string) *url.URL {
+	hasTrailingSlash := strings.HasSuffix(p, "/") || (p == "" && strings.HasSuffix(c.endpoint.Path, "/"))
+
 	if !strings.HasPrefix(p, "/") {
 		p = path.Join(c.endpoint.Path, p)
 	}
+
+	if hasTrailingSlash && !strings.HasSuffix(p, "/") {
+		p += "/"
+	}
+
 	return &url.URL{
 		Scheme: c.endpoint.Scheme,
 		User:   c.endpoint.User,
