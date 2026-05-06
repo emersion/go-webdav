@@ -385,8 +385,16 @@ type GetETag struct {
 type ETag string
 
 func (etag *ETag) UnmarshalText(b []byte) error {
-	s, err := strconv.Unquote(string(b))
+	raw := string(b)
+	s, err := strconv.Unquote(raw)
 	if err != nil {
+		// Some servers (e.g. mailbox.org) return ETags without the required
+		// surrounding double-quotes (RFC 4918 §15.6). Accept the raw value
+		// rather than failing hard, so callers can still sync.
+		if len(raw) > 0 {
+			*etag = ETag(raw)
+			return nil
+		}
 		return fmt.Errorf("webdav: failed to unquote ETag: %v", err)
 	}
 	*etag = ETag(s)

@@ -43,6 +43,55 @@ func TestResponse_Err_error(t *testing.T) {
 	}
 }
 
+func TestETagUnmarshal(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  ETag
+	}{
+		{
+			name:  "quoted (RFC-compliant)",
+			input: `"abc123"`,
+			want:  "abc123",
+		},
+		{
+			name:  "unquoted (non-compliant server, e.g. mailbox.org)",
+			input: `abc123`,
+			want:  "abc123",
+		},
+		{
+			name:  "quoted with special characters",
+			input: `"etag/with-dashes_and.dots"`,
+			want:  "etag/with-dashes_and.dots",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var got ETag
+			if err := got.UnmarshalText([]byte(tc.input)); err != nil {
+				t.Fatalf("UnmarshalText(%q) error: %v", tc.input, err)
+			}
+			if got != tc.want {
+				t.Errorf("UnmarshalText(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestETagRoundTrip(t *testing.T) {
+	var etag ETag
+	if err := etag.UnmarshalText([]byte(`"abc123"`)); err != nil {
+		t.Fatalf("UnmarshalText error: %v", err)
+	}
+	b, err := etag.MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText error: %v", err)
+	}
+	if string(b) != `"abc123"` {
+		t.Errorf("MarshalText = %q, want %q", b, `"abc123"`)
+	}
+}
+
 func TestTimeRoundTrip(t *testing.T) {
 	now := Time(time.Now().UTC())
 	want, err := now.MarshalText()
