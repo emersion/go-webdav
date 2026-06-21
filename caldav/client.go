@@ -515,6 +515,22 @@ func (c *Client) SyncCollection(ctx context.Context, path string, query *SyncQue
 			ModTime: time.Time(getLastMod.LastModified),
 			ETag:    string(getETag.ETag),
 		}
+
+		// Many servers return the calendar-data inline in the sync-collection
+		// response (the query already requests it via CompRequest); decode it so
+		// the caller need not follow up with a multiget. When the server omits the
+		// data, Data is left nil and the caller fetches it as before.
+		var calData calendarDataResp
+		if err := resp.DecodeProp(&calData); err == nil {
+			cal, err := ical.NewDecoder(bytes.NewReader(calData.Data)).Decode()
+			if err != nil {
+				return nil, err
+			}
+			o.Data = cal
+		} else if !internal.IsNotFound(err) {
+			return nil, err
+		}
+
 		ret.Updated = append(ret.Updated, o)
 	}
 
