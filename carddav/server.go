@@ -521,6 +521,9 @@ func (b *backend) propFindAddressBook(ctx context.Context, propfind *internal.Pr
 			Size: ab.MaxResourceSize,
 		})
 	}
+	if ab.CTag != "" {
+		props[internal.GetCTagName] = internal.PropFindValue(&internal.GetCTag{CTag: ab.CTag})
+	}
 
 	return internal.NewPropFindResponse(ab.Path, propfind, props)
 }

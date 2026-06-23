@@ -471,3 +471,18 @@ type Privilege struct {
 	Read    *struct{} `xml:"DAV: read,omitempty"`
 	Write   *struct{} `xml:"DAV: write,omitempty"`
 }
+
+// CalendarServerNamespace is the namespace of the CalendarServer extensions.
+const CalendarServerNamespace = "http://calendarserver.org/ns/"
+
+var GetCTagName = xml.Name{CalendarServerNamespace, "getctag"}
+
+// GetCTag is the CalendarServer getctag property: an opaque token that changes
+// whenever the collection's contents change, letting clients detect changes
+// without enumerating every member's ETag. Despite the "calendarserver"
+// namespace, the same property and namespace are used for CardDAV address
+// books, not only CalDAV calendars.
+type GetCTag struct {
+	XMLName xml.Name `xml:"http://calendarserver.org/ns/ getctag"`
+	CTag    string   `xml:",chardata"`
+}
