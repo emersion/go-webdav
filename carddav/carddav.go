@@ -28,6 +28,9 @@ type AddressBook struct {
 	Description          string
 	MaxResourceSize      int64
 	SupportedAddressData []AddressDataType
+	// ReadOnly reports that the current user may only read this address book.
+	// It controls the DAV:current-user-privilege-set reported by the server.
+	ReadOnly bool
 }
 
 func (ab *AddressBook) SupportsAddressData(contentType, version string) bool {
