@@ -471,3 +471,13 @@ type Privilege struct {
 	Read    *struct{} `xml:"DAV: read,omitempty"`
 	Write   *struct{} `xml:"DAV: write,omitempty"`
 }
+
+// NewCurrentUserPrivilegeSet returns a privilege set granting DAV:read, plus
+// DAV:write unless readOnly is set.
+func NewCurrentUserPrivilegeSet(readOnly bool) *CurrentUserPrivilegeSet {
+	priv := Privilege{Read: &struct{}{}}
+	if !readOnly {
+		priv.Write = &struct{}{}
+	}
+	return &CurrentUserPrivilegeSet{Privilege: []Privilege{priv}}
+}
