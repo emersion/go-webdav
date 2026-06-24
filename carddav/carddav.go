@@ -28,6 +28,9 @@ type AddressBook struct {
 	Description          string
 	MaxResourceSize      int64
 	SupportedAddressData []AddressDataType
+	// CTag, when set, is reported as the CalendarServer getctag property: an
+	// opaque token that must change whenever the address book's contents change.
+	CTag string
 }
 
 func (ab *AddressBook) SupportsAddressData(contentType, version string) bool {

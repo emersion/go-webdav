@@ -69,6 +69,9 @@ type Calendar struct {
 	Description           string
 	MaxResourceSize       int64
 	SupportedComponentSet []string
+	// CTag, when set, is reported as the CalendarServer getctag property: an
+	// opaque token that must change whenever the calendar's contents change.
+	CTag string
 }
 
 type CalendarCompRequest struct {
