@@ -432,9 +432,13 @@ func (c *Client) GetCalendarObject(ctx context.Context, path string) (*CalendarO
 	return co, nil
 }
 
-func (c *Client) PutCalendarObject(ctx context.Context, path string, cal *ical.Calendar) (*CalendarObject, error) {
-	// TODO: add support for If-None-Match and If-Match
-
+// PutCalendarObject stores cal as the calendar object resource at path. A nil
+// opts performs an unconditional PUT; a non-nil opts may carry an If-Match
+// (overwrite only if the resource still has this ETag) or If-None-Match
+// (create only if absent) precondition. A failed precondition surfaces as an
+// error whose status code is 412 Precondition Failed, readable via
+// webdav.HTTPErrorCode.
+func (c *Client) PutCalendarObject(ctx context.Context, path string, cal *ical.Calendar, opts *PutCalendarObjectOptions) (*CalendarObject, error) {
 	// TODO: some servers want a Content-Length header, so we can't stream the
 	// request body here. See the Radicale issue:
 	// https://github.com/Kozea/Radicale/issues/1016
@@ -449,6 +453,14 @@ func (c *Client) PutCalendarObject(ctx context.Context, path string, cal *ical.C
 		return nil, err
 	}
 	req.Header.Set("Content-Type", ical.MIMEType)
+	if opts != nil {
+		if opts.IfMatch.IsSet() {
+			req.Header.Set("If-Match", string(opts.IfMatch))
+		}
+		if opts.IfNoneMatch.IsSet() {
+			req.Header.Set("If-None-Match", string(opts.IfNoneMatch))
+		}
+	}
 
 	resp, err := c.ic.Do(req.WithContext(ctx))
 	if err != nil {
