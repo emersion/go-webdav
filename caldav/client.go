@@ -432,8 +432,11 @@ func (c *Client) GetCalendarObject(ctx context.Context, path string) (*CalendarO
 	return co, nil
 }
 
-func (c *Client) PutCalendarObject(ctx context.Context, path string, cal *ical.Calendar) (*CalendarObject, error) {
-	// TODO: add support for If-None-Match and If-Match
+// PutCalendarObject stores cal as the calendar object resource at path.
+func (c *Client) PutCalendarObject(ctx context.Context, path string, cal *ical.Calendar, opts *PutCalendarObjectOptions) (*CalendarObject, error) {
+	if opts == nil {
+		opts = new(PutCalendarObjectOptions)
+	}
 
 	// TODO: some servers want a Content-Length header, so we can't stream the
 	// request body here. See the Radicale issue:
@@ -449,6 +452,12 @@ func (c *Client) PutCalendarObject(ctx context.Context, path string, cal *ical.C
 		return nil, err
 	}
 	req.Header.Set("Content-Type", ical.MIMEType)
+	if opts.IfMatch.IsSet() {
+		req.Header.Set("If-Match", string(opts.IfMatch))
+	}
+	if opts.IfNoneMatch.IsSet() {
+		req.Header.Set("If-None-Match", string(opts.IfNoneMatch))
+	}
 
 	resp, err := c.ic.Do(req.WithContext(ctx))
 	if err != nil {

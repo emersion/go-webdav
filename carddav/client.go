@@ -384,8 +384,11 @@ func (c *Client) GetAddressObject(ctx context.Context, path string) (*AddressObj
 	return ao, nil
 }
 
-func (c *Client) PutAddressObject(ctx context.Context, path string, card vcard.Card) (*AddressObject, error) {
-	// TODO: add support for If-None-Match and If-Match
+// PutAddressObject stores card as the address object resource at path.
+func (c *Client) PutAddressObject(ctx context.Context, path string, card vcard.Card, opts *PutAddressObjectOptions) (*AddressObject, error) {
+	if opts == nil {
+		opts = new(PutAddressObjectOptions)
+	}
 
 	// TODO: some servers want a Content-Length header, so we can't stream the
 	// request body here. See the Radicale issue:
@@ -408,6 +411,12 @@ func (c *Client) PutAddressObject(ctx context.Context, path string, card vcard.C
 		return nil, err
 	}
 	req.Header.Set("Content-Type", vcard.MIMEType)
+	if opts.IfMatch.IsSet() {
+		req.Header.Set("If-Match", string(opts.IfMatch))
+	}
+	if opts.IfNoneMatch.IsSet() {
+		req.Header.Set("If-None-Match", string(opts.IfNoneMatch))
+	}
 
 	resp, err := c.ic.Do(req.WithContext(ctx))
 	if err != nil {
