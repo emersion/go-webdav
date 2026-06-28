@@ -3,6 +3,7 @@ package webdav
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -49,6 +50,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // (intended for humans).
 func NewHTTPError(statusCode int, cause error) error {
 	return &internal.HTTPError{Code: statusCode, Err: cause}
+}
+
+// HTTPErrorCode reports the HTTP status code associated with err, if any. It
+// returns (code, true) when err (or anything it wraps) carries an HTTP status —
+// including the errors the client returns for a non-2xx response — and
+// (0, false) otherwise. It lets a client consumer distinguish, for example, a
+// 412 Precondition Failed (a failed If-Match) from other failures without
+// reaching into the internal error type.
+func HTTPErrorCode(err error) (int, bool) {
+	var httpErr *internal.HTTPError
+	if errors.As(err, &httpErr) {
+		return httpErr.Code, true
+	}
+	return 0, false
 }
 
 type backend struct {
