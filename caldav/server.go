@@ -44,6 +44,32 @@ type Backend interface {
 	webdav.UserPrincipalBackend
 }
 
+// Conforming to `InboxBackend` signals RFC6638 support, which is partial and focused on replying to invitations.
+// https://datatracker.ietf.org/doc/html/rfc6638
+//
+// In practice this does a few things to support scheduling.
+// 1. It adds the `calendar-auto-schedule` capability
+// 2. It returns `schedule-inbox-URL` and `calendar-user-address-set` based on the `GetInbox` result.
+// 3. It adds an inbox-calendar to the `PROPFIND` for all collections.
+// 4. It returns the `CalendarObject`:s using `ListCalendarObjects` when getting a `REPORT` towards the inbox.
+//
+// To properly implement this, you need to.
+// 1. Implement `GetInbox`, and return a list of addresses for the users that can be invited, e.g. on the form: `mailto:test@example.com`.
+// 2. Implement `ListCalendarObjects`, which returns `CalendarObject`:s that have an attendee that matches one of the addresses returned from `GetInbox`. e.g.
+// ```go
+// attendee := ical.NewProp(ical.PropAttendee)
+// attendee.Params.Set(ical.ParamCommonName, name)
+// attendee.Params.Set(ical.ParamParticipationStatus, "NEEDS-ACTION")
+// attendee.SetText("mailto:test@example.com")
+// attendee.SetValueType(ical.ValueCalendarAddress)
+// event.Props.Add(attendee)
+// ```
+//
+// Doing this should make it possible to accept/decline invitations in your client, which would trigger a `PutCalendarObject` towards the invite, with an updateded `ParamParticipationStatus`.
+type InboxBackend interface {
+	GetInbox(ctx context.Context) (*Inbox, error)
+}
+
 // Handler handles CalDAV HTTP requests. It can be used to create a CalDAV
 // server.
 type Handler struct {
@@ -300,13 +326,20 @@ const (
 	resourceTypeCalendarHomeSet
 	resourceTypeCalendar
 	resourceTypeCalendarObject
+	resourceTypeScheduleInbox
 )
 
-func (b *backend) resourceTypeAtPath(reqPath string) resourceType {
+func (b *backend) resourceTypeAtPath(ctx context.Context, reqPath string) resourceType {
 	p := path.Clean(reqPath)
 	p = strings.TrimPrefix(p, b.Prefix)
 	if !strings.HasPrefix(p, "/") {
 		p = "/" + p
+	}
+	if inboxBackend, ok := b.Backend.(InboxBackend); ok {
+		inbox, err := inboxBackend.GetInbox(ctx)
+		if err == nil && inbox.Path == p {
+			return resourceTypeScheduleInbox
+		}
 	}
 	if p == "/" {
 		return resourceTypeRoot
@@ -317,7 +350,12 @@ func (b *backend) resourceTypeAtPath(reqPath string) resourceType {
 func (b *backend) Options(r *http.Request) (caps []string, allow []string, err error) {
 	caps = []string{"calendar-access"}
 
-	if b.resourceTypeAtPath(r.URL.Path) != resourceTypeCalendarObject {
+	if _, ok := b.Backend.(InboxBackend); ok {
+		// https://datatracker.ietf.org/doc/html/rfc6638#section-2
+		caps = append(caps, "calendar-auto-schedule")
+	}
+
+	if b.resourceTypeAtPath(r.Context(), r.URL.Path) != resourceTypeCalendarObject {
 		return caps, []string{http.MethodOptions, "PROPFIND", "REPORT", "DELETE", "MKCOL"}, nil
 	}
 
@@ -367,7 +405,7 @@ func (b *backend) HeadGet(w http.ResponseWriter, r *http.Request) error {
 }
 
 func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth internal.Depth) (*internal.MultiStatus, error) {
-	resType := b.resourceTypeAtPath(r.URL.Path)
+	resType := b.resourceTypeAtPath(r.Context(), r.URL.Path)
 
 	var dataReq CalendarCompRequest
 	var resps []internal.Response
@@ -436,7 +474,7 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 		}
 		resps = append(resps, *resp)
 		if depth != internal.DepthZero {
-			resps_, err := b.propFindAllCalendarObjects(r.Context(), propfind, ab)
+			resps_, err := b.propFindAllCalendarObjects(r.Context(), propfind, ab.Path)
 			if err != nil {
 				return nil, err
 			}
@@ -453,6 +491,25 @@ func (b *backend) PropFind(r *http.Request, propfind *internal.PropFind, depth i
 			return nil, err
 		}
 		resps = append(resps, *resp)
+	case resourceTypeScheduleInbox:
+		if inboxBackend, ok := b.Backend.(InboxBackend); ok {
+			inbox, err := inboxBackend.GetInbox(r.Context())
+			if err != nil {
+				return nil, err
+			}
+			resp, err := b.propFindInbox(propfind, inbox.Path)
+			if err != nil {
+				return nil, err
+			}
+			resps = append(resps, *resp)
+			if depth != internal.DepthZero {
+				resps_, err := b.propFindAllCalendarObjects(r.Context(), propfind, inbox.Path)
+				if err != nil {
+					return nil, err
+				}
+				resps = append(resps, resps_...)
+			}
+		}
 	}
 
 	return internal.NewMultiStatus(resps...), nil
@@ -491,6 +548,18 @@ func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.
 			Href: internal.Href{Path: homeSetPath},
 		}),
 		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName, internal.PrincipalName)),
+	}
+	if inboxBackend, ok := b.Backend.(InboxBackend); ok {
+		inbox, err := inboxBackend.GetInbox(ctx)
+		if err != nil {
+			return nil, err
+		}
+		props[scheduleInboxURLName] = internal.PropFindValue(&scheduleInboxURL{
+			Href: internal.Href{Path: inbox.Path},
+		})
+		props[calendarUserAddressSetName] = internal.PropFindValue(&calendarUserAddressSet{
+			Addresses: inbox.UserAddressSet,
+		})
 	}
 	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
@@ -570,6 +639,18 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 	return internal.NewPropFindResponse(cal.Path, propfind, props)
 }
 
+func (b *backend) propFindInbox(propfind *internal.PropFind, path string) (*internal.Response, error) {
+	props := map[xml.Name]internal.PropFindFunc{
+		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName, scheduleInboxName)),
+		internal.CurrentUserPrivilegeSetName: internal.PropFindValue(&internal.CurrentUserPrivilegeSet{
+			Privilege: []internal.Privilege{{
+				SchedulerDeliver: &struct{}{},
+			}},
+		}),
+	}
+	return internal.NewPropFindResponse(path, propfind, props)
+}
+
 func (b *backend) propFindAllCalendars(ctx context.Context, propfind *internal.PropFind, recurse bool) ([]internal.Response, error) {
 	abs, err := b.Backend.ListCalendars(ctx)
 	if err != nil {
@@ -584,12 +665,23 @@ func (b *backend) propFindAllCalendars(ctx context.Context, propfind *internal.P
 		}
 		resps = append(resps, *resp)
 		if recurse {
-			resps_, err := b.propFindAllCalendarObjects(ctx, propfind, &ab)
+			resps_, err := b.propFindAllCalendarObjects(ctx, propfind, ab.Path)
 			if err != nil {
 				return nil, err
 			}
 			resps = append(resps, resps_...)
 		}
+	}
+	if inboxBackend, ok := b.Backend.(InboxBackend); ok {
+		inbox, err := inboxBackend.GetInbox(ctx)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := b.propFindInbox(propfind, inbox.Path)
+		if err != nil {
+			return nil, err
+		}
+		resps = append(resps, *resp)
 	}
 	return resps, nil
 }
@@ -637,9 +729,9 @@ func (b *backend) propFindCalendarObject(ctx context.Context, propfind *internal
 	return internal.NewPropFindResponse(co.Path, propfind, props)
 }
 
-func (b *backend) propFindAllCalendarObjects(ctx context.Context, propfind *internal.PropFind, cal *Calendar) ([]internal.Response, error) {
+func (b *backend) propFindAllCalendarObjects(ctx context.Context, propfind *internal.PropFind, path string) ([]internal.Response, error) {
 	var dataReq CalendarCompRequest
-	aos, err := b.Backend.ListCalendarObjects(ctx, cal.Path, &dataReq)
+	aos, err := b.Backend.ListCalendarObjects(ctx, path, &dataReq)
 	if err != nil {
 		return nil, err
 	}
@@ -710,7 +802,7 @@ func (b *backend) Delete(r *http.Request) error {
 }
 
 func (b *backend) Mkcol(r *http.Request) error {
-	if b.resourceTypeAtPath(r.URL.Path) != resourceTypeCalendar {
+	if b.resourceTypeAtPath(r.Context(), r.URL.Path) != resourceTypeCalendar {
 		return internal.HTTPErrorf(http.StatusForbidden, "caldav: calendar creation not allowed at given location")
 	}
 

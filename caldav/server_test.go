@@ -177,6 +177,88 @@ func TestMultiCalendarBackend(t *testing.T) {
 	}
 }
 
+func TestCalendarWithInbox(t *testing.T) {
+	inboxPath := "/user/inbox"
+	summary := "Team Meeting Invite"
+	calendarInvite := calendarObjectWithInvite(inboxPath, summary)
+	handler := Handler{Backend: inboxTestBackend{
+		testBackend: testBackend{
+			calendars: []Calendar{{Path: "/user/calendars/a"}},
+			objectMap: map[string][]CalendarObject{
+				inboxPath: {calendarInvite},
+			},
+		},
+		inbox: Inbox{Path: inboxPath, UserAddressSet: []string{"mailto:test@example.com"}},
+	}}
+
+	// The OPTIONS request should signal scheduling support
+	req := httptest.NewRequest("OPTIONS", "/", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+	dav := res.Header.Get("DAV")
+	if !strings.Contains(dav, "calendar-auto-schedule") {
+		t.Errorf("Expected DAV header to contain calendar-auto-schedule, got: %s", dav)
+	}
+
+	// PROPFIND should reveal where the inbox is located
+	req = httptest.NewRequest("PROPFIND", "/user/", strings.NewReader(propFindSchedulingProps))
+	req.Header.Set("Content-Type", "application/xml")
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	res = w.Result()
+	defer res.Body.Close()
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := string(data)
+	if !strings.Contains(resp, `<schedule-inbox-URL xmlns="urn:ietf:params:xml:ns:caldav"><href xmlns="DAV:">/user/inbox</href></schedule-inbox-URL>`) {
+		t.Errorf("Expected schedule-inbox-URL in principal PROPFIND, response:\n%s", resp)
+	}
+	if !strings.Contains(resp, `<calendar-user-address-set xmlns="urn:ietf:params:xml:ns:caldav"><href xmlns="DAV:">mailto:test@example.com</href></calendar-user-address-set>`) {
+		t.Errorf("Expected calendar-user-address-set in principal PROPFIND, response:\n%s", resp)
+	}
+
+	// PROPFIND on the inbox should return the privileges
+	req = httptest.NewRequest("PROPFIND", inboxPath, strings.NewReader(propFindSchedulingProps))
+	req.Header.Set("Content-Type", "application/xml")
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	res = w.Result()
+	defer res.Body.Close()
+	data, err = io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp = string(data)
+
+	if !strings.Contains(resp, `<current-user-privilege-set xmlns="DAV:"><privilege xmlns="DAV:"><schedule-deliver xmlns="DAV:"></schedule-deliver></privilege></current-user-privilege-set>`) {
+		t.Errorf("Expected schedule-deliver privilege in response:\n%s", resp)
+	}
+
+	// Now do a REPORT to get the actual data for the event
+	req = httptest.NewRequest("REPORT", inboxPath, strings.NewReader(fmt.Sprintf(reportCalendarData, calendarInvite.Path)))
+	req.Header.Set("Content-Type", "application/xml")
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	res = w.Result()
+	defer res.Body.Close()
+	data, err = io.ReadAll(res.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	resp = string(data)
+	if !strings.Contains(resp, fmt.Sprintf("SUMMARY:%s", summary)) {
+		t.Errorf("ICAL content not properly returned in response:\n%v", resp)
+	}
+}
+
 type testBackend struct {
 	calendars []Calendar
 	objectMap map[string][]CalendarObject
@@ -232,4 +314,41 @@ func (t testBackend) ListCalendarObjects(ctx context.Context, path string, req *
 
 func (t testBackend) QueryCalendarObjects(ctx context.Context, path string, query *CalendarQuery) ([]CalendarObject, error) {
 	return nil, nil
+}
+
+// inboxTestBackend extends testBackend with InboxBackend support (RFC 6638 scheduling)
+type inboxTestBackend struct {
+	testBackend
+	inbox Inbox
+}
+
+func (t inboxTestBackend) GetInbox(ctx context.Context) (*Inbox, error) {
+	return &t.inbox, nil
+}
+
+var propFindSchedulingProps = `<?xml version="1.0" encoding="UTF-8"?>
+<A:propfind xmlns:A="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <A:prop>
+    <A:current-user-principal/>
+    <A:resourcetype/>
+    <C:schedule-inbox-URL/>
+    <C:calendar-user-address-set/>
+    <A:current-user-privilege-set/>
+  </A:prop>
+</A:propfind>
+`
+
+func calendarObjectWithInvite(inboxPath string, summary string) CalendarObject {
+	event := ical.NewEvent()
+	event.Props.SetText(ical.PropUID, "invite-uid-1")
+	event.Props.SetDateTime(ical.PropDateTimeStamp, time.Now())
+	event.Props.SetText(ical.PropSummary, summary)
+	cal := ical.NewCalendar()
+	cal.Props.SetText(ical.PropVersion, "2.0")
+	cal.Props.SetText(ical.PropProductID, "-//Test//Test//EN")
+	cal.Children = []*ical.Component{event.Component}
+	return CalendarObject{
+		Path: inboxPath + "/invite1.ics",
+		Data: cal,
+	}
 }

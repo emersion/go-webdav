@@ -11,7 +11,9 @@ import (
 const namespace = "urn:ietf:params:xml:ns:caldav"
 
 var (
-	calendarHomeSetName = xml.Name{namespace, "calendar-home-set"}
+	calendarHomeSetName        = xml.Name{namespace, "calendar-home-set"}
+	calendarUserAddressSetName = xml.Name{namespace, "calendar-user-address-set"}
+	scheduleInboxURLName       = xml.Name{namespace, "schedule-inbox-URL"}
 
 	calendarDescriptionName           = xml.Name{namespace, "calendar-description"}
 	supportedCalendarDataName         = xml.Name{namespace, "supported-calendar-data"}
@@ -21,8 +23,9 @@ var (
 	calendarQueryName    = xml.Name{namespace, "calendar-query"}
 	calendarMultigetName = xml.Name{namespace, "calendar-multiget"}
 
-	calendarName     = xml.Name{namespace, "calendar"}
-	calendarDataName = xml.Name{namespace, "calendar-data"}
+	calendarName      = xml.Name{namespace, "calendar"}
+	scheduleInboxName = xml.Name{namespace, "schedule-inbox"}
+	calendarDataName  = xml.Name{namespace, "calendar-data"}
 )
 
 // https://tools.ietf.org/html/rfc4791#section-6.2.1
@@ -33,6 +36,18 @@ type calendarHomeSet struct {
 
 func (a *calendarHomeSet) GetXMLName() xml.Name {
 	return calendarHomeSetName
+}
+
+// https://datatracker.ietf.org/doc/html/rfc6638#section-2.4.1
+type calendarUserAddressSet struct {
+	XMLName   xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-user-address-set"`
+	Addresses []string `xml:"DAV: href"`
+}
+
+// https://datatracker.ietf.org/doc/html/rfc6638#section-2.2.1
+type scheduleInboxURL struct {
+	XMLName xml.Name      `xml:"urn:ietf:params:xml:ns:caldav schedule-inbox-URL"`
+	Href    internal.Href `xml:"DAV: href"`
 }
 
 // https://tools.ietf.org/html/rfc4791#section-5.2.1

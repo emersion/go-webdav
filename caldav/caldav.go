@@ -148,3 +148,8 @@ type SyncResponse struct {
 	Updated   []CalendarObject
 	Deleted   []string
 }
+
+type Inbox struct {
+	Path           string
+	UserAddressSet []string
+}
