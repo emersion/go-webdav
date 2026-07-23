@@ -109,6 +109,56 @@ func NewClient(c HTTPClient, endpoint string) (*Client, error) {
 	return &Client{http: c, endpoint: u}, nil
 }
 
+func (c *Client) ResolveWellKnown(ctx context.Context, service string) error {
+	probe := *c.endpoint
+	probe.Path = "/.well-known/" + service
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, probe.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+
+	if resp.Request == nil || resp.Request.URL == nil {
+		return nil
+	}
+	final := resp.Request.URL
+	if final.Path == "" || final.Path == probe.Path {
+		return nil
+	}
+
+	resolved := *c.endpoint
+	resolved.Scheme = final.Scheme
+	resolved.Host = final.Host
+	resolved.Path = final.Path
+	c.endpoint = &resolved
+	return nil
+}
+
+func (c *Client) FindCurrentUserPrincipal(ctx context.Context) (string, error) {
+	propfind := NewPropNamePropFind(CurrentUserPrincipalName)
+
+	resp, err := c.PropFindFlat(ctx, "", propfind)
+	if err != nil {
+		return "", err
+	}
+
+	var prop CurrentUserPrincipal
+	if err := resp.DecodeProp(&prop); err != nil {
+		return "", err
+	}
+	if prop.Unauthenticated != nil {
+		return "", fmt.Errorf("webdav: unauthenticated")
+	}
+
+	return prop.Href.Path, nil
+}
+
 func (c *Client) ResolveHref(p string) *url.URL {
 	hasTrailingSlash := strings.HasSuffix(p, "/") || (p == "" && strings.HasSuffix(c.endpoint.Path, "/"))
 

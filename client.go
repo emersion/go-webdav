@@ -3,7 +3,6 @@ package webdav
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -56,24 +55,7 @@ func NewClient(c HTTPClient, endpoint string) (*Client, error) {
 
 // FindCurrentUserPrincipal finds the current user's principal path.
 func (c *Client) FindCurrentUserPrincipal(ctx context.Context) (string, error) {
-	propfind := internal.NewPropNamePropFind(internal.CurrentUserPrincipalName)
-
-	// TODO: consider retrying on the root URI "/" if this fails, as suggested
-	// by the RFC?
-	resp, err := c.ic.PropFindFlat(ctx, "", propfind)
-	if err != nil {
-		return "", err
-	}
-
-	var prop internal.CurrentUserPrincipal
-	if err := resp.DecodeProp(&prop); err != nil {
-		return "", err
-	}
-	if prop.Unauthenticated != nil {
-		return "", fmt.Errorf("webdav: unauthenticated")
-	}
-
-	return prop.Href.Path, nil
+	return c.ic.FindCurrentUserPrincipal(ctx)
 }
 
 var fileInfoPropFind = internal.NewPropNamePropFind(

@@ -51,6 +51,18 @@ func NewClient(c webdav.HTTPClient, endpoint string) (*Client, error) {
 	return &Client{wc, ic}, nil
 }
 
+func (c *Client) FindCurrentUserPrincipal(ctx context.Context) (string, error) {
+	principal, err := c.ic.FindCurrentUserPrincipal(ctx)
+	if err == nil {
+		return principal, nil
+	}
+
+	if resolveErr := c.ic.ResolveWellKnown(ctx, "caldav"); resolveErr != nil {
+		return "", err
+	}
+	return c.ic.FindCurrentUserPrincipal(ctx)
+}
+
 // Get calendar information without loading all the events once the path of the calendar is known.
 func (c *Client) FindCalendar(ctx context.Context, path string) (*Calendar, error) {
 	propfind := internal.NewPropNamePropFind(calendarProps...)

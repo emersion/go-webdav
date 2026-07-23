@@ -42,6 +42,18 @@ func NewClient(c webdav.HTTPClient, endpoint string) (*Client, error) {
 	return &Client{wc, ic}, nil
 }
 
+func (c *Client) FindCurrentUserPrincipal(ctx context.Context) (string, error) {
+	principal, err := c.ic.FindCurrentUserPrincipal(ctx)
+	if err == nil {
+		return principal, nil
+	}
+
+	if resolveErr := c.ic.ResolveWellKnown(ctx, "carddav"); resolveErr != nil {
+		return "", err
+	}
+	return c.ic.FindCurrentUserPrincipal(ctx)
+}
+
 func (c *Client) HasSupport(ctx context.Context) error {
 	classes, _, err := c.ic.Options(ctx, "")
 	if err != nil {
