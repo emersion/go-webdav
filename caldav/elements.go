@@ -8,15 +8,21 @@ import (
 	"github.com/emersion/go-webdav/internal"
 )
 
-const namespace = "urn:ietf:params:xml:ns:caldav"
+const (
+	namespace      = "urn:ietf:params:xml:ns:caldav"
+	appleNamespace = "http://apple.com/ns/ical/"
+)
 
 var (
 	calendarHomeSetName = xml.Name{namespace, "calendar-home-set"}
 
 	calendarDescriptionName           = xml.Name{namespace, "calendar-description"}
+	calendarTimezoneName              = xml.Name{namespace, "calendar-timezone"}
 	supportedCalendarDataName         = xml.Name{namespace, "supported-calendar-data"}
 	supportedCalendarComponentSetName = xml.Name{namespace, "supported-calendar-component-set"}
 	maxResourceSizeName               = xml.Name{namespace, "max-resource-size"}
+
+	calendarColorName = xml.Name{appleNamespace, "calendar-color"}
 
 	calendarQueryName    = xml.Name{namespace, "calendar-query"}
 	calendarMultigetName = xml.Name{namespace, "calendar-multiget"}
@@ -39,6 +45,17 @@ func (a *calendarHomeSet) GetXMLName() xml.Name {
 type calendarDescription struct {
 	XMLName     xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-description"`
 	Description string   `xml:",chardata"`
+}
+
+// https://tools.ietf.org/html/rfc4791#section-5.2.2
+type calendarTimezone struct {
+	XMLName  xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-timezone"`
+	Timezone string   `xml:",chardata"`
+}
+
+type calendarColor struct {
+	XMLName xml.Name `xml:"http://apple.com/ns/ical/ calendar-color"`
+	Color   string   `xml:",chardata"`
 }
 
 // https://tools.ietf.org/html/rfc4791#section-5.2.4
@@ -237,8 +254,19 @@ func (r *reportReq) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 }
 
 type mkcolReq struct {
-	XMLName      xml.Name              `xml:"DAV: mkcol"`
-	ResourceType internal.ResourceType `xml:"set>prop>resourcetype"`
-	DisplayName  string                `xml:"set>prop>displayname"`
-	// TODO this could theoretically contain all addressbook properties?
+	XMLName xml.Name `xml:"DAV: mkcol"`
+	Set     mkcolSet `xml:"DAV: set"`
+}
+
+type mkcolSet struct {
+	Prop mkcolProp `xml:"DAV: prop"`
+}
+
+type mkcolProp struct {
+	ResourceType                  internal.ResourceType         `xml:"DAV: resourcetype"`
+	DisplayName                   string                        `xml:"DAV: displayname"`
+	CalendarDescription           string                        `xml:"urn:ietf:params:xml:ns:caldav calendar-description"`
+	CalendarTimezone              string                        `xml:"urn:ietf:params:xml:ns:caldav calendar-timezone"`
+	CalendarColor                 string                        `xml:"http://apple.com/ns/ical/ calendar-color"`
+	SupportedCalendarComponentSet supportedCalendarComponentSet `xml:"urn:ietf:params:xml:ns:caldav supported-calendar-component-set"`
 }

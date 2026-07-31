@@ -559,13 +559,29 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 			Description: cal.Description,
 		})
 	}
+	if cal.Color != "" {
+		props[calendarColorName] = internal.PropFindValue(&calendarColor{
+			Color: cal.Color,
+		})
+	}
+	if cal.Timezone != nil {
+		props[calendarTimezoneName] = func(*internal.RawXMLValue) (interface{}, error) {
+			var buf bytes.Buffer
+			if err := ical.NewEncoder(&buf).Encode(cal.Timezone); err != nil {
+				return nil, err
+			}
+			return &calendarTimezone{
+				Timezone: buf.String(),
+			}, nil
+		}
+	}
 	if cal.MaxResourceSize > 0 {
 		props[maxResourceSizeName] = internal.PropFindValue(&maxResourceSize{
 			Size: cal.MaxResourceSize,
 		})
 	}
 
-	// TODO: CALDAV:calendar-timezone, CALDAV:supported-calendar-component-set, CALDAV:min-date-time, CALDAV:max-date-time, CALDAV:max-instances, CALDAV:max-attendees-per-instance
+	// TODO: CALDAV:min-date-time, CALDAV:max-date-time, CALDAV:max-instances, CALDAV:max-attendees-per-instance
 
 	return internal.NewPropFindResponse(cal.Path, propfind, props)
 }
@@ -724,14 +740,40 @@ func (b *backend) Mkcol(r *http.Request) error {
 			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: error parsing mkcol request: %s", err.Error())
 		}
 
-		if !m.ResourceType.Is(internal.CollectionName) || !m.ResourceType.Is(calendarName) {
+		prop := m.Set.Prop
+		if !prop.ResourceType.Is(internal.CollectionName) || !prop.ResourceType.Is(calendarName) {
 			return internal.HTTPErrorf(http.StatusBadRequest, "carddav: unexpected resource type")
 		}
-		cal.Name = m.DisplayName
-		// TODO ...
+		cal.Name = prop.DisplayName
+		cal.Description = prop.CalendarDescription
+		cal.Color = strings.TrimSpace(prop.CalendarColor)
+
+		if s := strings.TrimSpace(prop.CalendarTimezone); s != "" {
+			tz, err := decodeCalendarTimezone(s)
+			if err != nil {
+				return err
+			}
+			cal.Timezone = tz
+		}
+
+		cal.SupportedComponentSet = make([]string, len(prop.SupportedCalendarComponentSet.Comp))
+		for i, v := range prop.SupportedCalendarComponentSet.Comp {
+			cal.SupportedComponentSet[i] = v.Name
+		}
 	}
 
 	return b.Backend.CreateCalendar(r.Context(), &cal)
+}
+
+func decodeCalendarTimezone(s string) (*ical.Calendar, error) {
+	cal, err := ical.NewDecoder(strings.NewReader(s)).Decode()
+	if err != nil {
+		return nil, NewPreconditionError(PreconditionValidCalendarData)
+	}
+	if len(cal.Children) != 1 || cal.Children[0].Name != ical.CompTimezone {
+		return nil, NewPreconditionError(PreconditionValidCalendarData)
+	}
+	return cal, nil
 }
 
 func (b *backend) Copy(r *http.Request, dest *internal.Href, recursive, overwrite bool) (created bool, err error) {
