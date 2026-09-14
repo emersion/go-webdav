@@ -24,6 +24,16 @@ type FileSystem interface {
 	Move(ctx context.Context, name, dest string, options *MoveOptions) (created bool, err error)
 }
 
+// DeadPropertiesFileSystem is an optional interface that a FileSystem can implement
+// to support dead properties (custom XML properties) during PROPFIND.
+type DeadPropertiesFileSystem interface {
+	FileSystem
+	// GetDeadProperties returns dead properties for a given file or directory path.
+	// The returned map keys are xml.Name, and values are either xml.Marshaler,
+	// internal.RawXMLValue, or any value that can be encoded as an XML element.
+	GetDeadProperties(ctx context.Context, name string) (map[xml.Name]interface{}, error)
+}
+
 // Handler handles WebDAV HTTP requests. It can be used to create a WebDAV
 // server.
 type Handler struct {
@@ -182,6 +192,15 @@ func (b *backend) propFindFile(propfind *internal.PropFind, fi *FileInfo) (*inte
 			props[internal.GetETagName] = internal.PropFindValue(&internal.GetETag{
 				ETag: internal.ETag(fi.ETag),
 			})
+		}
+	}
+
+	if dpfs, ok := b.FileSystem.(DeadPropertiesFileSystem); ok {
+		deadProps, err := dpfs.GetDeadProperties(context.TODO(), fi.Path)
+		if err == nil {
+			for name, val := range deadProps {
+				props[name] = internal.PropFindValue(val)
+			}
 		}
 	}
 
