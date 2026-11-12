@@ -233,3 +233,34 @@ func (t testBackend) ListCalendarObjects(ctx context.Context, path string, req *
 func (t testBackend) QueryCalendarObjects(ctx context.Context, path string, query *CalendarQuery) ([]CalendarObject, error) {
 	return nil, nil
 }
+
+func TestFindCalendarsColor(t *testing.T) {
+	h := Handler{Backend: testBackend{calendars: []Calendar{
+		{Path: "/user/calendars/a/", Color: "#FF2968FF"},
+		{Path: "/user/calendars/b/"},
+	}}}
+	srv := httptest.NewServer(&h)
+	defer srv.Close()
+
+	c, err := NewClient(nil, srv.URL)
+	if err != nil {
+		t.Fatalf("NewClient: %v", err)
+	}
+	cals, err := c.FindCalendars(context.Background(), "/user/calendars/")
+	if err != nil {
+		t.Fatalf("FindCalendars: %v", err)
+	}
+
+	want := map[string]string{
+		"/user/calendars/a/": "#FF2968FF",
+		"/user/calendars/b/": "",
+	}
+	if len(cals) != len(want) {
+		t.Fatalf("got %d calendars, want %d", len(cals), len(want))
+	}
+	for _, cal := range cals {
+		if cal.Color != want[cal.Path] {
+			t.Errorf("%s: Color = %q, want %q", cal.Path, cal.Color, want[cal.Path])
+		}
+	}
+}

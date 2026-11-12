@@ -559,6 +559,11 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 			Description: cal.Description,
 		})
 	}
+	if cal.Color != "" {
+		props[calendarColorName] = internal.PropFindValue(&calendarColor{
+			Color: cal.Color,
+		})
+	}
 	if cal.MaxResourceSize > 0 {
 		props[maxResourceSizeName] = internal.PropFindValue(&maxResourceSize{
 			Size: cal.MaxResourceSize,

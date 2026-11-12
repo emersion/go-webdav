@@ -23,6 +23,8 @@ var (
 
 	calendarName     = xml.Name{namespace, "calendar"}
 	calendarDataName = xml.Name{namespace, "calendar-data"}
+
+	calendarColorName = xml.Name{"http://apple.com/ns/ical/", "calendar-color"}
 )
 
 // https://tools.ietf.org/html/rfc4791#section-6.2.1
@@ -39,6 +41,13 @@ func (a *calendarHomeSet) GetXMLName() xml.Name {
 type calendarDescription struct {
 	XMLName     xml.Name `xml:"urn:ietf:params:xml:ns:caldav calendar-description"`
 	Description string   `xml:",chardata"`
+}
+
+// calendar-color is not defined by any RFC. It comes from Apple's
+// http://apple.com/ns/ical/ namespace.
+type calendarColor struct {
+	XMLName xml.Name `xml:"http://apple.com/ns/ical/ calendar-color"`
+	Color   string   `xml:",chardata"`
 }
 
 // https://tools.ietf.org/html/rfc4791#section-5.2.4

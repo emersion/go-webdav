@@ -25,6 +25,7 @@ var calendarProps = []xml.Name{
 	maxResourceSizeName,
 	supportedCalendarComponentSetName,
 	internal.CurrentUserPrivilegeSetName,
+	calendarColorName,
 }
 
 // DiscoverContextURL performs a DNS-based CardDAV service discovery as
@@ -129,6 +130,11 @@ func decodeCalendar(path string, resp *internal.Response) (*Calendar, error) {
 		return nil, err
 	}
 
+	var color calendarColor
+	if err := resp.DecodeProp(&color); err != nil && !internal.IsNotFound(err) {
+		return nil, err
+	}
+
 	var maxResSize maxResourceSize
 	if err := resp.DecodeProp(&maxResSize); err != nil && !internal.IsNotFound(err) {
 		return nil, err
@@ -161,6 +167,7 @@ func decodeCalendar(path string, resp *internal.Response) (*Calendar, error) {
 		Description:           desc.Description,
 		MaxResourceSize:       maxResSize.Size,
 		SupportedComponentSet: compNames,
+		Color:                 color.Color,
 		ReadOnly:              readOnly,
 	}, nil
 }
