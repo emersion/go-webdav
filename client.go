@@ -221,10 +221,21 @@ func (c *Client) Create(ctx context.Context, name string) (io.WriteCloser, error
 
 // RemoveAll deletes a file. If the file is a directory, all of its descendants
 // are recursively deleted as well.
-func (c *Client) RemoveAll(ctx context.Context, name string) error {
+func (c *Client) RemoveAll(ctx context.Context, name string, opts *RemoveAllOptions) error {
+	if opts == nil {
+		opts = new(RemoveAllOptions)
+	}
+
 	req, err := c.ic.NewRequest(http.MethodDelete, name, nil)
 	if err != nil {
 		return err
+	}
+
+	if opts.IfMatch.IsSet() {
+		req.Header.Set("If-Match", string(opts.IfMatch))
+	}
+	if opts.IfNoneMatch.IsSet() {
+		req.Header.Set("If-None-Match", string(opts.IfNoneMatch))
 	}
 
 	resp, err := c.ic.Do(req.WithContext(ctx))
