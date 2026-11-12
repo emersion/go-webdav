@@ -294,7 +294,8 @@ func decodeCalendarObjectList(ms *internal.MultiStatus) ([]CalendarObject, error
 		r := bytes.NewReader(calData.Data)
 		data, err := ical.NewDecoder(r).Decode()
 		if err != nil {
-			return nil, err
+			errs = append(errs, &internal.HrefError{Href: url.URL(resp.Hrefs[0]), Err: err})
+			continue
 		}
 
 		addrs = append(addrs, CalendarObject{
