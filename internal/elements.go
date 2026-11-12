@@ -461,15 +461,18 @@ type Limit struct {
 
 // https://tools.ietf.org/html/rfc3744#section-5.4
 type CurrentUserPrivilegeSet struct {
-	XMLName   xml.Name `xml:"DAV: current-user-privilege-set"`
-	Privilege []Privilege
+	XMLName   xml.Name    `xml:"DAV: current-user-privilege-set"`
+	Privilege []Privilege `xml:"DAV: privilege"`
 }
 
 // https://tools.ietf.org/html/rfc3744#section-5.4
 type Privilege struct {
-	XMLName xml.Name  `xml:"DAV: privilege"`
-	Read    *struct{} `xml:"DAV: read,omitempty"`
-	Write   *struct{} `xml:"DAV: write,omitempty"`
+	XMLName      xml.Name  `xml:"DAV: privilege"`
+	All          *struct{} `xml:"DAV: all,omitempty"`
+	Read         *struct{} `xml:"DAV: read,omitempty"`
+	Write        *struct{} `xml:"DAV: write,omitempty"`
+	WriteContent *struct{} `xml:"DAV: write-content,omitempty"`
+	Bind         *struct{} `xml:"DAV: bind,omitempty"`
 }
 
 // NewCurrentUserPrivilegeSet returns a privilege set granting DAV:read, plus
@@ -480,4 +483,15 @@ func NewCurrentUserPrivilegeSet(readOnly bool) *CurrentUserPrivilegeSet {
 		priv.Write = &struct{}{}
 	}
 	return &CurrentUserPrivilegeSet{Privilege: []Privilege{priv}}
+}
+
+// ReadOnly reports whether the set grants none of DAV:all, DAV:write,
+// DAV:write-content and DAV:bind.
+func (set *CurrentUserPrivilegeSet) ReadOnly() bool {
+	for _, priv := range set.Privilege {
+		if priv.All != nil || priv.Write != nil || priv.WriteContent != nil || priv.Bind != nil {
+			return false
+		}
+	}
+	return true
 }
