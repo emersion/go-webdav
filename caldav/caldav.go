@@ -69,6 +69,11 @@ type Calendar struct {
 	Description           string
 	MaxResourceSize       int64
 	SupportedComponentSet []string
+	// Color is the value of the calendar-color property in the
+	// http://apple.com/ns/ical/ namespace. That property is not defined by
+	// CalDAV. The value is a hexadecimal string following the #rrggbb syntax,
+	// or #rrggbbaa with an alpha channel, as Apple Calendar writes it.
+	Color string
 	// ReadOnly reports that the current user may only read this calendar. It
 	// controls the DAV:current-user-privilege-set reported by the server. The
 	// client sets it when the server reports a DAV:current-user-privilege-set
