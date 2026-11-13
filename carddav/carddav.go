@@ -30,6 +30,8 @@ type AddressBook struct {
 	SupportedAddressData []AddressDataType
 	// ReadOnly reports that the current user may only read this address book.
 	// It controls the DAV:current-user-privilege-set reported by the server.
+	// The client sets it when the server reports a
+	// DAV:current-user-privilege-set that doesn't grant DAV:write.
 	ReadOnly bool
 }
 

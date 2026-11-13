@@ -70,7 +70,9 @@ type Calendar struct {
 	MaxResourceSize       int64
 	SupportedComponentSet []string
 	// ReadOnly reports that the current user may only read this calendar. It
-	// controls the DAV:current-user-privilege-set reported by the server.
+	// controls the DAV:current-user-privilege-set reported by the server. The
+	// client sets it when the server reports a DAV:current-user-privilege-set
+	// that doesn't grant DAV:write.
 	ReadOnly bool
 }
 

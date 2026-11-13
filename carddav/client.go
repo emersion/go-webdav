@@ -84,6 +84,7 @@ func (c *Client) FindAddressBooks(ctx context.Context, addressBookHomeSet string
 		addressBookDescriptionName,
 		maxResourceSizeName,
 		supportedAddressDataName,
+		internal.CurrentUserPrivilegeSetName,
 	)
 	ms, err := c.ic.PropFind(ctx, addressBookHomeSet, internal.DepthOne, propfind)
 	if err != nil {
@@ -130,12 +131,21 @@ func (c *Client) FindAddressBooks(ctx context.Context, addressBookHomeSet string
 			return nil, err
 		}
 
+		var privSet internal.CurrentUserPrivilegeSet
+		readOnly := false
+		if err := resp.DecodeProp(&privSet); err == nil {
+			readOnly = privSet.ReadOnly()
+		} else if !internal.IsNotFound(err) {
+			return nil, err
+		}
+
 		l = append(l, AddressBook{
 			Path:                 path,
 			Name:                 dispName.Name,
 			Description:          desc.Description,
 			MaxResourceSize:      maxResSize.Size,
 			SupportedAddressData: decodeSupportedAddressData(&supported),
+			ReadOnly:             readOnly,
 		})
 	}
 

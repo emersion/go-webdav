@@ -24,6 +24,7 @@ var calendarProps = []xml.Name{
 	calendarDescriptionName,
 	maxResourceSizeName,
 	supportedCalendarComponentSetName,
+	internal.CurrentUserPrivilegeSetName,
 }
 
 // DiscoverContextURL performs a DNS-based CardDAV service discovery as
@@ -141,6 +142,14 @@ func decodeCalendar(path string, resp *internal.Response) (*Calendar, error) {
 		return nil, err
 	}
 
+	var privSet internal.CurrentUserPrivilegeSet
+	readOnly := false
+	if err := resp.DecodeProp(&privSet); err == nil {
+		readOnly = privSet.ReadOnly()
+	} else if !internal.IsNotFound(err) {
+		return nil, err
+	}
+
 	compNames := make([]string, 0, len(supportedCompSet.Comp))
 	for _, comp := range supportedCompSet.Comp {
 		compNames = append(compNames, comp.Name)
@@ -152,6 +161,7 @@ func decodeCalendar(path string, resp *internal.Response) (*Calendar, error) {
 		Description:           desc.Description,
 		MaxResourceSize:       maxResSize.Size,
 		SupportedComponentSet: compNames,
+		ReadOnly:              readOnly,
 	}, nil
 }
 
