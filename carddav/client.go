@@ -243,7 +243,8 @@ func decodeAddressList(ms *internal.MultiStatus) ([]AddressObject, error) {
 		r := bytes.NewReader(addrData.Data)
 		card, err := vcard.NewDecoder(r).Decode()
 		if err != nil {
-			return nil, err
+			errs = append(errs, &internal.HrefError{Href: url.URL(resp.Hrefs[0])})
+			continue
 		}
 
 		addrs = append(addrs, AddressObject{
