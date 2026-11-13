@@ -153,19 +153,15 @@ func matchCompTimeRange(start, end time.Time, comp *ical.Component) (bool, error
 		return false, err
 	}
 
-	// Event starts in time range
-	if eventStart.After(start) && (end.IsZero() || eventStart.Before(end)) {
-		return true, nil
+	// The range is [start, end): an event overlaps it when start < DTEND and end > DTSTART.
+	if eventEnd.Equal(eventStart) {
+		if eventStart.Before(start) {
+			return false, nil
+		}
+	} else if !eventEnd.After(start) {
+		return false, nil
 	}
-	// Event ends in time range
-	if eventEnd.After(start) && (end.IsZero() || eventEnd.Before(end)) {
-		return true, nil
-	}
-	// Event covers entire time range plus some
-	if eventStart.Before(start) && (!end.IsZero() && eventEnd.After(end)) {
-		return true, nil
-	}
-	return false, nil
+	return end.IsZero() || end.After(eventStart), nil
 }
 
 func matchPropTimeRange(start, end time.Time, field *ical.Prop) (bool, error) {
