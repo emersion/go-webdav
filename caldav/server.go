@@ -661,7 +661,36 @@ func (b *backend) propFindAllCalendarObjects(ctx context.Context, propfind *inte
 }
 
 func (b *backend) PropPatch(r *http.Request, update *internal.PropertyUpdate) (*internal.Response, error) {
-	return nil, internal.HTTPErrorf(http.StatusNotImplemented, "caldav: PropPatch not implemented")
+	homeSetPath, err := b.Backend.CalendarHomeSetPath(r.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	resp := internal.NewOKResponse(r.URL.Path)
+
+	// Properties cannot be written yet, but refusing per-property inside a 207
+	// rather than failing the request keeps clients that PROPPATCH display
+	// metadata while adopting a calendar (macOS Calendar) from dropping it.
+	status := http.StatusMethodNotAllowed
+	if r.URL.Path == homeSetPath {
+		// TODO: support PROPPATCH for calendars
+		status = http.StatusNotImplemented
+	}
+
+	for _, prop := range update.Remove {
+		emptyVal := internal.NewRawXMLElement(prop.Prop.XMLName, nil, nil)
+		if err := resp.EncodeProp(status, emptyVal); err != nil {
+			return nil, err
+		}
+	}
+	for _, prop := range update.Set {
+		emptyVal := internal.NewRawXMLElement(prop.Prop.XMLName, nil, nil)
+		if err := resp.EncodeProp(status, emptyVal); err != nil {
+			return nil, err
+		}
+	}
+
+	return resp, nil
 }
 
 func (b *backend) Put(w http.ResponseWriter, r *http.Request) error {
