@@ -28,6 +28,8 @@ const findAddressBooksReadOnlyResponse = `<?xml version="1.0" encoding="utf-8"?>
         <d:resourcetype><d:collection/><card:addressbook/></d:resourcetype>
         <d:current-user-privilege-set>
           <d:privilege><d:all/></d:privilege>
+          <d:privilege><d:read/></d:privilege>
+          <d:privilege><d:write/></d:privilege>
         </d:current-user-privilege-set>
       </d:prop>
       <d:status>HTTP/1.1 200 OK</d:status>

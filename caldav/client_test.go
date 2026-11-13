@@ -35,6 +35,20 @@ const findCalendarsReadOnlyResponse = `<?xml version="1.0" encoding="utf-8"?>
     </d:propstat>
   </d:response>
   <d:response>
+    <d:href>/cal/write/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype><d:collection/><c:calendar/></d:resourcetype>
+        <d:current-user-privilege-set>
+          <d:privilege><d:read/></d:privilege>
+          <d:privilege><d:write/></d:privilege>
+          <d:privilege><d:write-content/></d:privilege>
+        </d:current-user-privilege-set>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+  <d:response>
     <d:href>/cal/unknown/</d:href>
     <d:propstat>
       <d:prop>
@@ -70,7 +84,8 @@ func TestFindCalendarsReadOnly(t *testing.T) {
 
 	want := map[string]bool{
 		"/cal/read-only/":     true,
-		"/cal/write-content/": false,
+		"/cal/write-content/": true,
+		"/cal/write/":         false,
 		"/cal/unknown/":       false,
 	}
 	if len(cals) != len(want) {
