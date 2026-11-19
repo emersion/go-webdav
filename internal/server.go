@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"path"
 	"strings"
 )
 
@@ -282,6 +283,12 @@ func (h *Handler) handleCopyMove(w http.ResponseWriter, r *http.Request) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// RFC 4918 sections 9.8.5 and 9.9.4: overwriting the destination would
+	// delete the source.
+	if path.Clean(r.URL.Path) == path.Clean(dest.Path) {
+		return HTTPErrorf(http.StatusForbidden, "webdav: source and destination are the same")
 	}
 
 	var created bool
