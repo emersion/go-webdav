@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -33,12 +33,12 @@ func TestPropFindSupportedCalendarComponent(t *testing.T) {
 		req.Body = io.NopCloser(strings.NewReader(propFindSupportedCalendarComponentRequest))
 		req.Header.Set("Content-Type", "application/xml")
 		w := httptest.NewRecorder()
-		handler := Handler{Backend: testBackend{calendars: []Calendar{*calendar}}}
+		handler := Handler{Backend: &testBackend{calendars: []Calendar{*calendar}}}
 		handler.ServeHTTP(w, req)
 
 		res := w.Result()
 		defer res.Body.Close()
-		data, err := ioutil.ReadAll(res.Body)
+		data, err := io.ReadAll(res.Body)
 		if err != nil {
 			t.Error(err)
 		}
@@ -68,18 +68,120 @@ func TestPropFindRoot(t *testing.T) {
 	req.Header.Set("Content-Type", "application/xml")
 	w := httptest.NewRecorder()
 	calendar := &Calendar{}
-	handler := Handler{Backend: testBackend{calendars: []Calendar{*calendar}}}
+	handler := Handler{Backend: &testBackend{calendars: []Calendar{*calendar}}}
 	handler.ServeHTTP(w, req)
 
 	res := w.Result()
 	defer res.Body.Close()
-	data, err := ioutil.ReadAll(res.Body)
+	data, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Error(err)
 	}
 	resp := string(data)
 	if !strings.Contains(resp, `<current-user-principal xmlns="DAV:"><href>/user/</href></current-user-principal>`) {
 		t.Errorf("No user-principal returned when doing a PROPFIND against root, response:\n%s", resp)
+	}
+}
+
+const TestMkCalendarReq = `
+<?xml version="1.0" encoding="UTF-8"?>
+<B:mkcalendar xmlns:B="urn:ietf:params:xml:ns:caldav">
+  <A:set xmlns:A="DAV:">
+    <A:prop>
+      <B:calendar-timezone>BEGIN:VCALENDAR&#13;
+VERSION:2.0&#13;
+PRODID:-//Apple Inc.//iPhone OS 18.1.1//EN&#13;
+CALSCALE:GREGORIAN&#13;
+BEGIN:VTIMEZONE&#13;
+TZID:Europe/Paris&#13;
+BEGIN:DAYLIGHT&#13;
+TZOFFSETFROM:+0100&#13;
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU&#13;
+DTSTART:19810329T020000&#13;
+TZNAME:UTC+2&#13;
+TZOFFSETTO:+0200&#13;
+END:DAYLIGHT&#13;
+BEGIN:STANDARD&#13;
+TZOFFSETFROM:+0200&#13;
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU&#13;
+DTSTART:19961027T030000&#13;
+TZNAME:UTC+1&#13;
+TZOFFSETTO:+0100&#13;
+END:STANDARD&#13;
+END:VTIMEZONE&#13;
+END:VCALENDAR&#13;
+</B:calendar-timezone>
+      <D:calendar-order xmlns:D="http://apple.com/ns/ical/">2</D:calendar-order>
+      <B:supported-calendar-component-set>
+        <B:comp name="VEVENT"/>
+      </B:supported-calendar-component-set>
+      <D:calendar-color xmlns:D="http://apple.com/ns/ical/" symbolic-color="red">#FF2968</D:calendar-color>
+      <A:displayname>test calendar</A:displayname>
+      <B:calendar-free-busy-set>
+        <NO/>
+      </B:calendar-free-busy-set>
+    </A:prop>
+  </A:set>
+</B:mkcalendar>
+`
+
+const propFindTest2 = `
+<d:propfind xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:prop>
+     <d:resourcetype/>
+     <c:supported-calendar-component-set/>
+     <d:displayname/>
+     <c:max-resource-size/>
+     <c:calendar-description/>
+  </d:prop>
+</d:propfind>
+`
+
+func TestMkCalendar(t *testing.T) {
+	handler := Handler{Backend: &testBackend{
+		calendars: []Calendar{},
+		objectMap: map[string][]CalendarObject{},
+	}}
+
+	req := httptest.NewRequest("MKCALENDAR", "/user/calendars/default/", strings.NewReader(TestMkCalendarReq))
+	req.Header.Set("Content-Type", "application/xml")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	res := w.Result()
+	if e := res.Body.Close(); e != nil {
+		t.Fatal(e)
+	} else if loc := res.Header.Get("Location"); loc != "/user/calendars/default/" {
+		t.Fatalf("unexpected location: %s", loc)
+	} else if sc := res.StatusCode; sc != http.StatusCreated {
+		t.Fatalf("unexpected status code: %d", sc)
+	}
+
+	req = httptest.NewRequest("PROPFIND", "/user/calendars/default/", strings.NewReader(propFindTest2))
+	req.Header.Set("Content-Type", "application/xml")
+	req.Header.Set("Depth", "0")
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	res = w.Result()
+	defer res.Body.Close()
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := string(data)
+	if !strings.Contains(resp, fmt.Sprintf("<href>%s</href>", "/user/calendars/default/")) {
+		t.Fatalf("want calendar href in response")
+	} else if !strings.Contains(resp, "<resourcetype xmlns=\"DAV:\">") {
+		t.Fatalf("want resource type in response")
+	} else if !strings.Contains(resp, "<collection xmlns=\"DAV:\"></collection>") {
+		t.Fatalf("want collection resource type in response")
+	} else if !strings.Contains(resp, "<calendar xmlns=\"urn:ietf:params:xml:ns:caldav\"></calendar>") {
+		t.Fatalf("want calendar resource type in response")
+	} else if !strings.Contains(resp, "<displayname xmlns=\"DAV:\">test calendar</displayname>") {
+		t.Fatalf("want display name in response")
+	} else if !strings.Contains(resp, "<supported-calendar-component-set xmlns=\"urn:ietf:params:xml:ns:caldav\"><comp xmlns=\"urn:ietf:params:xml:ns:caldav\" name=\"VEVENT\"></comp></supported-calendar-component-set>") {
+		t.Fatalf("want supported-calendar-component-set in response")
 	}
 }
 
@@ -118,7 +220,7 @@ func TestMultiCalendarBackend(t *testing.T) {
 	req := httptest.NewRequest("PROPFIND", "/user/calendars/", strings.NewReader(propFindUserPrincipal))
 	req.Header.Set("Content-Type", "application/xml")
 	w := httptest.NewRecorder()
-	handler := Handler{Backend: testBackend{
+	handler := Handler{Backend: &testBackend{
 		calendars: calendars,
 		objectMap: map[string][]CalendarObject{
 			calendarB.Path: []CalendarObject{object},
@@ -128,7 +230,7 @@ func TestMultiCalendarBackend(t *testing.T) {
 
 	res := w.Result()
 	defer res.Body.Close()
-	data, err := ioutil.ReadAll(res.Body)
+	data, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Error(err)
 	}
@@ -147,7 +249,7 @@ func TestMultiCalendarBackend(t *testing.T) {
 
 	res = w.Result()
 	defer res.Body.Close()
-	data, err = ioutil.ReadAll(res.Body)
+	data, err = io.ReadAll(res.Body)
 	if err != nil {
 		t.Error(err)
 	}
@@ -167,7 +269,7 @@ func TestMultiCalendarBackend(t *testing.T) {
 
 	res = w.Result()
 	defer res.Body.Close()
-	data, err = ioutil.ReadAll(res.Body)
+	data, err = io.ReadAll(res.Body)
 	if err != nil {
 		t.Error(err)
 	}
@@ -182,8 +284,15 @@ type testBackend struct {
 	objectMap map[string][]CalendarObject
 }
 
-func (t testBackend) CreateCalendar(ctx context.Context, calendar *Calendar) error {
-	return nil
+func (t *testBackend) CreateCalendar(ctx context.Context, calendar *Calendar) error {
+	if v, e := t.CalendarHomeSetPath(ctx); e != nil {
+		return e
+	} else if !strings.HasPrefix(calendar.Path, v) || len(calendar.Path) == len(v) {
+		return fmt.Errorf("cannot create calendar at location %s", calendar.Path)
+	} else {
+		t.calendars = append(t.calendars, *calendar)
+		return nil
+	}
 }
 
 func (t testBackend) ListCalendars(ctx context.Context) ([]Calendar, error) {
@@ -207,7 +316,7 @@ func (t testBackend) CurrentUserPrincipal(ctx context.Context) (string, error) {
 	return "/user/", nil
 }
 
-func (t testBackend) DeleteCalendarObject(ctx context.Context, path string) error {
+func (t *testBackend) DeleteCalendarObject(ctx context.Context, path string) error {
 	return nil
 }
 
@@ -222,7 +331,7 @@ func (t testBackend) GetCalendarObject(ctx context.Context, path string, req *Ca
 	return nil, fmt.Errorf("Couldn't find calendar object at: %s", path)
 }
 
-func (t testBackend) PutCalendarObject(ctx context.Context, path string, calendar *ical.Calendar, opts *PutCalendarObjectOptions) (*CalendarObject, error) {
+func (t *testBackend) PutCalendarObject(ctx context.Context, path string, calendar *ical.Calendar, opts *PutCalendarObjectOptions) (*CalendarObject, error) {
 	return nil, nil
 }
 
