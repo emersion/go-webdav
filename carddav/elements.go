@@ -9,6 +9,11 @@ import (
 
 const namespace = "urn:ietf:params:xml:ns:carddav"
 
+// calendarserverNamespace holds the CalendarServer extensions. It is not an
+// IETF namespace, but CS:getctag predates DAV:sync-token and remains the change
+// token several clients rely on.
+const calendarserverNamespace = "http://calendarserver.org/ns/"
+
 var (
 	addressBookHomeSetName = xml.Name{namespace, "addressbook-home-set"}
 
@@ -21,6 +26,8 @@ var (
 	addressBookMultigetName = xml.Name{namespace, "addressbook-multiget"}
 
 	addressDataName = xml.Name{namespace, "address-data"}
+
+	getCTagName = xml.Name{calendarserverNamespace, "getctag"}
 )
 
 // https://tools.ietf.org/html/rfc6352#section-6.2.3
@@ -218,4 +225,18 @@ type mkcolReq struct {
 	DisplayName  string                 `xml:"set>prop>displayname"`
 	Description  addressbookDescription `xml:"set>prop>addressbook-description"`
 	// TODO this could theoretically contain all addressbook properties?
+}
+
+// getCTag is the CalendarServer collection tag. Clients issue a Depth: 0
+// PROPFIND against a collection and enumerate it only when this value differs
+// from the one they already hold.
+//
+// https://github.com/apple/ccs-calendarserver/blob/master/doc/Extensions/caldav-ctag.txt
+type getCTag struct {
+	XMLName xml.Name `xml:"http://calendarserver.org/ns/ getctag"`
+	CTag    string   `xml:",chardata"`
+}
+
+func (c *getCTag) GetXMLName() xml.Name {
+	return getCTagName
 }
