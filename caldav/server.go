@@ -44,6 +44,19 @@ type Backend interface {
 	webdav.UserPrincipalBackend
 }
 
+// SyncBackend is a Backend that answers sync-collection REPORTs (RFC 6578).
+// SyncCalendarObjects returns what changed in the calendar at path since
+// query.SyncToken (everything when it is empty) and the token to ask with
+// next time: Updated holds the current objects, Deleted the paths gone. An
+// unknown token is ErrInvalidSyncToken.
+type SyncBackend interface {
+	SyncCalendarObjects(ctx context.Context, path string, query *SyncQuery) (*SyncResponse, error)
+}
+
+// ErrInvalidSyncToken answers a sync-collection with a token the server
+// cannot sync from; the client lists the collection anew.
+var ErrInvalidSyncToken = internal.NewSyncTokenError()
+
 // Handler handles CalDAV HTTP requests. It can be used to create a CalDAV
 // server.
 type Handler struct {
@@ -97,8 +110,62 @@ func (h *Handler) handleReport(w http.ResponseWriter, r *http.Request) error {
 		return h.handleQuery(r, w, report.Query)
 	} else if report.Multiget != nil {
 		return h.handleMultiget(r.Context(), w, report.Multiget)
+	} else if report.Sync != nil {
+		return h.handleSync(r.Context(), w, r.URL.Path, report.Sync)
 	}
-	return internal.HTTPErrorf(http.StatusBadRequest, "caldav: expected calendar-query or calendar-multiget element in REPORT request")
+	return internal.HTTPErrorf(http.StatusBadRequest, "caldav: expected calendar-query, calendar-multiget or sync-collection element in REPORT request")
+}
+
+func (h *Handler) handleSync(ctx context.Context, w http.ResponseWriter, path string, sync *internal.SyncCollectionQuery) error {
+	sb, ok := h.Backend.(SyncBackend)
+	if !ok {
+		return internal.HTTPErrorf(http.StatusForbidden, "caldav: sync-collection is not supported")
+	}
+	if sync.SyncLevel != "1" && sync.SyncLevel != "infinite" {
+		return internal.HTTPErrorf(http.StatusBadRequest, "caldav: sync-level must be 1 or infinite")
+	}
+	query := SyncQuery{SyncToken: sync.SyncToken}
+	if sync.Limit != nil {
+		query.Limit = int(sync.Limit.NResults)
+	}
+	if sync.Prop != nil {
+		var calendarData calendarDataReq
+		if err := sync.Prop.Decode(&calendarData); err != nil && !internal.IsNotFound(err) {
+			return err
+		}
+		decoded, err := decodeCalendarDataReq(&calendarData)
+		if err != nil {
+			return err
+		}
+		query.CompRequest = *decoded
+	}
+	res, err := sb.SyncCalendarObjects(ctx, path, &query)
+	if err != nil {
+		return err
+	}
+
+	b := backend{
+		Backend: h.Backend,
+		Prefix:  strings.TrimSuffix(h.Prefix, "/"),
+	}
+	propfind := internal.PropFind{Prop: sync.Prop}
+	if sync.Prop == nil {
+		propfind.AllProp = &struct{}{}
+	}
+	var resps []internal.Response
+	for i := range res.Updated {
+		resp, err := b.propFindCalendarObject(ctx, &propfind, &res.Updated[i])
+		if err != nil {
+			return err
+		}
+		resps = append(resps, *resp)
+	}
+	for _, p := range res.Deleted {
+		resps = append(resps, *internal.NewNotFoundResponse(p))
+	}
+	ms := internal.NewMultiStatus(resps...)
+	ms.SyncToken = res.SyncToken
+	return internal.ServeMultiStatus(w, ms)
 }
 
 func decodeParamFilter(el *paramFilter) (*ParamFilter, error) {
@@ -547,6 +614,16 @@ func (b *backend) propFindCalendar(ctx context.Context, propfind *internal.PropF
 			}, nil
 		},
 		internal.CurrentUserPrivilegeSetName: internal.PropFindValue(internal.NewCurrentUserPrivilegeSet(cal.ReadOnly)),
+	}
+
+	reports := []xml.Name{calendarQueryName, calendarMultigetName}
+	if _, ok := b.Backend.(SyncBackend); ok {
+		reports = append(reports, internal.SyncCollectionName)
+	}
+	props[internal.SupportedReportSetName] = internal.PropFindValue(internal.NewSupportedReportSet(reports...))
+	if cal.SyncToken != "" {
+		props[internal.SyncTokenName] = internal.PropFindValue(&internal.SyncToken{Token: cal.SyncToken})
+		props[internal.GetCTagName] = internal.PropFindValue(&internal.GetCTag{CTag: cal.SyncToken})
 	}
 
 	if cal.Name != "" {

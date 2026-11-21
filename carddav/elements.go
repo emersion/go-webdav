@@ -194,6 +194,7 @@ type addressDataResp struct {
 type reportReq struct {
 	Query    *addressbookQuery
 	Multiget *addressbookMultiget
+	Sync     *internal.SyncCollectionQuery
 }
 
 func (r *reportReq) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
@@ -205,6 +206,9 @@ func (r *reportReq) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	case addressBookMultigetName:
 		r.Multiget = &addressbookMultiget{}
 		v = r.Multiget
+	case internal.SyncCollectionName:
+		r.Sync = &internal.SyncCollectionQuery{}
+		v = r.Sync
 	default:
 		return fmt.Errorf("carddav: unsupported REPORT root %q %q", start.Name.Space, start.Name.Local)
 	}
