@@ -2,12 +2,9 @@ package webdav
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/emersion/go-webdav/internal"
 )
 
 func TestClientRemoveAll(t *testing.T) {
@@ -71,8 +68,7 @@ func TestClientRemoveAllPreconditionFailed(t *testing.T) {
 		t.Fatalf("NewClient() = %v", err)
 	}
 	err = c.RemoveAll(context.Background(), "/file", &RemoveAllOptions{IfMatch: `"abc"`})
-	var httpErr *internal.HTTPError
-	if !errors.As(err, &httpErr) || httpErr.Code != http.StatusPreconditionFailed {
+	if code := HTTPErrorCode(err); code != http.StatusPreconditionFailed {
 		t.Fatalf("RemoveAll() = %v, want HTTP error with status %v", err, http.StatusPreconditionFailed)
 	}
 }
