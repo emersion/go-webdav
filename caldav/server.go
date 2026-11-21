@@ -69,6 +69,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if done, err := h.serveOutbox(w, r); done || err != nil {
+		if err != nil {
+			internal.ServeError(w, err)
+		}
+		return
+	}
+
 	var err error
 	switch r.Method {
 	case "REPORT":
@@ -491,6 +498,13 @@ func (b *backend) propFindUserPrincipal(ctx context.Context, propfind *internal.
 			Href: internal.Href{Path: homeSetPath},
 		}),
 		internal.ResourceTypeName: internal.PropFindValue(internal.NewResourceType(internal.CollectionName, internal.PrincipalName)),
+	}
+	sched, err := scheduleProps(ctx, b.Backend)
+	if err != nil {
+		return nil, err
+	}
+	for name, f := range sched {
+		props[name] = f
 	}
 	return internal.NewPropFindResponse(principalPath, propfind, props)
 }
