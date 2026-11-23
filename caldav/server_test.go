@@ -233,3 +233,51 @@ func (t testBackend) ListCalendarObjects(ctx context.Context, path string, req *
 func (t testBackend) QueryCalendarObjects(ctx context.Context, path string, query *CalendarQuery) ([]CalendarObject, error) {
 	return nil, nil
 }
+
+const propPatchCalendarRequest = `<?xml version="1.0" encoding="UTF-8"?>
+<d:propertyupdate xmlns:d="DAV:" xmlns:a="http://apple.com/ns/ical/">
+  <d:set>
+    <d:prop>
+      <d:displayname>Work</d:displayname>
+      <a:calendar-color>#FF0000</a:calendar-color>
+    </d:prop>
+  </d:set>
+  <d:remove>
+    <d:prop>
+      <a:calendar-order/>
+    </d:prop>
+  </d:remove>
+</d:propertyupdate>
+`
+
+func TestPropPatchRefusesEachProperty(t *testing.T) {
+	calendar := Calendar{Path: "/user/calendars/cal"}
+	req := httptest.NewRequest("PROPPATCH", calendar.Path, strings.NewReader(propPatchCalendarRequest))
+	req.Header.Set("Content-Type", "application/xml")
+	w := httptest.NewRecorder()
+	handler := Handler{Backend: testBackend{calendars: []Calendar{calendar}}}
+	handler.ServeHTTP(w, req)
+
+	res := w.Result()
+	defer res.Body.Close()
+	if res.StatusCode != 207 {
+		t.Fatalf("unexpected status: %d", res.StatusCode)
+	}
+	data, err := io.ReadAll(res.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := string(data)
+
+	for _, name := range []string{"displayname", "calendar-color", "calendar-order"} {
+		if !strings.Contains(resp, name) {
+			t.Errorf("response does not name property %q:\n%s", name, resp)
+		}
+	}
+	if strings.Contains(resp, "prop xmlns=\"DAV:\"></prop>") {
+		t.Errorf("response names the DAV:prop container instead of the properties:\n%s", resp)
+	}
+	if !strings.Contains(resp, "403 Forbidden") {
+		t.Errorf("properties are not refused with 403:\n%s", resp)
+	}
+}
