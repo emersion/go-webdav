@@ -314,6 +314,10 @@ func (fs LocalFileSystem) Move(ctx context.Context, src, dst string, options *Mo
 		return false, err
 	}
 
+	if _, err := os.Stat(srcPath); err != nil {
+		return false, errFromOS(err)
+	}
+
 	if _, err := os.Stat(dstPath); err != nil {
 		if !os.IsNotExist(err) {
 			return false, errFromOS(err)
