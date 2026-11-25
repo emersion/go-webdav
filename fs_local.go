@@ -162,19 +162,34 @@ func (fs LocalFileSystem) Create(ctx context.Context, name string, body io.ReadC
 		return nil, false, err
 	}
 
-	wc, err := os.Create(p)
+	// Write to a temporary file in the same directory and rename it over the
+	// destination only after the whole body has been written. An interrupted
+	// PUT must not destroy an existing file.
+	wc, err := os.CreateTemp(filepath.Dir(p), ".webdav-*")
 	if err != nil {
 		return nil, false, errFromOS(err)
 	}
-	defer wc.Close()
+	tmp := wc.Name()
+	defer os.Remove(tmp)
+
+	if !created {
+		if info, err := os.Stat(p); err == nil {
+			if err := wc.Chmod(info.Mode().Perm()); err != nil {
+				wc.Close()
+				return nil, false, errFromOS(err)
+			}
+		}
+	}
 
 	if _, err := io.Copy(wc, body); err != nil {
-		os.Remove(p)
+		wc.Close()
 		return nil, false, err
 	}
 	if err := wc.Close(); err != nil {
-		os.Remove(p)
 		return nil, false, err
+	}
+	if err := os.Rename(tmp, p); err != nil {
+		return nil, false, errFromOS(err)
 	}
 
 	fi, err = fs.Stat(ctx, name)
