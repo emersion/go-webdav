@@ -34,3 +34,19 @@ func TestLocalFileSystemCopyDirectory(t *testing.T) {
 		t.Errorf("dst/old.txt still exists after overwrite: %v", err)
 	}
 }
+
+func TestLocalFileSystemMoveMissingSource(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "report.txt")
+	if err := os.WriteFile(dst, []byte("v1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	fs := LocalFileSystem(dir)
+	if _, err := fs.Move(context.Background(), "/draft.txt", "/report.txt", &MoveOptions{}); err == nil {
+		t.Fatal("Move() of a missing source succeeded")
+	}
+	if got, err := os.ReadFile(dst); err != nil || string(got) != "v1" {
+		t.Errorf("report.txt = %q, %v; want %q", got, err, "v1")
+	}
+}
