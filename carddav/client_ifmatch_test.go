@@ -2,7 +2,6 @@ package carddav
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,7 +9,6 @@ import (
 	"github.com/emersion/go-vcard"
 
 	"github.com/emersion/go-webdav"
-	"github.com/emersion/go-webdav/internal"
 )
 
 func minimalCard() vcard.Card {
@@ -71,11 +69,7 @@ func TestPutAddressObjectPreconditionFailed(t *testing.T) {
 	if err == nil {
 		t.Fatal("PutAddressObject: want error on 412, got nil")
 	}
-	var httpErr *internal.HTTPError
-	if !errors.As(err, &httpErr) {
-		t.Fatalf("not an HTTP error: %v", err)
-	}
-	if httpErr.Code != http.StatusPreconditionFailed {
-		t.Errorf("status code = %d, want %d", httpErr.Code, http.StatusPreconditionFailed)
+	if code := webdav.HTTPErrorCode(err); code != http.StatusPreconditionFailed {
+		t.Errorf("HTTPErrorCode() = %d, want %d", code, http.StatusPreconditionFailed)
 	}
 }
