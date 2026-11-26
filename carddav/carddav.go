@@ -33,6 +33,10 @@ type AddressBook struct {
 	// The client sets it when the server reports a
 	// DAV:current-user-privilege-set that doesn't grant DAV:write.
 	ReadOnly bool
+	// SyncToken is the address book's current sync-token (RFC 6578), also
+	// served as its getctag; empty when the server does not track changes.
+	// A Backend that sets it implements SyncBackend.
+	SyncToken string
 }
 
 func (ab *AddressBook) SupportsAddressData(contentType, version string) bool {
