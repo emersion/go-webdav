@@ -309,3 +309,62 @@ END:VCALENDAR`)
 		})
 	}
 }
+
+// https://datatracker.ietf.org/doc/html/rfc4791#section-9.9 defines the range as
+// [start, end): a VEVENT with a DTEND overlaps it when (start < DTEND AND end > DTSTART).
+func TestMatchCompTimeRangeBoundary(t *testing.T) {
+	newCO := func(dtstart, dtend string) CalendarObject {
+		s := "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Example Corp.//CalDAV Client//EN\r\n" +
+			"BEGIN:VEVENT\r\nDTSTAMP:20060206T001102Z\r\nUID:boundary\r\nSUMMARY:Boundary\r\n" +
+			"DTSTART:" + dtstart + "\r\n"
+		if dtend != "" {
+			s += "DTEND:" + dtend + "\r\n"
+		}
+		s += "END:VEVENT\r\nEND:VCALENDAR\r\n"
+		cal, err := ical.NewDecoder(strings.NewReader(s)).Decode()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return CalendarObject{Data: cal}
+	}
+
+	// The query range is the whole of 2006-01-03.
+	query := &CalendarQuery{
+		CompFilter: CompFilter{
+			Name: "VCALENDAR",
+			Comps: []CompFilter{
+				{
+					Name:  "VEVENT",
+					Start: toDate(t, "20060103T000000Z"),
+					End:   toDate(t, "20060104T000000Z"),
+				},
+			},
+		},
+	}
+
+	for _, tc := range []struct {
+		name    string
+		dtstart string
+		dtend   string
+		want    bool
+	}{
+		{"event covers the range exactly", "20060103T000000Z", "20060104T000000Z", true},
+		{"event ends at the range end", "20060102T000000Z", "20060104T000000Z", true},
+		{"zero-length event at the range start", "20060103T000000Z", "", true},
+		{"event inside the range", "20060103T060000Z", "20060103T120000Z", true},
+		{"event spans the range", "20060102T000000Z", "20060105T000000Z", true},
+		{"event ends at the range start", "20060102T000000Z", "20060103T000000Z", false},
+		{"event starts at the range end", "20060104T000000Z", "20060105T000000Z", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			co := newCO(tc.dtstart, tc.dtend)
+			got, err := Filter(query, []CalendarObject{co})
+			if err != nil {
+				t.Fatalf("unexpected error: %+v", err)
+			}
+			if matched := len(got) == 1; matched != tc.want {
+				t.Fatalf("matched=%v, want %v", matched, tc.want)
+			}
+		})
+	}
+}
